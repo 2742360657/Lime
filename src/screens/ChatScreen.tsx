@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { database } from '../storage/database';
 import type { DocumentRef } from '../domain';
@@ -14,6 +14,7 @@ import { LegacyChatHistory } from './LegacyChatHistory';
 type Source = DocumentRef & { title: string; kind: string; date: string; body?: string };
 export function ChatScreen({ route }: { route?: { params?: { documentId?: string; documentRevision?: number; quoteNonce?: string } } }) {
   const { theme } = useHabits(), c = theme.colors;
+  const insets = useSafeAreaInsets();
   const { store, runtime, state } = useAgent();
   const [sessions, setSessions] = useState<AgentSession[]>([]), [session, setSession] = useState('');
   const [messages, setMessages] = useState<AgentMessage[]>([]), [requests, setRequests] = useState<AgentRequest[]>([]), [results, setResults] = useState<Record<string, ActionResult[]>>({});
@@ -76,12 +77,12 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     { id: 'legacy', label: '旧版历史缓存', selected: legacy, onPress: () => setLegacy(true) },
   ];
   return <ScreenScaffold panelTitle="助手" panelItems={panels}>
-    {legacy ? <LegacyChatHistory /> : <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+    {legacy ? <LegacyChatHistory /> : <KeyboardAvoidingView style={{ flex: 1 }} contentContainerStyle={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top + 66}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, borderBottomColor: c.border, borderBottomWidth: 1 }}>
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sessions.find(s => s.id === session)?.title || '助手'}</Text>
         {button('配置', () => setSettingsVisible(true))}
       </View>
-      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
+      <ScrollView ref={scroll} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
         {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、习惯和显式记忆。日记需选中后才供本轮分析。</Text> : null}
         {messages.map(message => {
           const request = requests.find(r => r.id === message.request_id);
