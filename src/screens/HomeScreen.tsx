@@ -71,8 +71,7 @@ export function HomeScreen() {
   const editingHabit = habits.find((habit) => habit.id === editingHabitId) ?? null;
 
   const handleAddCheckin = (habitId: string) => {
-    const recordId = addCheckinNow(habitId);
-    setUndoState({ habitId, recordId });
+    void addCheckinNow(habitId).then(recordId => setUndoState({ habitId, recordId })).catch(() => {});
   };
   const dismissUndo = useCallback(() => setUndoState(null), []);
   const toggleId = (list: string[], id: string) =>

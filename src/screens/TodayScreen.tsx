@@ -303,8 +303,7 @@ export function TodayScreen() {
                     onOpenDetails={setDetailHabitId}
                     onLongPress={() => setHabitSelectMode(true)}
                     onAddCheckin={(habitId) => {
-                      const recordId = addCheckinNow(habitId);
-                      setUndoState({ kind: 'checkin', habitId, recordId });
+                      void addCheckinNow(habitId).then(recordId => setUndoState({ kind: 'checkin', habitId, recordId })).catch(() => {});
                     }}
                   />
                 ))}

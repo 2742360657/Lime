@@ -19,7 +19,7 @@ PACKAGE = 'app.lime.personalassistant.dev'
 ACTIVITY = PACKAGE + '/app.lime.personalassistant.MainActivity'
 ADB = shutil.which('adb')
 parser = argparse.ArgumentParser()
-parser.add_argument('mode', choices=['native', 'records'])
+parser.add_argument('mode', choices=['native', 'records', 'checkin', 'backup'])
 parser.add_argument('--serial', default='emulator-5554')
 args = parser.parse_args()
 if not ADB or not args.serial.startswith('emulator-'):
@@ -100,7 +100,7 @@ if args.mode == 'native':
     tap('OK')
     save_report('p1-native-result.json', result)
     print('PASS native synced-source queue, local-only migration, drafts/checkin, receipt and reopen', flush=True)
-else:
+elif args.mode == 'records':
     if '8081' in adb('reverse', '--list'):
         raise RuntimeError('Standalone acceptance requires no Metro reverse mapping on 8081.')
     fixture = 'LIME-P1-' + uuid.uuid4().hex[:8]
@@ -120,6 +120,7 @@ else:
     tap('习惯'); tap('新建习惯'); write('习惯名称', fixture + '-habit')
     hide_keyboard(); tap('保存'); wait(fixture + '-habit')
     tap('打卡：' + fixture + '-habit')
+    wait('已记录一次打卡')
     adb('shell', 'am', 'force-stop', PACKAGE)
     launch()
     tap('日记'); wait(fixture)
@@ -132,3 +133,57 @@ else:
     assert find(ui(), '发送消息') is None
     save_report('p1-records-result.json', {'fixture': fixture, 'standalone': True, 'diary': True, 'memo': True, 'task': True, 'habit': True, 'restart': True, 'serverMenuRemoved': True, 'assistantReadOnly': True})
     print('PASS standalone native UI records, process restart, server menu removal and explicit assistant state', flush=True)
+elif args.mode == 'checkin':
+    fixture = json.loads((ROOT / '.local/p1-records-result.json').read_text())['fixture']
+    launch(); tap('习惯'); tap('打卡：' + fixture + '-habit'); wait('已记录一次打卡')
+    adb('shell', 'am', 'force-stop', PACKAGE); launch(); tap('习惯'); wait(fixture + '-habit')
+    save_report('p1-checkin-result.json', {'ackAfterCommit': True, 'restart': True, 'fixture': fixture})
+    print('PASS checkin acknowledgement followed immediately by process restart', flush=True)
+else:
+    directory = 'LimeP1Backup-' + uuid.uuid4().hex[:8]
+    adb('shell', 'mkdir', '-p', '/sdcard/Documents/' + directory)
+    launch(); tap('编辑个人资料'); tap('数据备份'); wait('USE THIS FOLDER')
+    # DocumentsUI Back first navigates to the parent, then cancels the picker.
+    for _ in range(4):
+        if find(ui(), '数据备份') is not None:
+            break
+        adb('shell', 'input', 'keyevent', '4')
+    wait('数据备份')
+    tap('数据备份')
+    tree = ui()
+    if find(tree, directory) is None and find(tree, 'Documents') is not None:
+        tap('Documents')
+    tap(directory); tap('USE THIS FOLDER'); tap('ALLOW')
+    wait('导出完成'); tap('OK')
+    filename = next(name for name in adb('shell', 'ls', '/sdcard/Documents/' + directory).splitlines() if name.startswith('lime-records-'))
+    backup = json.loads(adb('shell', 'cat', '/sdcard/Documents/' + directory + '/' + filename))
+    assert backup['format'] == 'angelime-records' and backup['version'] == 1
+    fixture = json.loads((ROOT / '.local/p1-records-result.json').read_text())['fixture']
+    diary = next(row for row in backup['rows']['documents'] if row['title'] == fixture)
+    memo = next(row for row in backup['rows']['documents'] if row['title'] == fixture + '-memo')
+    habit = next(row for row in backup['rows']['habits'] if row['name'] == fixture + '-habit')
+    assert diary['body'] == 'Synthetic original diary text.' and memo['body'] == 'Synthetic memo original.'
+    assert len([row for row in backup['rows']['checkins'] if row['habit_id'] == habit['id'] and row['deleted'] == 0]) == 1
+    assert any(row['title'] == fixture + '-task' for row in backup['rows']['tasks'])
+    marker = 'LIME-RESTORE-' + uuid.uuid4().hex[:8]
+    memo.update(title=marker + '-copy', body='A synthetic conflicting imported copy.')
+    backup['drafts'] = [{'id': marker + '-draft', 'document_id': memo['id'], 'kind': 'memo', 'title': marker + '-draft', 'body': 'Synthetic unsaved draft.', 'date': memo['date'], 'group_id': None, 'base_revision': 1, 'base_content': None}]
+    imported_name = marker + '.json'
+    private = ROOT / '.local' / imported_name
+    private.write_text(json.dumps(backup)); private.chmod(0o600)
+    adb('push', str(private), '/sdcard/Download/' + imported_name)
+
+    def pick_import():
+        tap('数据恢复')
+        tree = ui()
+        if find(tree, imported_name) is None:
+            tap('Show roots'); tap('Downloads')
+        tap(imported_name)
+
+    pick_import(); wait('合并恢复确认'); tap('合并恢复'); wait('本机恢复完成'); tap('OK')
+    pick_import(); tap('合并恢复'); wait('这份备份已导入，未重复写入。'); tap('OK')
+    tap('日记'); tap('打开页面菜单'); tap('备忘录')
+    wait(fixture + '-memo'); wait(marker + '-copy')
+    tap('打开 ' + fixture + '-memo'); wait('Synthetic memo original.'); tap('返回备忘录列表')
+    save_report('p1-backup-result.json', {'nativeExport': True, 'cancelExport': True, 'nativeImport': True, 'repeatReceipt': True, 'conflictCopy': True, 'originalPreserved': True, 'checkinCount': 1, 'draftImported': True, 'fixture': marker})
+    print('PASS SAF export/cancel, exact persisted checkin, native picker import, conflict copy and repeat receipt', flush=True)

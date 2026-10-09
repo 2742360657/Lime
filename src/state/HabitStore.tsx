@@ -41,6 +41,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
           if(!doc||doc.deleted||doc.revision!==action.expectedRevision)throw new Error('SOURCE_CHANGED');
         }
         const fresh={...current.current,appData:await readBusiness(tx,current.current.appData)};
+        if ((action.type === 'add-checkin-now' || action.type === 'add-checkin') && !fresh.appData.habits.some(h => h.id === action.habitId && h.archivedAt === null)) throw new Error('HABIT_CHANGED');
         const updated=habitReducer(fresh,action);
         await writeBusiness(tx,fresh.appData,updated.appData);
         return {...updated,appData:await readBusiness(tx,updated.appData)};
@@ -365,12 +366,12 @@ export function HabitProvider({ children }: PropsWithChildren) {
     dispatch({ type: 'delete-habit', habitId });
   }, []);
 
-  const addCheckinNow = useCallback((habitId: string) => {
+  const addCheckinNow = useCallback(async (habitId: string) => {
     const timestamp = clampToMinute(Date.now());
     const record = createCheckinRecord(getTodayKey(), timestamp, '');
-    dispatch({ type: 'add-checkin-now', habitId, record });
+    await commitAction({ type: 'add-checkin-now', habitId, record });
     return record.id;
-  }, []);
+  }, [commitAction]);
 
   const addCheckin = useCallback((habitId: string, dateKey: string, timestamp: number, note: string) => {
     dispatch({ type: 'add-checkin', habitId, dateKey, timestamp, note });
