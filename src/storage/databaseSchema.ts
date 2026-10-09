@@ -27,6 +27,8 @@ export const tableColumns = {
   local_agent_requests: { session_id: column.text, text: column.text, source_refs: column.text, status: column.text, error: column.text, created_at: column.integer, updated_at: column.integer },
   local_agent_grants: { request_id: column.text, command_type: column.text, target_id: column.text, fingerprint: column.text, receipt: column.text },
   local_agent_results: { request_id: column.text, result: column.text, created_at: column.integer },
+  local_materials: { filename: column.text, uri: column.text, hash: column.text, size: column.integer, mime: column.text, kind: column.text, body: column.text, images: column.text, pages: column.integer, status: column.text, note: column.text, revision: column.integer, deleted: column.integer, created_at: column.integer },
+  local_material_imports: { outcome: column.text, created_at: column.integer },
   local_agent_sources: { request_id: column.text, document_id: column.text, revision: column.integer, title: column.text, body: column.text, kind: column.text, date: column.text },
 };
 

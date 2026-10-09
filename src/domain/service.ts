@@ -10,7 +10,7 @@ export type ActivityRow = BaseRow & { kind: string; title: string; note: string;
 export type ProposalRow = BaseRow & { command: string; source_refs: string; status: string; request_id: string; operation_id: string | null; receipt: string | null };
 type SavedOperation = { fingerprint: string; receipt: string };
 type Deps = { id: () => string; now: () => number; digest: (text: string) => Promise<string> };
-const refsSchema = z.array(z.strictObject({ id: identifier, revision })).max(4);
+const refsSchema = z.array(z.strictObject({ id: identifier, revision, kind: z.literal('attachment').optional() })).max(4);
 
 export function createDomain(db: DomainDatabase, deps: Deps) {
   function parse(value: unknown): Command {
@@ -39,7 +39,8 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
   }
   async function verifyRefs(tx: DomainTransaction, refs: DocumentRef[]) {
     for (const ref of refs) {
-      const source = await tx.getOptional<BaseRow>('SELECT id,revision,deleted FROM documents WHERE id=?', [ref.id]);
+      const table = ref.kind === 'attachment' ? 'local_materials' : 'documents';
+      const source = await tx.getOptional<BaseRow>(`SELECT id,revision,deleted FROM ${table} WHERE id=?`, [ref.id]);
       if (!source || source.deleted || source.revision !== ref.revision) throw new DomainError('SOURCE_CHANGED');
     }
   }
@@ -208,9 +209,14 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     },
     async readDocument(ref: DocumentRef, context: ReadContext) {
       checkedRefs([ref]);
-      if (!context || !['ui', 'agent'].includes(context.actor) || (context.actor === 'agent' && !checkedRefs(context.documentRefs).some(r => r.id === ref.id && r.revision === ref.revision))) throw new DomainError('PERMISSION_DENIED');
+      if (!context || !['ui', 'agent'].includes(context.actor) || (context.actor === 'agent' && !checkedRefs(context.documentRefs).some(r => r.id === ref.id && r.revision === ref.revision && r.kind === ref.kind))) throw new DomainError('PERMISSION_DENIED');
       return db.readTransaction(async tx => {
         await verifyRefs(tx, [ref]);
+        if (ref.kind === 'attachment') {
+          const material = await tx.getOptional<{ id: string; filename: string; body: string; note: string; status: string; revision: number }>('SELECT id,filename,body,note,status,revision FROM local_materials WHERE id=?', [ref.id]);
+          if (!material || material.status !== 'ready') throw new DomainError('INVALID_ARGUMENT');
+          return { id: material.id, kind: 'attachment', title: material.filename, body: material.body, date: '', revision: material.revision, note: material.note };
+        }
         return tx.getOptional<{ id: string; kind: string; title: string; body: string; date: string; revision: number }>('SELECT id,kind,title,body,date,revision FROM documents WHERE id=?', [ref.id]);
       });
     },

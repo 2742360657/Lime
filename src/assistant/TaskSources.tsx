@@ -1,14 +1,16 @@
+import { MaterialViewer } from '../materials/MaterialViewer';
 import {useEffect,useState} from 'react';
 import {Text,TouchableOpacity,View} from 'react-native';
 import {database} from './database';
 import {useHabits} from '../state/HabitStore';
 
-type Sources={proposals:{id:string;summary:string}[];sources:{id:string;filename:string;status:string;parser:string|null;source_kind?:string;revision?:number;text:string;truncated:boolean}[]};
+type Sources={proposals:{id:string;summary:string}[];sources:{id:string;filename:string;status:string;parser:string|null;source_kind?:string;revision?:number;text:string;truncated:boolean;material_id?:string}[]};
 
 // On-demand details keep the ordinary task editor small. Cached sources can be
 // read offline; no parse/model call is made by viewing the original evidence.
 export function TaskSources({taskId}:{taskId:string}) {
  const {theme}=useHabits();
+ const [preview,setPreview]=useState<{id:string;body:string;revision:number}|null>(null);
  const [data,setData]=useState<Sources|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[expanded,setExpanded]=useState(false);
  useEffect(()=>{setData(null);setMessage('');setExpanded(false);setBusy(false);},[taskId]);
  async function load() {
@@ -23,8 +25,8 @@ export function TaskSources({taskId}:{taskId:string}) {
     const matching=proposals.filter(p=>{const receipt=JSON.parse(p.receipt);return receipt.entity?.kind==='task'&&receipt.entity.id===taskId;});
     const sources:Sources['sources']=[];
     for(const p of matching) {
-     const snapshots=await database.getAll<{id:string;title:string;body:string;revision:number;date:string}>('SELECT * FROM local_agent_sources WHERE request_id=?',[p.request_id]);
-     for(const s of snapshots)if(!sources.some(old=>old.id===s.id))sources.push({id:s.id,filename:s.title||s.date||'引用记录',status:'saved',parser:null,source_kind:'document',revision:s.revision,text:s.body,truncated:false});
+     const snapshots=await database.getAll<{id:string;title:string;body:string;revision:number;date:string;kind:string;document_id:string}>('SELECT * FROM local_agent_sources WHERE request_id=?',[p.request_id]);
+     for(const s of snapshots)if(!sources.some(old=>old.id===s.id))sources.push({id:s.id,filename:s.title||s.date||'引用记录',status:'saved',parser:null,source_kind:s.kind==='attachment'?'attachment':'document',revision:s.revision,text:s.body,truncated:false,material_id:s.kind==='attachment'?s.document_id:undefined});
     }
     if(sources.length){setData({proposals:[],sources});setMessage('本机保存的引用原文快照。');}
     else setMessage('本机没有保存这条待办的历史来源。');
@@ -33,6 +35,7 @@ export function TaskSources({taskId}:{taskId:string}) {
   finally {setBusy(false);}
  }
  return <View style={{gap:8}}>
+  <MaterialViewer id={preview?.id??null} snapshot={preview??undefined} onClose={()=>setPreview(null)}/>
   <TouchableOpacity accessibilityLabel="查看待办来源" disabled={busy} onPress={()=>expanded?setExpanded(false):void load()}>
    <Text style={{fontSize:13,color:theme.colors.primary}}>{busy?'正在读取来源…':expanded?'收起来源':'查看来源'}</Text>
   </TouchableOpacity>
@@ -41,6 +44,7 @@ export function TaskSources({taskId}:{taskId:string}) {
    {data?.sources.map(s=><View key={s.id} style={{gap:4}}>
     <Text style={{fontSize:13,color:theme.colors.textPrimary}}>{s.filename}</Text>
     <Text style={{fontSize:12,color:theme.colors.textMuted}}>{s.source_kind==='document'?`引用原文 · 版本 ${s.revision}`:s.parser?.includes('vision')?'图片识别结果，请核对':s.text?'已保存的正文摘录':'尚无正文摘录'}{s.truncated?' · 摘录已截断':''}</Text>
+    {s.material_id?<TouchableOpacity accessibilityLabel="查看来源原件" onPress={()=>setPreview({id:s.material_id!,body:s.text,revision:s.revision!})}><Text style={{fontSize:12,color:theme.colors.primary}}>查看原件</Text></TouchableOpacity>:null}
     {s.text?<Text selectable style={{fontSize:13,lineHeight:20,color:theme.colors.textSecondary}}>{s.text}</Text>:null}
    </View>)}
    {data&&!data.sources.length?<Text style={{fontSize:13,color:theme.colors.textMuted}}>这条待办没有资料来源。</Text>:null}

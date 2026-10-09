@@ -1,3 +1,6 @@
+import { MaterialPicker } from '../materials/MaterialPicker';
+import { MaterialViewer } from '../materials/MaterialViewer';
+import { materialStore } from '../materials/service';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,14 +14,15 @@ import { ActionCard } from '../agent/ActionCard';
 import type { ActionResult, AgentMessage, AgentRequest, AgentSession } from '../agent/store';
 import { LegacyChatHistory } from './LegacyChatHistory';
 
-type Source = DocumentRef & { title: string; kind: string; date: string; body?: string };
-export function ChatScreen({ route }: { route?: { params?: { documentId?: string; documentRevision?: number; quoteNonce?: string } } }) {
+type Source = Omit<DocumentRef, 'kind'> & { title: string; kind: string; date: string; body?: string };
+export function ChatScreen({ route }: { route?: { params?: { documentId?: string; documentRevision?: number; quoteNonce?: string; materialsNonce?: string } } }) {
   const { theme } = useHabits(), c = theme.colors;
   const insets = useSafeAreaInsets();
   const { store, runtime, state } = useAgent();
   const [sessions, setSessions] = useState<AgentSession[]>([]), [session, setSession] = useState('');
   const [messages, setMessages] = useState<AgentMessage[]>([]), [requests, setRequests] = useState<AgentRequest[]>([]), [results, setResults] = useState<Record<string, ActionResult[]>>({});
   const [input, setInput] = useState(''), [quoted, setQuoted] = useState<Source[]>([]), [picker, setPicker] = useState(false), [documents, setDocuments] = useState<Source[]>([]);
+  const [filePicker, setFilePicker] = useState(false), [materialPreview, setMaterialPreview] = useState<{ id: string; body: string; revision: number } | null>(null), [draftSession, setDraftSession] = useState('');
   const [sourcePreview, setSourcePreview] = useState<Source | null>(null), [sources, setSources] = useState<Record<string, Source[]>>({});
   const [settingsVisible, setSettingsVisible] = useState(false), [legacy, setLegacy] = useState(false), [error, setError] = useState('');
   const scroll = useRef<ScrollView>(null), initializing = useRef(false);
@@ -52,17 +56,33 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   }, [session, store]);
   useEffect(() => {
     let active = true;
-    if (route?.params?.documentId) void database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [route.params.documentId, route.params.documentRevision ?? -1]).then(source => {
-      if (active) { if (source) { setQuoted([source]); setLegacy(false); } else setError('引用已变化，请返回记录重新选择。'); }
+    if (route?.params?.documentId && draftSession === session) void database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [route.params.documentId, route.params.documentRevision ?? -1]).then(source => {
+      if (active) { if (source) { setQuoted(previous => [...previous.filter(s => s.id !== source.id), source].slice(0, 4)); setLegacy(false); } else setError('引用已变化，请返回记录重新选择。'); }
     }).catch(() => { if (active) setError('引用暂时无法读取。'); });
     return () => { active = false; };
-  }, [route?.params?.documentId, route?.params?.documentRevision, route?.params?.quoteNonce]);
+  }, [route?.params?.documentId, route?.params?.documentRevision, route?.params?.quoteNonce, draftSession, session]);
+  useEffect(() => { if (route?.params?.materialsNonce) { setFilePicker(true); setLegacy(false); } }, [route?.params?.materialsNonce]);
+  useEffect(() => {
+    if (!session) return; let active = true; setDraftSession(''); setQuoted([]);
+    void materialStore.draft(session).then(async refs => {
+      const selections: Source[] = [];
+      for (const ref of refs) {
+        if (ref.kind === 'attachment') { const m = await materialStore.get(ref.id); if (m && !m.deleted) selections.push({ id: m.id, revision: ref.revision, kind: 'attachment', title: m.filename, date: '' }); }
+        else { const doc = await database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND deleted=0', [ref.id]); if (doc) selections.push({ ...doc, revision: ref.revision }); }
+      }
+      if (active) { setQuoted(selections); setDraftSession(session); }
+    }).catch(() => { if (active) setError('材料选择草稿暂时无法恢复。'); });
+    return () => { active = false; };
+  }, [session]);
+  useEffect(() => {
+    if (draftSession === session && session) void materialStore.saveDraft(session, quoted.map(ref => ({ id: ref.id, revision: ref.revision, ...(ref.kind === 'attachment' ? { kind: 'attachment' as const } : {}) }))).catch(() => setError('材料选择未保存，请重试。'));
+  }, [session, draftSession, quoted]);
   async function send(retryId?: string) {
     if (state.busy || !session) return;
     const text = input, refs = quoted;
     setError('');
-    if (!retryId) { setInput(''); setQuoted([]); }
-    try { await runtime.start(session, text, refs.map(({ id, revision }) => ({ id, revision })), retryId); }
+
+    try { await runtime.start(session, text.trim() || '请帮我分析选中的材料。', refs.map(({ id, revision, kind }) => ({ id, revision, ...(kind === 'attachment' ? { kind: 'attachment' as const } : {}) })), retryId, () => { if (!retryId) { setInput(''); setQuoted([]); } }); }
     catch (e) { if (!retryId) { setInput(text); setQuoted(refs); } setError(e instanceof Error ? e.message : '请求未完成，请重试。'); }
   }
   async function pickRecords() {
@@ -90,7 +110,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
           const text = generating ? state.text || message.body : message.body;
           return <View key={message.id} style={{ alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '96%', minWidth: 100, gap: 7, padding: 10, borderRadius: 10, backgroundColor: message.role === 'user' ? c.primarySoft : c.surface }}>
             <Text selectable style={{ fontSize: 14, lineHeight: 22, color: c.textPrimary }}>{text || (generating ? '正在处理…' : request?.status === 'complete' ? '本轮已结束。' : '未生成回答。')}</Text>
-            {message.role === 'user' ? sources[message.request_id]?.map(source => <View key={source.id}>{button(`原文 · ${source.title || source.date || '记录'}`, () => setSourcePreview(source))}</View>) : null}
+            {message.role === 'user' ? sources[message.request_id]?.map(source => <View key={source.id}>{button(`原文 · ${source.title || source.date || '记录'}`, () => source.kind === 'attachment' ? setMaterialPreview({ id: source.id, body: source.body ?? '', revision: source.revision }) : setSourcePreview(source))}</View>) : null}
             {message.role === 'assistant' ? <>
               {results[message.request_id]?.map((result, i) => <ActionCard key={result.proposalId || result.receipt?.operationId || i} result={result} />)}
               {request?.error ? <Text style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{request.error}</Text> : null}
@@ -103,11 +123,13 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
       <View style={{ paddingHorizontal: 10, paddingTop: 4, paddingBottom: 8, gap: 5, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
         {quoted.map(source => <View key={source.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: c.textSecondary }}>本轮引用 · {source.title || source.date || '记录'}</Text>{button('取消引用', () => setQuoted(quoted.filter(s => s.id !== source.id)))}</View>)}
         <TextInput accessibilityLabel="给助手发消息" placeholder="给助手发消息…" placeholderTextColor={c.textMuted} multiline maxLength={12000} value={input} onChangeText={setInput} style={{ fontSize: 14, lineHeight: 21, minHeight: 42, maxHeight: 120, padding: 9, borderWidth: 1, borderColor: c.border, borderRadius: 8, color: c.textPrimary }} />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>{button('引用记录', () => void pickRecords(), quoted.length >= 4)}
-          {state.busy ? button(state.sessionId === session ? '停止生成' : '停止其他对话生成', runtime.stop) : button('发送', () => void send(), !input.trim() || !session)}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><View style={{ flexDirection: 'row' }}>{button('引用记录', () => void pickRecords(), quoted.length >= 4)}{button('文件／图片', () => setFilePicker(true))}</View>
+          {state.busy ? button(state.sessionId === session ? '停止生成' : '停止其他对话生成', runtime.stop) : button('发送', () => void send(), (!input.trim() && !quoted.length) || !session)}
         </View>
       </View>
     </KeyboardAvoidingView>}
+    <MaterialPicker visible={filePicker} remaining={4 - quoted.length} onClose={() => setFilePicker(false)} onPick={m => setQuoted(previous => previous.some(s => s.id === m.id) ? previous.map(s => s.id === m.id ? { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' } : s) : [...previous, { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    <MaterialViewer id={materialPreview?.id ?? null} snapshot={materialPreview ?? undefined} onClose={() => setMaterialPreview(null)} />
     <AssistantSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     <Modal visible={picker || Boolean(sourcePreview)} animationType="slide" onRequestClose={() => { setPicker(false); setSourcePreview(null); }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>

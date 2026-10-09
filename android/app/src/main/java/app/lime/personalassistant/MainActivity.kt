@@ -1,5 +1,6 @@
 package app.lime.personalassistant
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 
@@ -15,8 +16,15 @@ class MainActivity : ReactActivity() {
     // Set the theme to AppTheme BEFORE onCreate to support
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
+    MaterialFiles.capture(applicationContext, intent)
     setTheme(R.style.AppTheme);
     super.onCreate(null)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    MaterialFiles.capture(applicationContext, intent)
+    super.onNewIntent(intent)
+    setIntent(intent)
   }
 
   /**

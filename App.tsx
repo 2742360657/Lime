@@ -1,3 +1,4 @@
+import { IncomingMaterials } from './src/materials/IncomingMaterials';
 import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -128,6 +129,7 @@ function AppShell() {
         )}
       </View>
 
+      <IncomingMaterials onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('assistant', { materialsNonce: String(Date.now()) }); }} />
       {exitPromptVisible ? (
         <View style={styles.promptOverlay} pointerEvents="box-none">
           <View style={styles.promptCard}>

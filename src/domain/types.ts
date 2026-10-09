@@ -8,7 +8,7 @@ export interface DomainDatabase {
   writeTransaction<T>(fn: (tx: DomainTransaction) => Promise<T>): Promise<T>;
   readTransaction<T>(fn: (tx: DomainTransaction) => Promise<T>): Promise<T>;
 }
-export type DocumentRef = { id: string; revision: number };
+export type DocumentRef = { id: string; revision: number; kind?: 'attachment' };
 // Constructed by application code. None of these fields are model tool arguments.
 export type ReadContext = { actor: 'ui' | 'agent'; documentRefs?: DocumentRef[] };
 export type UiContext = { actor: 'ui' };

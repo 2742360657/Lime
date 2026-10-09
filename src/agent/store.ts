@@ -73,17 +73,19 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
       return db.readTransaction(tx => tx.getAll('SELECT * FROM local_agent_requests WHERE session_id=? ORDER BY created_at,id', [sessionId]));
     },
     async begin(sessionId: string, text: string, refs: DocumentRef[], active: { id: string }[]): Promise<AgentRequest> {
-      if (!text.trim() || text.length > 12000 || refs.length > 4 || !z.array(z.object({ id: z.string().min(1).max(160), revision: z.number().int().positive() }).strict()).safeParse(refs).success)
+      if (!text.trim() || text.length > 12000 || refs.length > 4 || !z.array(z.object({ id: z.string().min(1).max(160), revision: z.number().int().positive(), kind: z.literal('attachment').optional() }).strict()).safeParse(refs).success)
         throw new Error('请输入消息，最多 12000 字符，引用不超过四篇。');
       const id = deps.id(), now = deps.now();
       return db.writeTransaction(async tx => {
         if (!await tx.getOptional('SELECT id FROM local_agent_sessions WHERE id=?', [sessionId])) throw new Error('对话不存在，请新建对话。');
         let sourceLength = 0;
         for (const ref of refs) {
-          const source = await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>('SELECT id,revision,title,body,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [ref.id, ref.revision]);
+          const source = ref.kind === 'attachment'
+            ? await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>("SELECT id,revision,filename AS title,body,'attachment' AS kind,'' AS date FROM local_materials WHERE id=? AND revision=? AND deleted=0 AND status='ready'", [ref.id, ref.revision])
+            : await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>('SELECT id,revision,title,body,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [ref.id, ref.revision]);
           if (!source) throw new Error('引用已变化，请重新选择。');
           sourceLength += JSON.stringify(source).length;
-          if (source.body.length > 16000 || sourceLength > 32000) throw new Error('本轮记录过长，请选择较短的记录。完整材料入口将在后续阶段接入。');
+          if (source.body.length > 32000 || sourceLength > 32000) throw new Error('本轮材料过长，请减少引用或拆分后选择。');
           await tx.execute('INSERT INTO local_agent_sources(id,request_id,document_id,revision,title,body,kind,date) VALUES(?,?,?,?,?,?,?,?)', [`${id}:${ref.id}`, id, ref.id, ref.revision, source.title, source.body, source.kind, source.date]);
         }
         const request = { id, session_id: sessionId, text: text.trim(), source_refs: JSON.stringify(refs), status: 'running', error: null, created_at: now };
@@ -94,6 +96,7 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
           await tx.execute('INSERT INTO local_agent_grants(id,request_id,command_type,target_id,fingerprint,receipt) VALUES(?,?,?,?,NULL,NULL)', [deps.id(), id, grant.commandType, grant.targetId]);
         }
         await tx.execute("UPDATE local_agent_sessions SET title=CASE WHEN title='新对话' THEN ? ELSE title END,updated_at=? WHERE id=?", [request.text.slice(0, 22), now, sessionId]);
+        await tx.execute('DELETE FROM local_meta WHERE id=?', ['material-draft-' + sessionId]);
         return request;
       });
     },
