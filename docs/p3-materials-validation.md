@@ -20,9 +20,20 @@
 | 原生隔离探针 | API36模拟器通过UTF-8/CRLF、图片分析副本、PDF文本/扫描、11MiB无size流拒绝、非法私有file URI与自有content provider拒绝、非法编码/Office/21页PDF保留原件、材料去重、关闭重开、来源归档阻断、建议接受一次，上传队列0 |
 | 真实视觉API | Node22加载产品`src/agent/runtime.ts`，一次真实DeepSeek请求正确识别Native生成的合成图片数字，请求完成；仅使用合成图片，Key在私密文件，没有配置到手机。不是手机实际云聊天验收 |
 | 系统入口及界面 | API36分段续跑通过冷SEND、冷/热VIEW、热SEND_MULTIPLE、失效URI错误、系统选择/取消、选择草稿重启、正文更正、建议修改/接受与待办原件回看；实际SQLite快照确认内容不重复、目标任务仅一条、批次回执与附件来源保留 |
-| 最终preview | 待当前源码提交后构建与独立启动核对 |
+| 最终preview | ARM64与x86_64均由干净源码`6444a80`构建；模拟器覆盖安装，Metro停止/无ADB反向映射下启动、已有材料/更正文保留及冷SEND通过；两包Manifest均不含debug fixture provider/sender |
 
 Jest覆盖材料重复/回执事务、未选择来源拒绝、来源修改/归档、建议重复接受、SDK图片消息序列化、后续轮不自动携带材料，以及更正后重试阻断但旧正文快照仍可回看。真实视觉调用单独完成，不为了UI续测反复调用模型。
+
+## 构建与Git身份
+
+功能提交`6444a80592dc2cdde915d5a0656f7806001bc829`，两个preview的`dirty=false`；随后仅文档收尾，不因此重构建。包ID为`app.lime.personalassistant.dev`，使用既有本地开发签名，没有覆盖旧Angelime或生成公开Release。签名证书SHA-256：`d257a8f963a473c3baff8b2bd67cc818d42dc90b2acf1155339e3385c919cf99`。
+
+| 架构 | APK SHA-256 | 验收 |
+|---|---|---|
+| arm64-v8a | `57991f1a517f3ce15845c47585dd02b2d0425366052047c72851f5580548b1ca` | 已构建/签名核对；真机安装待测 |
+| x86_64 | `3fdfb89a0eaae290fb5d033fc9962bc900b91cca8018bb998e00d5c42e0b6738` | 已构建/覆盖安装/脱离Metro启动与材料保留通过 |
+
+静态/仓库/脚本检查和staged及`origin/main..HEAD`的Gitleaks脱敏扫描通过；本批本地提交，没有公开推送。任务Metro已停止，未新增ADB反向映射；测试下载文件只删除本任务合成件，保留原有应用数据、旧工具与私人材料。
 
 ## 修复与续测
 

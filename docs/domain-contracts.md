@@ -44,7 +44,7 @@
 
 - `listTasks/listHabits/listMemories/listActivities` 返回明确版本及有限记录，排除删除/忘记项；习惯列表不会自动附上全部历史。
 - `readDocument({id,revision},context)` 返回该版本完整原文；无引用或版本变化拒绝。`listCheckins` 用 habitId 和日期范围读取有限历史。
-- `propose(command, {requestId, documentRefs})` 校验命令与当前来源版本，仅保存候选。来源内文字是数据，不能获得操作身份。P2 来源限定 documents；P3 扩展附件来源。
+- `propose(command, {requestId, documentRefs})` 校验命令与当前来源版本，仅保存候选。来源内文字是数据，不能获得操作身份。P2来源限定documents；当前P3已扩展local_materials附件引用，kind/版本校验与原文授权规则见[材料契约](material-contracts.md)。
 - `editProposal(id,expectedRevision,command)` 仅人工调用；`acceptProposal(id,expectedRevision,operationId)` 仅人工调用，重新核对来源/目标版本。重复确认同一建议返回原回执，不重复写。
 - 来源变化时不套用旧建议；人工需重新选择材料再生成。拒绝建议时清空候选命令内容，保留最小状态。
 

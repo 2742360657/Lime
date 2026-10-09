@@ -73,3 +73,9 @@ bash scripts/android-build.sh release arm64-v8a
 ## 本机环境恢复（2026-10-09）
 
 工作目录不变，已迁移到容量充足的系统分区。按用户要求不挂载、不使用三星数据盘；工具/缓存继续使用现有路径。环境文件支持根挂载路径及可选文件系统UUID核对，具体设备UUID只写忽略的`.local/dev.env`。可用`LIME_AVD_DIR`/`LIME_AVD_NAME`复用已有模拟器，运行`bash scripts/emulator-run.sh`，不清AVD或应用数据。当前真机未连接，原生和系统入口验收先在API36模拟器执行；人工手机体验单独保留。
+
+## P3阶段验收入口
+
+当前源码debug + 本仓库Metro就绪后，用`python3 scripts/p3-material-device-check.py --serial <device>`执行随机隔离库/合成原件探针；普通数据不被重置。`python3 scripts/p3-material-ui-emulator-check.py`只允许模拟器，实际系统选择/分享/原件/建议/来源流程使用合成件。失败可按`--from-stage picker`或`proposal`从已记录完成的阶段续跑；不能在没有前段结果时声称全流程通过。debug菜单“准备模拟器材料建议”不调用模型且拒绝真机普通库。
+
+当前开发机localhost默认优先IPv6，Metro可用`NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --localhost --port 8081`绑定本任务IPv4回环，确保模拟器`10.0.2.2`加载当前源码；不修改系统DNS。结束只停止本任务Metro，preview必须停Metro独立检查。P3本批UI为定位修正后分段续跑，手机云聊天/中文IME与未覆盖组合仍待测，见[P3报告](p3-materials-validation.md)。
