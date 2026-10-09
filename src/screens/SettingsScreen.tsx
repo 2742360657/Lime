@@ -11,6 +11,7 @@ import {pickBackupFile} from '../storage/habitStorage';
 import {exportRecordBackup,readRecordBackup,restoreRecordBackup} from '../storage/recordBackup';
 import {RecordRecovery} from '../assistant/RecordRecovery';
 import { useHabits } from '../state/HabitStore';
+import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 
 export function SettingsScreen() {
   const { appData, archivedHabits, theme } = useHabits();
@@ -19,6 +20,7 @@ export function SettingsScreen() {
   const [themeVisible, setThemeVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [archivedVisible, setArchivedVisible] = useState(false);
+  const [assistantVisible, setAssistantVisible] = useState(false);
 
   const handleBackup = async () => {
     try {
@@ -92,6 +94,7 @@ export function SettingsScreen() {
             value={`${archivedHabits.length} 个`}
             onPress={() => setArchivedVisible(true)}
           />
+          <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
         </View>
 
         <View style={styles.sectionCard}>
@@ -124,6 +127,7 @@ export function SettingsScreen() {
       <ThemeSelectionModal visible={themeVisible} onClose={() => setThemeVisible(false)} />
       <ProfileEditorModal visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <ArchivedHabitsModal visible={archivedVisible} onClose={() => setArchivedVisible(false)} />
+      <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
     </ScreenScaffold>
   );
 

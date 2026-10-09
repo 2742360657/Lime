@@ -19,6 +19,7 @@ import { AppNavigator } from './src/components/AppNavigator';
 import { useBackHandler, useSystemBack } from './src/navigation/back';
 import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
 import { DatabaseProvider } from './src/storage/DatabaseProvider';
+import { AgentProvider } from './src/agent/AgentProvider';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { DiaryScreen } from './src/screens/DiaryScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -151,7 +152,7 @@ export default function App() {
   return (
     <SafeAreaProvider><GestureHandlerRootView style={{ flex: 1 }}>
       <DatabaseProvider>
-        <HabitProvider><AppShell /></HabitProvider>
+        <HabitProvider><AgentProvider><AppShell /></AgentProvider></HabitProvider>
       </DatabaseProvider>
     </GestureHandlerRootView></SafeAreaProvider>
   );

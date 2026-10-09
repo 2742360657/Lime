@@ -111,6 +111,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       case 'memory.forget': {
         const row = await target<MemoryRow>(tx, 'local_memories', cmd.id, cmd.expectedRevision);
         await tx.execute("UPDATE local_memories SET content='',forgotten=1,revision=revision+1,updated_at=? WHERE id=?", [updated, row.id]);
+        await tx.execute("INSERT OR REPLACE INTO local_meta(id,value) VALUES('agent-context-boundary',?)", [String(now)]);
         // Pending corrections must not resurrect a forgotten fact or retain its text.
         const proposals = await tx.getAll<ProposalRow>("SELECT * FROM local_proposals WHERE status='pending'");
         for (const proposal of proposals) {
@@ -163,6 +164,23 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       const command = parse(value), operationId = validId(context.operationId);
       const fingerprint = await deps.digest(canonicalJson({ command, origin: 'ui' }));
       return db.writeTransaction(tx => commit(tx, command, operationId, fingerprint));
+    },
+    async executeGranted(value: unknown, context: { actor: 'agent'; requestId: string; grantId: string }): Promise<Receipt> {
+      if (context?.actor !== 'agent') throw new DomainError('PERMISSION_DENIED');
+      const command = parse(value), requestId = validId(context.requestId), grantId = validId(context.grantId);
+      const fingerprint = await deps.digest(canonicalJson({ command, origin: `grant:${grantId}` }));
+      return db.writeTransaction(async tx => {
+        const grant = await tx.getOptional<{ request_id: string; command_type: string; target_id: string | null; fingerprint: string | null; receipt: string | null }>('SELECT * FROM local_agent_grants WHERE id=?', [grantId]);
+        const request = await tx.getOptional<{ status: string; source_refs: string }>('SELECT status,source_refs FROM local_agent_requests WHERE id=?', [requestId]);
+        // Destructive/general modifications have no automatic grant even if a forged row appears.
+        if (!grant || grant.request_id !== requestId || grant.command_type !== command.type || !request || request.status !== 'running' || request.source_refs !== '[]' ||
+          !['task.create', 'memory.remember', 'activity.start', 'activity.complete'].includes(command.type) ||
+          (command.type === 'activity.complete' && (!grant.target_id || grant.target_id !== command.id))) throw new DomainError('PERMISSION_DENIED');
+        if (grant.fingerprint && grant.fingerprint !== fingerprint) throw new DomainError('PERMISSION_DENIED');
+        const receipt = await commit(tx, command, grantId, fingerprint);
+        await tx.execute('UPDATE local_agent_grants SET fingerprint=?,receipt=? WHERE id=?', [fingerprint, JSON.stringify(receipt), grantId]);
+        return receipt;
+      });
     },
     async listTasks(options: { status?: 'open' | 'done' | 'all'; limit?: number } = {}): Promise<TaskRow[]> {
       const status = options.status ?? 'open';

@@ -4,6 +4,15 @@ import { Alert, DevSettings } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证本机助手运行时', async () => {
+    try {
+      const { runAgentProbe } = await import('./agentProbe');
+      await runAgentProbe();
+      Alert.alert('本机助手验证通过', '隔离合成数据：SDK流与工具循环、人格重开、安全存储、跨会话活动、中断重试一次打卡和零上传队列通过。未调用真实模型。');
+    } catch {
+      Alert.alert('本机助手验证失败', '请检查本仓库的调试构建、Metro与8092合成响应服务；没有读取实际记录或Key。');
+    }
+  });
   DevSettings.addMenuItem('验证本地助手命令', async () => {
     try {
       const { runDomainProbe } = await import('./domainProbe');

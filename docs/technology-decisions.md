@@ -79,3 +79,9 @@ Zod4.6.5（MIT）用于严格命令schema与共享类型；不自行编写通用
 回执存命令规范化指纹和最小实体引用；不存原始记忆正文。训练通过通用活动和关联习惯完成，不新增训练服务。详见[命令契约](domain-contracts.md)。官方：[Zod](https://zod.dev/)、[Zod许可](https://github.com/colinhacks/zod/blob/main/LICENSE)。
 
 P2-A安装后的production audit仍有39项告警（1 low/10 moderate/28 high），新增测试工具后的完整依赖树为62项；没有进行强制跨版本升级。记录不等于已完成漏洞处置；P5正式发布需按生产用途审查现有依赖链，私密audit报告留在.local。
+
+## P2-B/C固定依赖与验证范围
+
+AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2.0）使用相同provider v4协议；Node22满足构建要求。直接传入createDeepSeek生成的模型对象与expo/fetch，不使用字符串模型Gateway、自建后端或SDK工作流服务。SDK承担SSE/schema/工具循环，产品模块仅保存请求、授权和业务回执。
+
+默认模型为官方别名`deepseek-flash`；[官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)将其指向V4.1-Flash。本批仅文本和工具接入，模型支持视觉不等于应用附件入口已经实现。人格文件只保存在手机私有库，不预置个人角色原文。Node真实SDK测试通过；Android/Hermes与真实API验收仍须分别记录，不以npm安装作为兼容证据。

@@ -21,6 +21,13 @@ export const tableColumns = {
   local_memories: { kind: column.text, key: column.text, content: column.text, forgotten: column.integer, revision: column.integer, created_at: column.integer, updated_at: column.text },
   local_activities: { kind: column.text, title: column.text, note: column.text, completion_note: column.text, habit_id: column.text, status: column.text, checkin_id: column.text, revision: column.integer, created_at: column.integer, updated_at: column.text, completed_at: column.integer },
   local_proposals: { command: column.text, fingerprint: column.text, source_refs: column.text, request_id: column.text, revision: column.integer, status: column.text, operation_id: column.text, receipt: column.text, created_at: column.integer, updated_at: column.text },
+  local_personas: { filename: column.text, body: column.text, enabled: column.integer, revision: column.integer, updated_at: column.integer },
+  local_agent_sessions: { title: column.text, created_at: column.integer, updated_at: column.integer },
+  local_agent_messages: { session_id: column.text, request_id: column.text, role: column.text, body: column.text, created_at: column.integer },
+  local_agent_requests: { session_id: column.text, text: column.text, source_refs: column.text, status: column.text, error: column.text, created_at: column.integer, updated_at: column.integer },
+  local_agent_grants: { request_id: column.text, command_type: column.text, target_id: column.text, fingerprint: column.text, receipt: column.text },
+  local_agent_results: { request_id: column.text, result: column.text, created_at: column.integer },
+  local_agent_sources: { request_id: column.text, document_id: column.text, revision: column.integer, title: column.text, body: column.text, kind: column.text, date: column.text },
 };
 
 export type LocalTable = keyof typeof tableColumns;
