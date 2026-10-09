@@ -46,3 +46,7 @@
 ## 复验入口
 
 debug + 当前Metro：`python3 scripts/p4-reminder-device-check.py --serial <device>`，只用隔离数据/通知，不请求权限。独立preview且提醒关闭：`python3 scripts/p4-reminder-settings-check.py --serial <device>`，只读入口/编辑取消/日期选择取消/重开。最终安装版本必须看构建JSON而非文件名；不为复验清应用数据。
+
+## 后续复评附记（2026-10-09）
+
+285da36代码核查补充发现：到期但系统延迟的有效排队实例可能被重算撤销，单项排程错误会阻断本轮后续项。尚未真机复现，既有53项与本报告探针未覆盖这些边界，不能改写为此前已验通过。修正列为下一批优先，见[复评与执行安排](next-development-review.md)。

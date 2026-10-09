@@ -6,7 +6,7 @@
 
 P3增加应用内文件/图片、系统分享/打开文件与本地材料来源管理：仅选中发送才分析，文本/图片/有界PDF支持解析，Office仅保存。原生探针、一次真实视觉API、模拟器分段UI与独立preview已有分项结果，详见[P3报告](docs/p3-materials-validation.md)。
 
-P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。
+P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。当前复评补充两项提醒可靠性修正，下一批先收尾，详见[复评与计划](docs/next-development-review.md)。
 
 ## 本轮确定的范围
 
@@ -30,6 +30,7 @@ P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到
 | [开发规范](docs/development-workflow.md) | 单仓Git、环境、构建、阶段测试和发布管理 |
 | [待测台账](docs/phase-test-ledger.md) | 实现中记录，阶段完成后统一验收 |
 | [当前状态](docs/project-status.md) | 本轮完成与下一步；历史验证不能跨版本冒用 |
+| [当前复评与下一批](docs/next-development-review.md) | 原需求覆盖、提醒可靠性问题、渠道门槛与数据保护前移 |
 | [源码来源](docs/source-provenance.md) | 原始项目、基线提交、复制范围和本轮变更 |
 
 ## 目录
