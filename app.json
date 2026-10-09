@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "酸橙",
+    "slug": "lime",
+    "version": "1.1.1",
+    "orientation": "portrait",
+    "icon": "./assets/lime-icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/lime-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "app.lime.personalassistant",
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/lime-icon.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-secure-store"
+    ]
+  }
+}

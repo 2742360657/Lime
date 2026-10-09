@@ -1,0 +1,41 @@
+{
+  "name": "lime",
+  "version": "1.1.1",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "prebuild:android": "expo prebuild --platform android && node scripts/apply-signing.mjs && node scripts/apply-development.mjs",
+    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
+  },
+  "dependencies": {
+    "@op-engineering/op-sqlite": "18.2.5",
+    "@powersync/common": "2.3.1",
+    "@powersync/react-native": "2.3.1",
+    "@react-native-community/datetimepicker": "8.6.0",
+    "@react-navigation/drawer": "^7.14.2",
+    "@react-navigation/native": "^7.4.1",
+    "expo": "~55.0.31",
+    "expo-crypto": "~55.0.19",
+    "expo-document-picker": "~55.0.17",
+    "expo-file-system": "~55.0.26",
+    "expo-secure-store": "~55.0.18",
+    "expo-sharing": "~55.0.24",
+    "expo-status-bar": "~55.0.6",
+    "react": "19.2.0",
+    "react-native": "0.83.10",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-reanimated": "4.2.1",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-worklets": "0.7.4"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "~55.0.12",
+    "expo-doctor": "1.20.4",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

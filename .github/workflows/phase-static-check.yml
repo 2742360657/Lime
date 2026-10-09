@@ -1,0 +1,23 @@
+name: Phase static check
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Completed functional phase to check
+        required: true
+        type: choice
+        options: [P1, P2, P3, P4, P5]
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5, verified tag
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5, verified tag
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: python3 scripts/repository-check.py
+      - run: npm ci
+      - run: npm run typecheck

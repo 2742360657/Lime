@@ -1,0 +1,17 @@
+# OSX
+#
+.DS_Store
+
+# Android/IntelliJ
+#
+build/
+# 生成安装包保存在工作区 artifacts/，不提交构建目录。
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Bundle artifacts
+*.jsbundle

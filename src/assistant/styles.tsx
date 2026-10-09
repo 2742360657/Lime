@@ -1,0 +1,7 @@
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { useHabits } from '../state/HabitStore';
+export function useAssistantStyles(){const {theme}=useHabits();return useMemo(()=>StyleSheet.create({
+ content:{padding:20,gap:16,paddingBottom:100},card:{backgroundColor:theme.colors.surface,borderRadius:24,padding:20,gap:12},title:{fontSize:23,fontWeight:'800',color:theme.colors.textPrimary},subtitle:{fontSize:16,fontWeight:'700',color:theme.colors.textPrimary},body:{fontSize:16,lineHeight:26,color:theme.colors.textPrimary},muted:{fontSize:12,lineHeight:19,color:theme.colors.textSecondary},warning:{fontSize:13,color:'#915A16'},input:{borderWidth:1,borderColor:theme.colors.border,borderRadius:12,padding:12,color:theme.colors.textPrimary,fontSize:16},row:{flexDirection:'row',alignItems:'center',gap:12},button:{paddingVertical:11,paddingHorizontal:16,borderRadius:12,backgroundColor:theme.colors.primarySoft,alignSelf:'flex-start'},buttonText:{color:theme.colors.primary,fontWeight:'700',fontSize:14}
+}),[theme]);}
+export function Action({label,onPress,disabled=false}:{label:string;onPress:()=>void;disabled?:boolean}){const s=useAssistantStyles();return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[s.button,disabled&&{opacity:0.5}]}><Text style={s.buttonText}>{label}</Text></Pressable>;}

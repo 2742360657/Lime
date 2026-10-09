@@ -1,0 +1,17 @@
+{
+  "product": "Lime",
+  "scope": "Android mobile only; no self-hosted backend",
+  "source_commit": "3248b4f402160a062a4107788ae51f6aa5984f7a",
+  "node": "22.23.3",
+  "java": "17",
+  "expo": "55.0.31",
+  "react_native": "0.83.10",
+  "gradle": "8.14.5",
+  "android_compile_sdk": 36,
+  "android_build_tools": "36.0.0",
+  "android_ndk": "27.1.12297006",
+  "package_id": "app.lime.personalassistant",
+  "development_package_id": "app.lime.personalassistant.dev",
+  "stage": "P0 repository assessment",
+  "application_build_verified": false
+}
