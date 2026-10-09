@@ -31,46 +31,61 @@ export async function runWeixinProbe() {
   let db = new PowerSyncDatabase({ schema: createWeixinSchema(), database: { dbFilename: filename } });
   const vault = createWeixinVault(SecureStore, prefix), files: File[] = [];
   const ensure = (value: unknown) => { if (!value) throw new Error('Synthetic Weixin check failed'); };
+  let stage = 'database';
   try {
     await db.init();
     const fixtureFetch = (url: string, init: RequestInit) => fetch('http://127.0.0.1:8093' + new URL(url).pathname + new URL(url).search, init);
     const client = createWeixinClient(fixtureFetch, randomUin);
+    stage = 'transport';
     const qr = await client.qr(), status = await client.status(qr.qrcode); ensure(status.status === 'confirmed');
     if (status.status !== 'confirmed') throw new WeixinError('PROTOCOL');
+    stage = 'vault';
     await vault.save(status.binding); const binding = await vault.load(); ensure(binding);
     if (!binding) throw new WeixinError('PROTOCOL');
     let inbox = createWeixinInbox(db, { digest, now: Date.now, stageMedia: vault.stageMedia });
+    stage = 'inbox';
     const received = await createWeixinReceiver(client, inbox).read(binding);
     ensure(received.saved === 3 && received.duplicates === 3 && received.ignored === 2);
     ensure(await inbox.cursor(binding) === 'synthetic-cursor');
     const rows = await inbox.list(binding); ensure(rows.length === 3 && rows.some(row => row.message_key === '18446744073709551615'));
     ensure(!JSON.stringify(rows).includes(binding.token) && !JSON.stringify(rows).includes('aes_key'));
+    stage = 'request-cancel';
     const cancelled = new AbortController(); setTimeout(() => cancelled.abort(), 100);
     const slow = createWeixinClient((_url, init) => fetch('http://127.0.0.1:8093/slow', init), randomUin);
     let aborted = false; try { await slow.qr(cancelled.signal); } catch (e) { aborted = e instanceof WeixinError && e.code === 'CANCELLED'; } ensure(aborted);
+    stage = 'cipher';
     for (const [key, encoding] of [['30'.repeat(16), 'hex'], [btoa('0'.repeat(16)), 'base64'], [btoa('30'.repeat(16)), 'base64']]) {
       const decoded = await validateWeixinCipher(VECTOR.ciphertext, key, encoding); ensure(decoded.size === VECTOR.size && decoded.hash === VECTOR.hash);
     }
     let badPadding = false; try { await validateWeixinCipher(btoa('0'.repeat(16)), '30'.repeat(16), 'hex'); } catch { badPadding = true; } ensure(badPadding);
+    stage = 'download';
     const native = NativeModules.LimeWeixin;
     const downloaded = JSON.parse(await native.fixtureDownload(Crypto.randomUUID(), 'good', '30'.repeat(16), VECTOR.size));
     try {
       ensure(downloaded.hash === VECTOR.hash && downloaded.size === VECTOR.size);
       const target = new File(Paths.document, 'lime-materials', `${VECTOR.hash}.txt`), existed = target.exists;
+      stage = 'material';
       const copy = await materialNative.copy(downloaded.uri, '合成微信附件.txt', 'text/plain');
       if (!existed) files.push(new File(copy.uri));
       const parsed = await materialNative.parse(copy.uri, copy.name); ensure(parsed.status === 'ready' && parsed.body.includes('合成微信附件'));
     } finally { await discardWeixinDownload(downloaded.uri); }
+    stage = 'download-rejection';
     for (const kind of ['padding', 'large', 'redirect']) {
       let rejected = false; try { await native.fixtureDownload(Crypto.randomUUID(), kind, '30'.repeat(16), VECTOR.size); } catch { rejected = true; } ensure(rejected);
     }
+    stage = 'download-cancel';
     const slowId = Crypto.randomUUID(); const waiting = native.fixtureDownload(slowId, 'slow', '30'.repeat(16), VECTOR.size); setTimeout(() => { void native.cancel(slowId); }, 100);
     let mediaCancelled = false; try { await waiting; } catch { mediaCancelled = true; } ensure(mediaCancelled);
+    stage = 'reopen';
     await db.close(); db = new PowerSyncDatabase({ schema: createWeixinSchema(), database: { dbFilename: filename } }); await db.init();
     inbox = createWeixinInbox(db, { digest, now: Date.now, stageMedia: vault.stageMedia });
     ensure((await inbox.list(binding)).length === 3 && await inbox.cursor(binding) === 'synthetic-cursor');
     const queue = await db.getUploadQueueStats(); ensure(queue.count === 0);
     new File(Paths.document, 'lime-p4-weixin-probe.json').write(JSON.stringify({ status: 'passed', syntheticOnly: true, losslessIds: true, cursorOnce: true, reopened: true, ownerFilter: true, secureStore: true, cancellation: true, nativeCipher: true, nativeDownload: true, mediaRejection: true, p3Parse: true, localQueue: queue.count, modelCalls: 0, accountTested: false }));
+  } catch (error) {
+    // Static stage/code only: never persist native causes, responses or credentials.
+    new File(Paths.document, 'lime-p4-weixin-probe.json').write(JSON.stringify({ status: 'failed', stage, code: error instanceof WeixinError ? error.code : 'CHECK', syntheticOnly: true, accountTested: false, modelCalls: 0 }));
+    throw error;
   } finally {
     await vault.remove(); try { await db.close(); } catch {}
     for (const file of files) if (file.exists) file.delete();
@@ -91,7 +106,12 @@ export async function confirmWeixinValidationQr() {
   if (!__DEV__) throw new WeixinError('PROTOCOL');
   return foreground(async signal => {
     const stored = await SecureStore.getItemAsync('lime-wx-validation-qr'); if (!stored) throw new WeixinError('PROTOCOL');
-    const qr = JSON.parse(stored); if (Date.now() - qr.at > 5 * 60000) return 'expired';
+    const qr = JSON.parse(stored);
+    if (Date.now() - qr.at > 5 * 60000) {
+      await SecureStore.deleteItemAsync('lime-wx-validation-qr');
+      new File(Paths.document, 'lime-weixin-validation-status.json').write(JSON.stringify({ status: 'expired', accountTested: false }));
+      return 'expired';
+    }
     const codeFile = new File(Paths.document, 'lime-weixin-validation-code.txt');
     const code = codeFile.exists ? (await codeFile.text()).trim() : undefined; if (codeFile.exists) codeFile.delete();
     const status = await live().status(qr.qrcode, qr.base, code, signal);

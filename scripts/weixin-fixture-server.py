@@ -19,6 +19,7 @@ class Handler(BaseHTTPRequestHandler):
   length=int(self.headers.get('Content-Length','0'))
   if length>200000:return self.output({},413)
   body=json.loads(self.rfile.read(length));path=urllib.parse.urlparse(self.path).path
+  if path=='/slow':time.sleep(2);return self.output({'qrcode':'synthetic','qrcode_img_content':'synthetic'})
   if path.endswith('/get_bot_qrcode'):
    assert body=={'local_token_list':[]} and not self.headers.get('Authorization')
    return self.output({'qrcode':'synthetic-qr','qrcode_img_content':'synthetic-display'})
