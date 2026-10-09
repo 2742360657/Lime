@@ -41,6 +41,8 @@ P2-A已按[修订版计划](../development-plan-revised.md)建立固定版本Jes
 
 P2-A原生命令探针：安装当前debug、连接本仓库Metro后，显式指定设备执行`python3 scripts/p2-domain-device-check.py --serial <device>`。它只使用独立合成库，支持真机；普通页面写入测试`python3 scripts/p2-domain-ui-emulator-check.py`则只允许模拟器。安装因手机USB限制失败时不卸载/清数据，等待手机允许或标记待测。preview独立运行，不保留任务临时ADB反向端口。
 
+P2-B/C原生运行时探针：在debug包和本仓库Metro就绪后，先启动`python3 scripts/agent-fixture-server.py`（仅本机回环8092合成SSE，不是产品服务），为目标设备临时映射8092，再执行`python3 scripts/p2-agent-device-check.py --serial <device>`。使用隔离合成库/测试SecureStore项，不输入真人材料或真实Key。已有8081被其它checkout占用时，本仓库Metro可选8091，并显式核对设备实际bundle来源；模拟器默认`10.0.2.2:8081`会绕过ADB反向映射，不能仅凭reverse成功认定加载了本仓库代码。修改开发bundle host前保存原值，结束恢复。测试后停止本任务fixture/Metro，移除本任务新增的ADB端口及合成下载文件；不清应用数据、不杀其它工作区服务。preview验收须脱离Metro，报告分开记录Native合成流、Node真实API和人工手机体验。
+
 ## 5. 构建与签名
 
 ```bash

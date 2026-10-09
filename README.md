@@ -2,7 +2,7 @@
 
 面向个人使用的 Android 日常记录与 AI 助手应用：待办、习惯、日记、备忘录和聊天使用同一份手机数据。
 
-**当前P1本地记录和P2-A命令层已完成技术验收；P2-B/C本机助手已实现，正在集中验收。** DeepSeek直连、持久化聊天、受限记录工具与可选人格设置已接入；人格可手动选择、保存、替换、停用或移除，未启用时为中性助手。真实API与文件选择器体验须单独验收。人工体验待测；见[P1报告](docs/p1-local-records-validation.md)与[P2-A报告](docs/p2-domain-validation.md)。
+**P1与P2本地助手已完成本批实现和关键技术验收，人工日用体验仍待确认。** DeepSeek直连、持久化聊天、受限记录工具与可选人格设置已接入。人格可手动选择文件、预览后保存/替换、停用或移除，未启用时为中性助手。真实API运行时、小米原生探针、模拟器人格设置及独立preview已分项验证；手机真实Key聊天和中文输入体验不因此自动算通过。见[P1报告](docs/p1-local-records-validation.md)、[P2-A报告](docs/p2-domain-validation.md)与[P2助手报告](docs/p2-local-assistant-validation.md)。
 
 ## 本轮确定的范围
 
@@ -65,4 +65,4 @@ bash scripts/android-build.sh preview arm64-v8a
 
 `debug`需要Metro；`preview`包含JS用于独立试用；`release`使用本地私密正式签名。构建脚本在本机生成开发签名，不将任何keystore提交。新增应用ID为 `app.lime.personalassistant`，开发包加 `.dev`，与旧应用隔离；不自动卸载旧应用或抹掉记录。要迁移旧记录，先在旧应用导出，再按格式合并导入；不声称旧聊天/服务器记忆能随基础记录一并迁移。
 
-不要运行 `expo prebuild --clean`；必要的原生再生成须先检查diff。P2-A新身份的独立preview已在模拟器与真机安装；本批P2-B/C的新包证据待集中验收。GitHub初始发布的是源码与规划；本地阶段APK不自动成为GitHub Release。
+不要运行 `expo prebuild --clean`；必要的原生再生成须先检查diff。P2新preview已在模拟器与真机覆盖安装并启动，构建身份与限制见本批报告。GitHub初始发布的是源码与规划；本地阶段APK不自动成为GitHub Release。

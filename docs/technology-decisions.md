@@ -16,7 +16,7 @@
 
 官方：[PowerSync本地使用](https://docs.powersync.com/client-sdks/advanced/local-only-usage)、[RN/Expo客户端](https://docs.powersync.com/client-sdks/reference/react-native-and-expo)。
 
-## ADR-003 Agent通信与工具循环（候选，P2验证）
+## ADR-003 Agent通信与工具循环（P2采用，证据分层）
 
 优先评估开源AI SDK：显式DeepSeek provider、同进程Agent/DirectChatTransport、schema工具、expo/fetch流式。文档组合能支持此方向，但Expo55/Hermes、DeepSeek当前模型/工具多轮与停止必须实测；选择受支持稳定版本再锁定。不得默认使用模型字符串引入另一Gateway，不依赖Next.js产品后端。
 
@@ -24,9 +24,9 @@ SDK负责通信/流/工具循环，业务命令负责校验/事务/来源/回执
 
 官方：[Expo接入](https://ai-sdk.dev/docs/getting-started/expo)、[进程内Agent](https://ai-sdk.dev/docs/reference/ai-sdk-ui/direct-chat-transport)、[DeepSeek provider](https://ai-sdk.dev/providers/ai-sdk-providers/deepseek)、[工具调用](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)。
 
-## ADR-004 用户Key与人格（确定方案，待实现）
+## ADR-004 用户Key与人格（P2实现）
 
-运行时输入用户自己的Key，使用已有Expo SecureStore/Android Keystore；不写进EXPO_PUBLIC、APK、普通SQLite、日志/备份。人格文本私密导入/编辑；公开仓库不复制原始角色附件。明确事实用已有SQLite存储/查询，不搬Python Mem0/Qdrant进APK；数据量证明需要后才增加语义检索。
+运行时输入用户自己的Key，使用已有Expo SecureStore/Android Keystore；不写进EXPO_PUBLIC、APK、普通SQLite、日志/备份。人格文本私密导入、预览、保存、替换或停用；公开仓库不复制原始角色附件。明确事实用已有SQLite存储/查询，不搬Python Mem0/Qdrant进APK；数据量证明需要后才增加语义检索。
 
 官方：[Expo55 SecureStore](https://docs.expo.dev/versions/v55.0.0/sdk/securestore/)。
 
@@ -84,7 +84,7 @@ P2-A安装后的production audit仍有39项告警（1 low/10 moderate/28 high）
 
 AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2.0）使用相同provider v4协议；Node22满足构建要求。直接传入createDeepSeek生成的模型对象与expo/fetch，不使用字符串模型Gateway、自建后端或SDK工作流服务。SDK承担SSE/schema/工具循环，产品模块仅保存请求、授权和业务回执。
 
-默认模型为官方别名`deepseek-flash`；[官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)将其指向V4.1-Flash。本批仅文本和工具接入，模型支持视觉不等于应用附件入口已经实现。人格文件只保存在手机私有库，不预置个人角色原文。Node真实SDK测试通过；Android/Hermes与真实API验收仍须分别记录，不以npm安装作为兼容证据。
+默认模型为官方别名`deepseek-flash`；[官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)将其指向V4.1-Flash。本批仅文本和工具接入，模型支持视觉不等于应用附件入口已经实现。人格文件只保存在手机私有库，不预置个人角色原文。31项Jest通过；Android/Hermes隔离探针和Node真实DeepSeek生产运行时分项通过，模拟器设置UI分段验收通过。实际手机Key聊天与人工角色表达待验；证据见[P2助手报告](p2-local-assistant-validation.md)，不以npm安装作为兼容证据。
 
 真机发现RN自带AbortController缺少现代AbortSignal接口。采用`abortcontroller-polyfill@1.7.8`（MIT）的完整`cjs-ponyfill`补齐reason/any/throwIfAborted与一次性事件；不加载其fetch补丁，网络仍使用Expo原生fetch。产品超时用可清理的控制器定时器，避免每轮留下timeout信号定时器。补丁来源为[官方项目](https://github.com/mo/abortcontroller-polyfill)，包完整性按npm发布的SHA-512核对，未复制源码进仓库。当前真机SDK流、工具循环、SecureStore、隔离数据库关闭重开及一次打卡已通过；真实API与界面体验分别记录。
 
