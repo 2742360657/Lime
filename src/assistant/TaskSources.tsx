@@ -1,6 +1,5 @@
 import {useEffect,useState} from 'react';
 import {Text,TouchableOpacity,View} from 'react-native';
-import {useAssistant} from './AssistantProvider';
 import {database} from './database';
 import {useHabits} from '../state/HabitStore';
 
@@ -9,20 +8,18 @@ type Sources={proposals:{id:string;summary:string}[];sources:{id:string;filename
 // On-demand details keep the ordinary task editor small. Cached sources can be
 // read offline; no parse/model call is made by viewing the original evidence.
 export function TaskSources({taskId}:{taskId:string}) {
- const {request,connection}=useAssistant(),{theme}=useHabits();
+ const {theme}=useHabits();
  const [data,setData]=useState<Sources|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[expanded,setExpanded]=useState(false);
  useEffect(()=>{setData(null);setMessage('');setExpanded(false);setBusy(false);},[taskId]);
  async function load() {
   setExpanded(true);setBusy(true);setMessage('');
-  const key='task-sources-'+connection?.owner_id+'-'+taskId;
-  let cached:Sources|null=null;
   try {
+   const task=await database.getOptional<{owner_id:string|null}>('SELECT owner_id FROM tasks WHERE id=?',[taskId]);
+   const key='task-sources-'+(task?.owner_id??'undefined')+'-'+taskId;
    const row=await database.getOptional<{value:string}>('SELECT value FROM local_meta WHERE id=?',[key]);
-   if(row){cached=JSON.parse(row.value) as Sources;setData(cached);}
-   const fresh=await request<Sources>('/v1/tasks/'+encodeURIComponent(taskId)+'/sources');
-   setData(fresh);
-   await database.execute('INSERT OR REPLACE INTO local_meta(id,value) VALUES(?,?)',[key,JSON.stringify(fresh)]);
-  } catch {setMessage(cached?'当前显示本机缓存，连接恢复后可刷新。':'暂时无法读取来源，连接服务器后重试。');}
+   if(row){setData(JSON.parse(row.value) as Sources);setMessage('本机保留的历史来源摘录。');}
+   else setMessage('本机没有保存这条待办的历史来源。');
+  } catch {setMessage('暂时无法读取本机来源，原始缓存仍保留。');}
   finally {setBusy(false);}
  }
  return <View style={{gap:8}}>

@@ -7,10 +7,10 @@ import {coerceAppData} from './habitStorage';
 const MAX_BYTES=25*1024*1024;
 export async function exportRecordBackup() {
  const backup=await database.readTransaction(captureRecords),text=JSON.stringify(backup,null,2);
- if(text.length*2>MAX_BYTES)throw new Error('备份较大，请先使用服务器独立备份。');
+ if(text.length*2>MAX_BYTES)throw new Error('记录文件超过当前支持的25MB，未写入导出文件。原有记录仍保留。');
  const access=await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(FileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Documents'));
  if(!access.granted)return false;
- const uri=await FileSystem.StorageAccessFramework.createFileAsync(access.directoryUri,`angelime-records-${Date.now()}.json`,'application/json');
+ const uri=await FileSystem.StorageAccessFramework.createFileAsync(access.directoryUri,`lime-records-${Date.now()}.json`,'application/json');
  await FileSystem.writeAsStringAsync(uri,text);
  return true;
 }

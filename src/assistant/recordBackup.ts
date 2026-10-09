@@ -1,6 +1,6 @@
 import type {Transaction} from '@powersync/react-native';
 
-// Only business columns are portable. Credentials, owner IDs and history stay on the server.
+// Only business columns are portable. Credentials, owner IDs and history are excluded.
 export const recordFields={
  document_groups:['kind','name','sort_order','created_at'],
  habit_groups:['name','sort_order','created_at'],

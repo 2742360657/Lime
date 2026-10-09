@@ -2,7 +2,6 @@ import { Alert } from 'react-native';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { ConnectionCard } from '../assistant/ConnectionCard';
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -24,7 +23,7 @@ export function SettingsScreen() {
   const handleBackup = async () => {
     try {
       setBusyAction('backup');
-      if(await exportRecordBackup())Alert.alert('导出完成','备份已写入所选目录。请另存一份到服务器之外。');
+      if(await exportRecordBackup())Alert.alert('导出完成','记录文件已写入所选目录。');
     } catch (error) {
       Alert.alert('导出失败', error instanceof Error ? error.message : '导出备份失败，请稍后重试。');
     } finally {
@@ -54,7 +53,7 @@ export function SettingsScreen() {
             onPress: async () => {
               setBusyAction('restore');
               try {const result=await restoreRecordBackup(imported);
-                Alert.alert('本机恢复完成',result.repeated?'这份备份已导入，未重复写入。':`新增 ${result.added} 条，跳过 ${result.skipped} 条；草稿和恢复副本仍保留。${result.detached?'部分缺失分类或历史来源已解除关联。':''}联网后同步，可在服务器连接中查看状态。`);
+                Alert.alert('本机恢复完成',result.repeated?'这份备份已导入，未重复写入。':`新增 ${result.added} 条，跳过 ${result.skipped} 条；草稿和恢复副本仍保留。${result.detached?'部分缺失分类或历史来源已解除关联。':''}`);
               } catch(e) {Alert.alert('恢复失败',e instanceof Error?e.message:'原有内容仍保留。');}
               finally {setBusyAction(null);}
             },
@@ -97,7 +96,7 @@ export function SettingsScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>本机记录备份与恢复</Text>
-          <Text style={styles.description}>包含日记、备忘录、待办、习惯、打卡、草稿与恢复副本。聊天、附件、个人记忆及服务器历史需独立备份。</Text>
+          <Text style={styles.description}>包含日记、备忘录、待办、习惯、打卡、草稿与恢复副本。不包含聊天、附件和个人记忆。</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity
               disabled={busyAction !== null}
@@ -120,7 +119,6 @@ export function SettingsScreen() {
           </View>
         </View>
         <View style={styles.sectionCard}><Text style={styles.sectionTitle}>恢复副本与草稿</Text><RecordRecovery/></View>
-        <ConnectionCard/>
       </ScrollView>
 
       <ThemeSelectionModal visible={themeVisible} onClose={() => setThemeVisible(false)} />

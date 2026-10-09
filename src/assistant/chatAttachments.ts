@@ -1,10 +1,8 @@
 import {Directory,File,Paths} from 'expo-file-system';
-import {fetch as expoFetch} from 'expo/fetch';
 import * as Crypto from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import {database} from './database';
-import type {Connection} from './AssistantProvider';
-import type {ChatAttachment,PendingFile} from './chatTypes';
+import type {PendingFile} from './chatTypes';
 const MAX=10*1024*1024;
 export async function savePendingFiles(session:string,files:PendingFile[]) {
  await database.execute('INSERT OR REPLACE INTO local_meta(id,value) VALUES(?,?)',['chat-files-'+session,JSON.stringify(files)]);
@@ -24,13 +22,5 @@ export async function chooseChatFiles(remaining:number):Promise<PendingFile[]> {
   files.push({local_id,uri:copy.uri,name:asset.name,size});
  }
  return files;
-}
-export async function uploadChatFile(connection:Connection,file:PendingFile):Promise<ChatAttachment> {
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
- try {
-  const response=await expoFetch(connection.apiUrl+'/v1/attachments',{method:'POST',headers:{Authorization:'Bearer '+connection.token,'Content-Type':'application/octet-stream','X-File-Name':encodeURIComponent(file.name)},body:await new File(file.uri).bytes(),signal:controller.signal});
-  if(!response.ok)throw new Error(response.status===415?'暂不支持该文件内容。':'附件未上传成功，请稍后重试。');
-  return await response.json();
- }finally{clearTimeout(timer);}
 }
 export function releasePendingCopies(files:PendingFile[]) {for(const f of files){try{new File(f.uri).delete();}catch{}}}

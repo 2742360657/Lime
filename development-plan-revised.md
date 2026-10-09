@@ -2,7 +2,7 @@
 
 日期：2026-10-09。代码核查基线：`d932052`。依据用户提供的修订稿、当前手机代码及官方文档整理。本文件是当前开发路线；[原计划](docs/development-plan.md)保留为历史参考。
 
-**当前只有P0完成。此次修改计划与评估，不表示P1已开发、独立APK已验收或依赖已安装。**
+本计划制定时只有P0完成。后续实际实现与验收进度以[当前状态](docs/project-status.md)为准，计划条目不自动等于能力已交付。
 
 ## 1. 评估结论的校准
 
@@ -17,7 +17,7 @@
 | 渠道验证必须在P3前全部成功 | 改为仅约束对应渠道的集成。直接文件、分享及材料处理不依赖微信/QQ；单一渠道失败不阻塞另一渠道或本地提醒 |
 | 文档可走服务端转换 | 不引入自建转换服务。首版按手机端可验证格式交付；明确选择的图片/文本可发模型API，文件保存不等于内容已解析 |
 
-证据：[`AssistantProvider.tsx`](src/assistant/AssistantProvider.tsx)第32—41、79行；[`database.ts`](src/assistant/database.ts)第4—14、20—27行；[`HabitStore.tsx`](src/state/HabitStore.tsx)第37—46、173、203—220行。[PowerSync官方本地使用说明](https://docs.powersync.com/client-sdks/advanced/local-only-usage)明确说明普通表的未上传变更会继续积累，local-only表可避免队列增长。
+证据以评估基线为准：[原AssistantProvider](https://github.com/2742360657/Lime/blob/d93205229a2ad719ab972591c66b12a31663c396/src/assistant/AssistantProvider.tsx)第32—41、79行；[原database](https://github.com/2742360657/Lime/blob/d93205229a2ad719ab972591c66b12a31663c396/src/assistant/database.ts)第4—14、20—27行；[原HabitStore](https://github.com/2742360657/Lime/blob/d93205229a2ad719ab972591c66b12a31663c396/src/state/HabitStore.tsx)第37—46、173、203—220行。后续代码迁移不改变此历史核查结论。[PowerSync官方本地使用说明](https://docs.powersync.com/client-sdks/advanced/local-only-usage)明确说明普通表的未上传变更会继续积累，local-only表可避免队列增长。
 
 ## 2. 范围和产品约束
 

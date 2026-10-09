@@ -213,7 +213,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
       mutationQueue.current=mutationQueue.current.then(async () => {
         const appData=await database.readTransaction(tx => readBusiness(tx,current.current.appData));
         if(JSON.stringify(appData)!==JSON.stringify(current.current.appData))publish({...current.current,appData});
-      }).catch(() => dispatch({type:'set-error',error:'读取同步记录失败，请保留数据并重试。'}));
+      }).catch(() => dispatch({type:'set-error',error:'读取本地记录失败，请保留数据并重试。'}));
     };
     const dispose = database.onChange({onChange:refresh},{tables:['tasks','habit_groups','habits','checkins','documents','document_groups']});
     refresh();

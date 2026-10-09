@@ -20,7 +20,7 @@ export function RecordRecovery() {
    await mergeRecords(tx,{format:'angelime-records',version:1,exported_at:'',rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
    const remaining=snapshots.filter(s=>!handled.includes(s));
    if(remaining.length)await tx.execute('UPDATE local_conflicts SET snapshots=? WHERE id=?',[JSON.stringify(remaining),id]);else await tx.execute('DELETE FROM local_conflicts WHERE id=?',[id]);
-  });Alert.alert('已保存恢复副本','已作为新记录保存在本机；联网后同步。原记录未覆盖。');}
+  });Alert.alert('已保存恢复副本','已作为新记录保存在本机，原记录未覆盖。');}
   catch(e){Alert.alert('恢复未完成',e instanceof Error?e.message:'原文仍保留，请重试。');}
  }
  async function restoreDraft(id:string) {
@@ -29,14 +29,14 @@ export function RecordRecovery() {
    const now=Date.now(),rows=emptyRows();rows.documents=[portableRow('documents',{id:d.document_id,kind:d.kind??'diary',title:d.title,body:d.body,date:d.date,group_id:d.group_id??null,sort_order:0,created_at:now,edited_at:now,deleted_at:null,deleted:0})];
    await mergeRecords(tx,{format:'angelime-records',version:1,exported_at:'',rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
    await tx.execute('DELETE FROM local_drafts WHERE id=?',[id]);
-  });Alert.alert('草稿已保存为新记录','原有记录未覆盖，联网后同步。');}
+  });Alert.alert('草稿已保存为新记录','原有记录未覆盖。');}
   catch(e){Alert.alert('恢复未完成',e instanceof Error?e.message:'草稿仍保留。');}
  }
  const button=(text:string,onPress:()=>void)=><Pressable accessibilityRole="button" accessibilityLabel={text} onPress={onPress} style={{paddingVertical:9}}><Text style={{fontSize:13,color:c.primary}}>{text}</Text></Pressable>;
  return <View style={{gap:10}}>
-  <Text style={{fontSize:12,lineHeight:20,color:c.textSecondary}}>同步失败或版本变化时，原文留在这里。恢复会新建记录，保留原记录。</Text>
+  <Text style={{fontSize:12,lineHeight:20,color:c.textSecondary}}>保存冲突或版本变化时，原文留在这里。恢复会新建记录，保留原记录。</Text>
   {drafts.map(d=><View key={d.id} style={{borderBottomWidth:0.5,borderColor:c.border,paddingVertical:8}}><Text numberOfLines={2} style={{fontSize:14,lineHeight:21,color:c.textPrimary}}>草稿 · {d.title||d.body.slice(0,60)||d.date}</Text>{button('草稿另存为新记录',()=>Alert.alert('另存草稿','草稿原文将成为一篇独立记录，不覆盖已有版本。',[{text:'取消'},{text:'另存',onPress:()=>void restoreDraft(d.id)}]))}</View>)}
-  {conflicts.map(conflict=>{let description='同步恢复副本';try {const docs=(JSON.parse(conflict.snapshots) as Snapshot[]).filter(s=>s.table==='documents'&&s.row);description=docs.map(s=>String(s.row!.title||s.row!.body||s.row!.date).slice(0,60)).join(' · ')||description;}catch{}return <View key={conflict.id} style={{borderBottomWidth:0.5,borderColor:c.border,paddingVertical:8}}><Text numberOfLines={2} style={{fontSize:14,lineHeight:21,color:c.textPrimary}}>{description}</Text>{button('恢复副本为新记录',()=>Alert.alert('恢复为新记录','副本中的记录将另存，保留现有内容。缺失分类会恢复为未分类。',[{text:'取消'},{text:'恢复',onPress:()=>void restoreConflict(conflict.id)}]))}</View>;})}
+  {conflicts.map(conflict=>{let description='历史恢复副本';try {const docs=(JSON.parse(conflict.snapshots) as Snapshot[]).filter(s=>s.table==='documents'&&s.row);description=docs.map(s=>String(s.row!.title||s.row!.body||s.row!.date).slice(0,60)).join(' · ')||description;}catch{}return <View key={conflict.id} style={{borderBottomWidth:0.5,borderColor:c.border,paddingVertical:8}}><Text numberOfLines={2} style={{fontSize:14,lineHeight:21,color:c.textPrimary}}>{description}</Text>{button('恢复副本为新记录',()=>Alert.alert('恢复为新记录','副本中的记录将另存，保留现有内容。缺失分类会恢复为未分类。',[{text:'取消'},{text:'恢复',onPress:()=>void restoreConflict(conflict.id)}]))}</View>;})}
   {!drafts.length&&!conflicts.length?<Text style={{fontSize:13,color:c.textMuted}}>没有需要恢复的记录。</Text>:null}
  </View>;
 }
