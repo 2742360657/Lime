@@ -4,6 +4,27 @@ import { Alert, DevSettings } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证微信手机组件', async () => {
+    try { const { runWeixinProbe } = await import('./weixinProbe'); await runWeixinProbe(); Alert.alert('微信组件验证通过', '隔离合成消息：前台网络、无损ID、本人过滤、游标重开、安全存储、取消、系统AES/下载及材料解析通过；未接实际账号或模型。'); }
+    catch { Alert.alert('微信组件验证失败', '请检查当前原生包、Metro与8093合成响应；没有读取实际记录或Key。'); }
+  });
+  DevSettings.addMenuItem('获取微信验证二维码', async () => {
+    try { const { requestWeixinValidationQr } = await import('./weixinProbe'); await requestWeixinValidationQr(); Alert.alert('微信验证二维码就绪', '请使用本次私密二维码扫码；尚未读取消息。'); }
+    catch (e) { Alert.alert('微信验证未完成', e instanceof Error && e.name === 'WeixinError' ? e.message : '请检查网络后重试。'); }
+  });
+  DevSettings.addMenuItem('确认微信验证绑定', async () => {
+    try { const { confirmWeixinValidationQr } = await import('./weixinProbe'); const status = await confirmWeixinValidationQr(); Alert.alert('微信验证状态', status); }
+    catch (e) { Alert.alert('微信验证未完成', e instanceof Error && e.name === 'WeixinError' ? e.message : '请重新获取二维码。'); }
+  });
+  DevSettings.addMenuItem('读取微信验证消息', async () => {
+    try { const { readWeixinValidationInbox } = await import('./weixinProbe'); const result = await readWeixinValidationInbox(); Alert.alert('微信验证收件完成', `保存${result.saved}，重复${result.duplicates}，其它来源${result.ignored}。仅验证沙箱，未分析。`); }
+    catch (e) { Alert.alert('微信验证未完成', e instanceof Error && e.name === 'WeixinError' ? e.message : '内容仍留在验证沙箱，请重试。'); }
+  });
+  DevSettings.addMenuItem('下载微信验证附件', async () => {
+    try { const { downloadWeixinValidationAttachments } = await import('./weixinProbe'); const result = await downloadWeixinValidationAttachments(); Alert.alert('微信附件验证完成', `保存${result.saved}，失败${result.failed}，已有${result.skipped}。未交给AI。`); }
+    catch { Alert.alert('微信附件验证未完成', '原消息仍留在验证沙箱，可重新点击。'); }
+  });
+  DevSettings.addMenuItem('取消微信验证读取', async () => { const { cancelWeixinValidation } = await import('./weixinProbe'); cancelWeixinValidation(); });
   DevSettings.addMenuItem('验证本机提醒排程', async () => {
     try { const { runReminderProbe } = await import('./reminderProbe'); await runReminderProbe(); Alert.alert('提醒验证通过', '隔离合成规则：系统预排、重开不重复、改期撤旧、停用取消与零上传队列通过。未请求通知权限，未测送达。'); }
     catch { Alert.alert('提醒验证失败', '未修改普通记录，请检查当前原生通知组件与Metro。'); }
