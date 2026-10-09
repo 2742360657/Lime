@@ -72,7 +72,7 @@ bash scripts/android-build.sh release arm64-v8a
 
 ## 本机环境恢复（2026-10-09）
 
-工作目录不变，已迁移到容量充足的系统分区。按用户要求不挂载、不使用三星数据盘；工具/缓存继续使用现有路径。环境文件支持根挂载路径及可选文件系统UUID核对，具体设备UUID只写忽略的`.local/dev.env`。可用`LIME_AVD_DIR`/`LIME_AVD_NAME`复用已有模拟器，运行`bash scripts/emulator-run.sh`，不清AVD或应用数据。当前真机未连接，原生和系统入口验收先在API36模拟器执行；人工手机体验单独保留。
+工作目录不变，已迁移到容量充足的系统分区。按用户要求不挂载、不使用三星数据盘；工具/缓存继续使用现有路径。环境文件支持根挂载路径及可选文件系统UUID核对，具体设备UUID只写忽略的`.local/dev.env`。可用`LIME_AVD_DIR`/`LIME_AVD_NAME`复用已有模拟器，运行`bash scripts/emulator-run.sh`，不清AVD或应用数据。恢复初次没有真机，先在API36模拟器执行；同日已补小米14验收，见[P3真机报告](p3-phone-validation.md)。人工手机体验仍单独保留。
 
 ## P3阶段验收入口
 
