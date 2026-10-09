@@ -16,7 +16,7 @@
 | `src/diary/DiaryEditor.tsx` | 日期、草稿、提交/返回和原文保护可复用 | 保留紧凑写作，不加入逐篇AI面板 |
 | `src/state/HabitStore.tsx` / reducer / `src/assistant/businessStore.ts` | 已有本地事务、旧JSON迁移；页面和业务规则尚需统一命令 | 保留语义；将页面与AI都接同一命令入口，不复制一套工具CRUD |
 | `src/assistant/database.ts` | PowerSync的业务表仍是同步表 | P1新建纯本地schema/版本；不要仅不connect却永远积累上传队列 |
-| `src/assistant/AssistantProvider.tsx` | 同时做DB启动、SecureStore服务器凭据、配对、upload connector与HTTP request | P1分离本地数据库provider；移除连接器/旧凭据初始化；P2接本地Agent/provider |
+| `src/assistant/AssistantProvider.tsx` | DB初始化不要求配对；只有已读取到连接且DB就绪才调用connect。同时承担SecureStore服务器凭据、配对、upload connector与HTTP request | P1分离本地数据库provider，退出旧服务器职责；不保留按需配对Provider；P2接本地Agent/provider |
 | `src/assistant/ConnectionCard.tsx` / `RecordSyncStatus.tsx` | 自建服务器配对和同步呈现 | P1移除调用及界面；保存反馈只基于本地事务 |
 | `src/screens/ChatScreen.tsx` | 本地历史缓存与页面有价值；发送/建会话依赖服务器且响应全缓冲 | P2复用交互/渲染基础，替换会话持久化与发送执行；增加流式/停止/结果 |
 | `src/assistant/chatAttachments.ts` | 文件选择/私有复制可复用；上传到产品API需退出 | P3使用本地Source/Attachment；模型需要时仅提交选定图片/提取文本 |
@@ -43,7 +43,7 @@
 | 优先级 | 风险 | 处理/验收 |
 |---|---|---|
 | P1阻断 | 同步表在纯本机模式积累队列；直接修改table flag可能丢失旧数据 | 新安装使用local-only；旧数据通过稳定格式/受控导入，保留原文；集中核对schema、事务与队列 |
-| P1阻断 | 记录启动仍读取旧连接/创建网络连接；服务器UI仍存在 | 移除连接器/入口；没有服务器和凭据也能启动、保存与重启 |
+| P1范围内 | 无已保存连接时不会连接服务器；有旧连接时启动自动尝试连接，服务器UI仍存在 | 退出旧连接读取/连接器/入口；保留已有离线记录能力，集中验证初始化解耦后保存与重启 |
 | P2阻断 | 云模型能说话但工具未落库；页面/助手两套CRUD | 共用确定的命令、版本与幂等回执；实际保存后才反馈 |
 | P2阻断 | 私人人格/记忆不在手机；全部日记被加入上下文 | 导入私人人格，明确事实与角色分离；有界相关上下文与材料授权 |
 | P3阻断 | 分享URI短期有效；PDF/Office格式覆盖被夸大 | 持久复制与来源回执，按格式列支持/限制；保留原件，成熟解析组件适配 |
@@ -56,6 +56,14 @@
 主要工作不是调用一次DeepSeek，而是把原来位于服务端的状态、工具边界、来源与幂等落到本机，并统一普通页面与AI行为。采用成熟工具能减少基础通信/存储/通知工作，但业务连接不可省。
 
 拒绝的扩张：后台账号系统、同步服务、网页管理、24小时手机Agent、复杂向量记忆栈、每个生活场景独立服务、从零重写编辑器。日记的细节交互先复用；后续按真实需求增加字段，避免抽象平台先行。
+
+## 修订核查补充（2026-10-09）
+
+启动条件见`AssistantProvider.tsx`第32—41行：先初始化DB，再读取已保存连接；没有连接时不会进入connect分支。因此不能将服务器耦合描述为“未配对无法启动”。这不代表旧服务器职责已经退出。
+
+队列创建与上传是两个环节。`database.ts`第4—10行业务表未设置localOnly，本地事务写入仍会进入上传队列；没有connector只是没有上传者。[PowerSync官方说明](https://docs.powersync.com/client-sdks/advanced/local-only-usage)对此有明确解释。P1保留最小local-only改造，不能用不connect代替；保留owner_id不等于保留同步表。
+
+`HabitStore.tsx`通过`migrateLegacyBusiness`导入JSON、通过`readBusiness/writeBusiness`读写SQLite，并保留JSON落盘。不能仅看`habitStorage.ts`就认定习惯独立于数据库，也不能只写迁移标志便声称迁移完成。修订后的具体范围见[当前开发计划](../development-plan-revised.md)。
 
 ## 6. 本轮整理完成定义
 

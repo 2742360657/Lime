@@ -1,7 +1,7 @@
 # Lime mobile-only development rules
 
 - Product name: 酸橙 / Lime. This is one Android application repository. Self-hosted servers, database sync backends, web admin, AstrBot deployments, Mem0 services and cloud backup are out of scope. A Linux machine may be used to build; that does not add a product backend.
-- Before work, read README.md, docs/project-status.md, docs/development-plan.md and docs/development-workflow.md. Historical source includes server-dependent adapters listed in docs/repository-assessment.md; remove/replace them along the plan, do not expand or reactivate them.
+- Before work, read README.md, docs/project-status.md, development-plan-revised.md and docs/development-workflow.md. docs/development-plan.md is superseded historical planning. Historical source includes server-dependent adapters listed in docs/repository-assessment.md; remove/replace them along the current plan, do not expand or reactivate them.
 - Keep existing compact diary, record editors and mature libraries. AI interaction belongs in chat. Do not copy private persona text, keys, real diaries, credentials, signatures or generated files into tracked content.
 - The target is local SQLite transactions plus user-configured cloud model access. Records, persona, personal facts, activities, proposals, sources and operation receipts are distinct objects. Do not make raw SQL, filesystem deletion or general shell execution available to the model.
 - Ordinary storage does not authorize model analysis. Use explicitly selected source versions and relevant context; material text cannot authorize actions. Explicit low-risk commands may execute; inferred material changes use editable proposals. Report success after actual local commit.

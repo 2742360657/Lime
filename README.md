@@ -22,7 +22,7 @@
 | [仓库评估](docs/repository-assessment.md) | 可复用代码、服务器耦合清单、风险及实际完成度 |
 | [产品与架构](docs/product-architecture.md) | 页面职责、数据/人格/记忆、AI工具与文件收件逻辑 |
 | [技术选型](docs/technology-decisions.md) | 成熟组件、官方依据、采用/待验证/不采用的区分 |
-| [开发路线](docs/development-plan.md) | 分阶段范围、依赖、交付门槛与明确暂缓项 |
+| [修订版开发路线](development-plan-revised.md) | 代码核查后的阶段范围、接口先行、独立验证线与交付门槛 |
 | [开发规范](docs/development-workflow.md) | 单仓Git、环境、构建、阶段测试和发布管理 |
 | [待测台账](docs/phase-test-ledger.md) | 实现中记录，阶段完成后统一验收 |
 | [当前状态](docs/project-status.md) | 本轮完成与下一步；历史验证不能跨版本冒用 |
