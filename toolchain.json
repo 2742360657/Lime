@@ -12,6 +12,6 @@
   "android_ndk": "27.1.12297006",
   "package_id": "app.lime.personalassistant",
   "development_package_id": "app.lime.personalassistant.dev",
-  "stage": "P1 local records; emulator technical acceptance",
+  "stage": "P2-A local domain; native isolated acceptance; direct assistant pending",
   "application_build_verified": true
 }

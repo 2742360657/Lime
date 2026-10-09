@@ -68,6 +68,14 @@ Office/复杂表格移动端解析尚未定型，不在本轮承诺全格式支�
 
 开发中记录条目；阶段实现后统一静态/构建/功能/真机验收；手动触发CI，不每次push跑全套或调用付费模型。Git小提交和阶段验收分开。
 
-P1后、P2实现前计划采用Jest + 匹配Expo55的jest-expo；实际依赖尚未安装/锁定。React Native Testing Library仅在需要组件交互测试时引入。先覆盖命令校验、版本/授权、幂等和事务边界，不建立大规模快照套件；原生数据库持久化另做集成验证。官方依据：[Expo测试指南](https://docs.expo.dev/develop/unit-testing/)。
+P2-A已锁定Jest29.7.0、jest-expo55.0.22（匹配Expo55的bundledNativeModules）和@types/jest29.5.14。分开运行Node真实SQLite命令测试与Expo preset兼容测试；后者不模拟证明原生SQLite。React Native Testing Library尚未引入，仅在需要组件交互测试时选择。手动CI增加阶段测试命令，不自动调用模型。官方依据：[Expo测试指南](https://docs.expo.dev/develop/unit-testing/)。
 
 公开仓库仅当前手机源码与规划，清洁起始历史保留来源；不将旧混合工作区的所有分支/签名/运行数据推送。仅源码发布不等于APKRelease或开源授权条款，许可由所有者决定。
+
+## ADR-010 本地业务校验与回执（P2-A采用）
+
+Zod4.6.5（MIT）用于严格命令schema与共享类型；不自行编写通用JSON schema引擎。命令校验还在domain边界执行，未来工具参数schema不能替代版本、来源授权和事务检查。已在当前Expo/Hermes真机的隔离原生探针验证，未因此宣称AI SDK的流式/工具循环已兼容。Jest/jest-expo亦为MIT，依赖通过npm固定，未复制第三方库源码。
+
+回执存命令规范化指纹和最小实体引用；不存原始记忆正文。训练通过通用活动和关联习惯完成，不新增训练服务。详见[命令契约](domain-contracts.md)。官方：[Zod](https://zod.dev/)、[Zod许可](https://github.com/colinhacks/zod/blob/main/LICENSE)。
+
+P2-A安装后的production audit仍有39项告警（1 low/10 moderate/28 high），新增测试工具后的完整依赖树为62项；没有进行强制跨版本升级。记录不等于已完成漏洞处置；P5正式发布需按生产用途审查现有依赖链，私密audit报告留在.local。

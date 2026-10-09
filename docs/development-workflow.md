@@ -37,7 +37,9 @@ env脚本只配置构建工具/缓存，支持外部工具目录与可选挂载�
 
 手动GitHub Actions用于阶段静态检查，不每次push自动跑功能测试；不把Key/云模型调用放CI。真实模型/渠道/HyperOS验收在阶段末按台账集中执行。报告带提交、dirty、APK身份/签名/架构和设备，区分技术/人工体验/发布。
 
-按[修订版计划](../development-plan-revised.md)，P1后、P2实现前建立最小Jest/jest-expo基础。React Native Testing Library按组件交互需要引入，纯命令无需该库。对domain/工具重点验证版本、授权、幂等与原子提交；不按函数数机械补测试。自动化可随功能编写，阶段末统一运行；native mock不替代SQLite集成/重启验证。本次文档修订不安装测试依赖。
+P2-A已按[修订版计划](../development-plan-revised.md)建立固定版本Jest/jest-expo基础。`npm run test:phase`在阶段末运行Node真实SQLite与Expo preset项目，Jest只扫描src/tests，不扫描.local私密快照。React Native Testing Library按组件交互需要引入，纯命令无需该库。对domain/工具重点验证版本、授权、幂等与原子提交；不按函数数机械补测试。自动化可随功能编写，阶段末统一运行；native mock不替代SQLite集成/重启验证。
+
+P2-A原生命令探针：安装当前debug、连接本仓库Metro后，显式指定设备执行`python3 scripts/p2-domain-device-check.py --serial <device>`。它只使用独立合成库，支持真机；普通页面写入测试`python3 scripts/p2-domain-ui-emulator-check.py`则只允许模拟器。安装因手机USB限制失败时不卸载/清数据，等待手机允许或标记待测。preview独立运行，不保留任务临时ADB反向端口。
 
 ## 5. 构建与签名
 

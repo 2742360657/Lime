@@ -2,7 +2,7 @@
 
 面向个人使用的 Android 日常记录与 AI 助手应用：待办、习惯、日记、备忘录和聊天使用同一份手机数据。
 
-**当前P1本地记录与模拟器技术验收完成，独立助手尚未交付。** 配对、同步和服务器发送已退出，聊天暂提供本机历史查看，直连模型在P2实现。小米真机体验待测；具体证据及限制见[P1报告](docs/p1-local-records-validation.md)。
+**当前P1本地记录完成，P2-A命令层已实现并通过真机隔离探针；完整助手尚未交付。** 待办和新增打卡已改接本地命令，显式记忆、活动、建议和回执具备本地接口。聊天仍仅查看本机历史，DeepSeek直连、人格导入与聊天工具在P2-B/C继续。人工体验待测；见[P1报告](docs/p1-local-records-validation.md)与[P2-A报告](docs/p2-domain-validation.md)。
 
 ## 本轮确定的范围
 
@@ -59,6 +59,7 @@ npm start
 ```bash
 python3 scripts/repository-check.py
 npm run typecheck
+npm run test:phase
 bash scripts/android-build.sh preview arm64-v8a
 ```
 
