@@ -85,3 +85,11 @@ bash scripts/android-build.sh release arm64-v8a
 本批实现和准确证据见[P4-A报告](p4-reminders-validation.md)。debug/当前Metro下显式指定设备运行`python3 scripts/p4-reminder-device-check.py --serial <device>`，使用独立SQLite/系统通知ID，收尾只取消自己的合成队列并删除自己的测试库；不请求通知权限、不测试送达。独立preview且提醒关闭时可运行`python3 scripts/p4-reminder-settings-check.py --serial <device>`检查只读设置/编辑取消/日期选择取消/重开。与生产提醒队列分开，不用cancelAll清其它通知。
 
 P4-A可靠性探针已扩展迟到队列保留和单项失败/重试。迟到部分用模拟逻辑时钟核对真实Android队列，不是系统实际投递证据。已排队宽限、全局失败与本批构建证据见[修正报告](p4-reminder-reliability-validation.md)；手机锁屏时不填写新原生探针通过，不保留依赖Metro的开发包作为最终试用状态。
+
+## P4-B微信验收入口
+
+本仓库debug/Metro就绪后，启动`python3 scripts/weixin-fixture-server.py`（仅回环8093合成响应），临时映射8093，再执行`python3 scripts/p4-weixin-device-check.py --serial <device>`。探针使用独立随机库/私密测试项，没有实际账号或模型调用；失败只输出固定阶段/分类，先修夹具再复测受影响路径。
+
+真实账号验证使用`python3 scripts/p4-weixin-account-step.py --serial <device> --action qr`，QR展示内容只写忽略的`.local`，不打印或提交。由所有者扫码确认后执行`--action status`；约定少量合成材料、关闭应用期间发送后再`--action read`及`--action download`。只输出状态/计数；实际消息、账号与媒体能力不进入公开报告。账号独立验证库与SecureStore不属于普通导出，普通收件UI尚未上线。不要用实际群通知做第一轮验证。
+
+测试结束停止本任务Metro/8093夹具，移除新增的8081/8093映射，恢复本批独立preview并核对APK摘要。普通记录摘要在可run-as的debug期间检查；preview不可run-as时不声称安装后SQL逐项比较已通过，也不为重复摘要检查来回安装旧包。详见[P4-B报告](p4-weixin-validation.md)。
