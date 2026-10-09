@@ -63,7 +63,7 @@ tap('验证本机助手运行时')
 wait('本机助手验证通过')
 result = json.loads(adb('shell', 'run-as', PACKAGE, 'cat', 'files/lime-p2-agent-probe.json'))
 assert result['status'] == 'passed' and result['checkins'] == 1 and result['localQueue'] == 0
-assert all(result[field] for field in ('sdkStream', 'toolLoop', 'secureStore', 'personaReopen', 'neutralOptional', 'interruptedRecovery', 'receiptReplay', 'crossSessionActivity'))
+assert all(result[field] for field in ('nativeTimeout', 'sdkStream', 'toolLoop', 'secureStore', 'personaReopen', 'neutralOptional', 'interruptedRecovery', 'receiptReplay', 'crossSessionActivity'))
 path = ROOT / '.local' / 'p2-agent-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)

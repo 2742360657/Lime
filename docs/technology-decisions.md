@@ -86,4 +86,6 @@ AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2
 
 默认模型为官方别名`deepseek-flash`；[官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)将其指向V4.1-Flash。本批仅文本和工具接入，模型支持视觉不等于应用附件入口已经实现。人格文件只保存在手机私有库，不预置个人角色原文。Node真实SDK测试通过；Android/Hermes与真实API验收仍须分别记录，不以npm安装作为兼容证据。
 
-真机发现RN自带AbortController缺少现代AbortSignal接口。采用`abortcontroller-polyfill@1.7.8`（MIT）的`abortsignal-polyfill-only`补齐reason/any/throwIfAborted；不加载其fetch补丁，网络仍使用Expo原生fetch。产品超时用可清理的控制器定时器，避免每轮留下timeout信号定时器。补丁来源为[官方项目](https://github.com/mo/abortcontroller-polyfill)，包完整性按npm发布的SHA-512核对，未复制源码进仓库。当前真机SDK流、工具循环、SecureStore、隔离数据库关闭重开及一次打卡已通过；真实API与界面体验分别记录。
+真机发现RN自带AbortController缺少现代AbortSignal接口。采用`abortcontroller-polyfill@1.7.8`（MIT）的完整`cjs-ponyfill`补齐reason/any/throwIfAborted与一次性事件；不加载其fetch补丁，网络仍使用Expo原生fetch。产品超时用可清理的控制器定时器，避免每轮留下timeout信号定时器。补丁来源为[官方项目](https://github.com/mo/abortcontroller-polyfill)，包完整性按npm发布的SHA-512核对，未复制源码进仓库。当前真机SDK流、工具循环、SecureStore、隔离数据库关闭重开及一次打卡已通过；真实API与界面体验分别记录。
+
+延迟验证进一步发现：RN缺少全局DOMException，signal-only补丁在旧控制器上重复派发事件，使once监听丢失。最终使用包内完整控制器/信号ponyfill，不加载fetch补丁；DOMException复用固定RN0.83.10内置WebIDL实现并安装到global。该RN导入是私有路径，后续升级RN/Expo必须复测现代取消、超时、once监听和原生SDK流；不得盲目删掉兼容模块。短超时与合并取消事件已在当前真机验证。

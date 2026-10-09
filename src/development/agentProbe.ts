@@ -23,10 +23,18 @@ export async function runAgentProbe() {
   };
   try {
     const timeoutSignal = AbortSignal.timeout(30);
-    await new Promise<void>(resolve => timeoutSignal.addEventListener('abort', () => resolve(), { once: true }));
+    await new Promise<void>((resolve, reject) => {
+      const guard = setTimeout(() => reject(new Error('Synthetic timeout event missing')), 1000);
+      timeoutSignal.addEventListener('abort', () => { clearTimeout(guard); resolve(); }, { once: true });
+    });
     ensure(timeoutSignal.aborted && timeoutSignal.reason?.name === 'TimeoutError');
     let threw = false; try { timeoutSignal.throwIfAborted(); } catch { threw = true; }
     ensure(threw);
+    const cancelled = new AbortController(), combined = AbortSignal.any([cancelled.signal]);
+    let stopped = 0;
+    combined.addEventListener('abort', () => { stopped++; }, { once: true });
+    cancelled.abort(new Error('Synthetic stop'));
+    ensure(stopped === 1 && combined.aborted && combined.reason?.message === 'Synthetic stop');
     await SecureStore.setItemAsync(keyName, 'synthetic-not-a-real-credential');
     await db.init();
     let { domain, store, runtime } = services();
