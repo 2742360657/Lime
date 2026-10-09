@@ -1,7 +1,7 @@
 const { createHash } = require('node:crypto');
 const { sqliteHarness } = require('./sqliteHarness.cjs');
 const { createDomain } = require('../../src/domain/service');
-const { planReminders, shanghaiTimestamp, NOTIFICATION_PREFIX, MAX_SCHEDULED } = require('../../src/reminders/planner');
+const { planReminders, shanghaiTimestamp, NOTIFICATION_PREFIX, MAX_SCHEDULED, LATE_GRACE_MS } = require('../../src/reminders/planner');
 const { createReminderService } = require('../../src/reminders/service');
 const digest = async text => createHash('sha256').update(text).digest('hex');
 let db, domain, counter, clock, allowed, os, driver, service;
@@ -129,4 +129,66 @@ test('agent reminder changes remain confirmed proposals, even if a grant row is 
   const proposal = await domain.propose(once, { proposalId: 'proposal', requestId: 'request' });
   await domain.acceptProposal(proposal.id, proposal.revision, { actor: 'ui', operationId: 'confirmed' });
   expect(await rules()).toHaveLength(1); expect(os.size).toBe(0);
+});
+
+
+test('opening after due time retains only a valid queued instance; queue disappearance never resends', async () => {
+  await execute(once); await enabled(); const id = [...os][0];
+  clock = shanghaiTimestamp(once.dateKey, once.time) + 120000;
+  await service.refresh(); expect([...os]).toEqual([id]);
+  expect(driver.cancel).not.toHaveBeenCalled(); expect(driver.schedule).toHaveBeenCalledTimes(1);
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 0, delayed: 1, error: null });
+  expect(await db.tx.getOptional('SELECT status FROM local_reminder_instances WHERE id=?', [id])).toMatchObject({ status: 'delayed' });
+  os.clear(); await service.refresh();
+  expect(service.getSnapshot().delayed).toBe(0); expect(driver.schedule).toHaveBeenCalledTimes(1);
+  expect(await db.tx.getOptional('SELECT status FROM local_reminder_instances WHERE id=?', [id])).toMatchObject({ status: 'elapsed' });
+});
+
+test('past rules and unrecorded native IDs cannot acquire grace; exactly 24 hours expires', async () => {
+  await execute(once); clock = shanghaiTimestamp(once.dateKey, once.time) + 120000;
+  await enabled(); expect(driver.schedule).not.toHaveBeenCalled();
+  os.add(NOTIFICATION_PREFIX + 'unrecorded'); await service.refresh(); expect(os.size).toBe(0);
+  clock = shanghaiTimestamp('2026-10-09', '12:00'); await service.refresh(); expect(os.size).toBe(1);
+  clock = shanghaiTimestamp(once.dateKey, once.time) + LATE_GRACE_MS - 1;
+  await service.refresh(); expect(os.size).toBe(1); expect(service.getSnapshot().delayed).toBe(1);
+  clock++; await service.refresh(); expect(os.size).toBe(0); expect(service.getSnapshot().delayed).toBe(0);
+});
+
+test.each(['revision', 'cancel', 'disabled', 'permission'])('a late queued rule is cancelled on %s without resending', async change => {
+  const receipt = await execute(once); await enabled(); const id = [...os][0];
+  clock = shanghaiTimestamp(once.dateKey, once.time) + 120000;
+  if (change === 'revision') await db.tx.execute('UPDATE local_reminder_rules SET revision=revision+1 WHERE id=?', [receipt.entity.id]);
+  if (change === 'cancel') await execute({ type: 'reminder.cancel', id: receipt.entity.id, expectedRevision: 1 });
+  if (change === 'disabled') await service.setSetting('enabled', false);
+  if (change === 'permission') allowed = false;
+  await service.refresh(); expect(os.has(id)).toBe(false); expect(driver.schedule).toHaveBeenCalledTimes(1);
+});
+
+test.each(['done', 'deleted', 'tasks-disabled'])('a late queued task is cancelled on %s', async change => {
+  const receipt = await execute({ type: 'task.create', title: '合成任务', dueDateKey: once.dateKey });
+  await service.setSetting('tasks', true); await enabled();
+  clock = shanghaiTimestamp(once.dateKey, once.time) + 120000;
+  if (change === 'done') await db.tx.execute("UPDATE tasks SET status='done',revision=revision+1 WHERE id=?", [receipt.entity.id]);
+  if (change === 'deleted') await db.tx.execute('UPDATE tasks SET deleted=1,revision=revision+1 WHERE id=?', [receipt.entity.id]);
+  if (change === 'tasks-disabled') await service.setSetting('tasks', false);
+  await service.refresh(); expect(os.size).toBe(0); expect(driver.schedule).toHaveBeenCalledTimes(1);
+});
+
+test('annual grace crosses a year boundary; retained items share the future capacity', async () => {
+  clock = shanghaiTimestamp('2026-12-31', '12:00');
+  await execute({ type: 'reminder.create', title: '跨年', mode: 'annual', monthDay: '12-31', time: '23:59' });
+  await enabled(); const oldId = driver.schedule.mock.calls[0][0];
+  clock = shanghaiTimestamp('2027-01-01', '00:01');
+  for (let n = 0; n < MAX_SCHEDULED; n++) await execute({ type: 'task.create', title: `合成${n}`, dueDateKey: '2027-01-02' });
+  await service.setSetting('tasks', true);
+  expect(os.has(oldId)).toBe(true); expect(os.size).toBe(MAX_SCHEDULED);
+  expect(service.getSnapshot()).toMatchObject({ delayed: 1, scheduled: MAX_SCHEDULED - 1, deferred: 2 });
+});
+
+test('missing DB acknowledgement recovers a late native notification without a second schedule', async () => {
+  await execute(once); db.failOn("SET status='scheduled'"); await enabled();
+  clock = shanghaiTimestamp(once.dateKey, once.time) + 120000;
+  db.failOn(null); await service.refresh();
+  expect(os.size).toBe(1); expect(driver.schedule).toHaveBeenCalledTimes(1);
+  expect(service.getSnapshot()).toMatchObject({ delayed: 1, error: null });
 });
