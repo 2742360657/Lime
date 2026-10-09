@@ -11,7 +11,15 @@
 - Gitleaks8.16.0针对暂存文件导出的独立目录扫描：0项发现；报告脱敏并保存在忽略的本地目录。
 - `git diff --cached --check`通过；Windows wrapper用gitattributes规范行尾，不改其逻辑。
 
-GitHub公开访问/默认分支/远端提交将在推送后核对。完整执行结果会在本文件补记；未上传APK或创建软件Release。
+## GitHub发布结果
+
+- 公开仓库：https://github.com/2742360657/Lime ，API确认visibility为PUBLIC，默认分支main。
+- 初始源码/评估提交：`998ff16024f9059ad413d27ba8a33f6b1bf90f78`，推送后与远端main核对一致。
+- 未登录HTTP读取README、仓库评估与开发计划均返回200，文档标题正确。
+- GitHub识别手动 `Phase static check` workflow；未触发应用检查/构建或云模型测试。
+- 本轮初始追踪148个文件；不包含秘密/生成文件/服务器目录。未上传APK或创建软件Release。
+
+本文件发布结果以单独文档提交补记，最终main提交见Git历史。P0仓库整理/公开发布已完成，P1—P5仍待开发。
 
 ## 明确没有做
 
