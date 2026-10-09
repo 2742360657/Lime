@@ -4,7 +4,7 @@
 
 ## 1. 环境与工作目录
 
-仓库可clone到任意开发目录；本机规范见忽略的 `.local/dev.env`。Node22/JDK17/Android SDK、Gradle wrapper与npm lock固定。SDK/AVD/缓存可继续使用现有数据盘工具，不能因换仓库复制数GB缓存进Git。
+仓库可clone到任意开发目录；本机规范见忽略的 `.local/dev.env`。Node22/JDK17/Android SDK、Gradle wrapper与npm lock固定。SDK/AVD/缓存可继续复用已安装的工具，不能因换仓库复制数GB缓存进Git。
 
 ```bash
 source scripts/env.sh
@@ -69,3 +69,7 @@ bash scripts/android-build.sh release arm64-v8a
 应用发布：当前阶段静态/构建/完整流程通过、普通记录离线重启、真实模型/渠道实际能力、权限拒绝与失败出口、当前范围导出/合并恢复、人工紧凑UI/中文IME、新签名安装与依赖风险评估。渠道/Office未完成则明确范围，不能写全功能版。
 
 发布说明不上传私人人格/用户材料/完整日志，只发真实构建的包及脱敏说明；独立备份目标暂缓，不强制云服务。需求变更须先更新范围与待测项，再开发。
+
+## 本机环境恢复（2026-10-09）
+
+工作目录不变，已迁移到容量充足的系统分区。按用户要求不挂载、不使用三星数据盘；工具/缓存继续使用现有路径。环境文件支持根挂载路径及可选文件系统UUID核对，具体设备UUID只写忽略的`.local/dev.env`。可用`LIME_AVD_DIR`/`LIME_AVD_NAME`复用已有模拟器，运行`bash scripts/emulator-run.sh`，不清AVD或应用数据。当前真机未连接，原生和系统入口验收先在API36模拟器执行；人工手机体验单独保留。

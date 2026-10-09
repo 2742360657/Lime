@@ -5,8 +5,14 @@ if [[ -f "$LIME_PROJECT_ROOT/.local/dev.env" ]]; then
   source "$LIME_PROJECT_ROOT/.local/dev.env"
 fi
 if [[ -n "${LIME_EXPECTED_MOUNT:-}" ]]; then
-  if ! mountpoint -q "$LIME_EXPECTED_MOUNT" || [[ "$LIME_PROJECT_ROOT" != "$LIME_EXPECTED_MOUNT"/* ]]; then
+  if ! mountpoint -q "$LIME_EXPECTED_MOUNT" || [[ "$LIME_PROJECT_ROOT" != "${LIME_EXPECTED_MOUNT%/}/"* ]]; then
     printf '%s\n' 'Required development data mount is unavailable or does not contain this checkout.' >&2
+    return 1 2>/dev/null || exit 1
+  fi
+fi
+if [[ -n "${LIME_EXPECTED_FILESYSTEM_UUID:-}" ]]; then
+  if [[ "$(findmnt --noheadings --output UUID --target "$LIME_PROJECT_ROOT")" != "$LIME_EXPECTED_FILESYSTEM_UUID" ]]; then
+    printf '%s\n' 'Development checkout is not on the configured filesystem.' >&2
     return 1 2>/dev/null || exit 1
   fi
 fi
@@ -29,3 +35,5 @@ export GRADLE_USER_HOME="${LIME_GRADLE_CACHE:-$LIME_PROJECT_ROOT/.local/cache/gr
 export npm_config_cache="${LIME_NPM_CACHE:-$LIME_PROJECT_ROOT/.local/cache/npm}"
 export LIME_KEYSTORE_DIR="${LIME_KEYSTORE_DIR:-$LIME_PROJECT_ROOT/.local/signing}"
 export ORG_GRADLE_PROJECT_LIME_KEYSTORE_DIR="$LIME_KEYSTORE_DIR"
+
+if [[ -n "${LIME_AVD_DIR:-}" ]]; then export ANDROID_AVD_HOME="$LIME_AVD_DIR"; fi
