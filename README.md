@@ -6,7 +6,7 @@
 
 P3增加应用内文件/图片、系统分享/打开文件与本地材料来源管理：仅选中发送才分析，文本/图片/有界PDF支持解析，Office仅保存。原生探针、一次真实视觉API、模拟器分段UI与独立preview已有分项结果，详见[P3报告](docs/p3-materials-validation.md)。
 
-P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。当前复评补充两项提醒可靠性修正，下一批先收尾，详见[复评与计划](docs/next-development-review.md)。
+P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。两项提醒可靠性修正已实现，集中68项/类型/两包ARM64构建通过；本批手机锁屏，新探针/送达仍待验，见[修正报告](docs/p4-reminder-reliability-validation.md)。下一步微信能力验证及完整手动导出，路线见[复评与计划](docs/next-development-review.md)。
 
 ## 本轮确定的范围
 

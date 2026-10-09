@@ -83,3 +83,5 @@ bash scripts/android-build.sh release arm64-v8a
 ## P4-A验收入口
 
 本批实现和准确证据见[P4-A报告](p4-reminders-validation.md)。debug/当前Metro下显式指定设备运行`python3 scripts/p4-reminder-device-check.py --serial <device>`，使用独立SQLite/系统通知ID，收尾只取消自己的合成队列并删除自己的测试库；不请求通知权限、不测试送达。独立preview且提醒关闭时可运行`python3 scripts/p4-reminder-settings-check.py --serial <device>`检查只读设置/编辑取消/日期选择取消/重开。与生产提醒队列分开，不用cancelAll清其它通知。
+
+P4-A可靠性探针已扩展迟到队列保留和单项失败/重试。迟到部分用模拟逻辑时钟核对真实Android队列，不是系统实际投递证据。已排队宽限、全局失败与本批构建证据见[修正报告](p4-reminder-reliability-validation.md)；手机锁屏时不填写新原生探针通过，不保留依赖Metro的开发包作为最终试用状态。

@@ -50,3 +50,5 @@ debug + 当前Metro：`python3 scripts/p4-reminder-device-check.py --serial <dev
 ## 后续复评附记（2026-10-09）
 
 285da36代码核查补充发现：到期但系统延迟的有效排队实例可能被重算撤销，单项排程错误会阻断本轮后续项。尚未真机复现，既有53项与本报告探针未覆盖这些边界，不能改写为此前已验通过。修正列为下一批优先，见[复评与执行安排](next-development-review.md)。
+
+本批修正的后续结果另见[P4-A可靠性报告](p4-reminder-reliability-validation.md)：实现420053a、集中68项与ARM64两包通过，新手机探针/实际送达未验。此处保留487551d的历史范围。
