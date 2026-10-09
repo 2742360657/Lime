@@ -29,14 +29,14 @@ export function ActionCard({ result }: { result: ActionResult }) {
   const button = (label: string, fn: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={busy} onPress={fn} style={{ paddingVertical: 8, paddingHorizontal: 8, opacity: busy ? 0.4 : 1 }}><Text style={{ fontSize: 12, color: c.primary }}>{label}</Text></Pressable>;
   return <View style={{ padding: 10, gap: 5, backgroundColor: c.surfaceMuted, borderColor: c.border, borderWidth: 1, borderRadius: 8 }}>
     <Text style={{ fontSize: 13, fontWeight: '600', color: c.textPrimary }}>{names[command.type]} · {receipt ? '已保存' : pending ? '待确认' : proposal?.status === 'rejected' ? '已拒绝' : result.status === 'error' ? '未保存' : '读取中'}</Text>
-    {Object.entries(command).filter(([key]) => labels[key]).map(([key, value]) => <View key={key} style={{ gap: 3 }}>
+    {!receipt ? Object.entries(command).filter(([key]) => labels[key]).map(([key, value]) => <View key={key} style={{ gap: 3 }}>
       {editing ? <><Text style={{ fontSize: 11, color: c.textMuted }}>{labels[key]}</Text><TextInput accessibilityLabel={labels[key]} multiline={key === 'content' || key === 'note'} value={String(draft[key] ?? '')} onChangeText={text => setDraft({ ...draft, [key]: text || (key === 'dueDateKey' || key === 'dueTime' ? null : '') })} style={{ fontSize: 13, color: c.textPrimary, padding: 7, backgroundColor: c.surface, borderRadius: 6 }} /></> : value ? <Text selectable style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{labels[key]}：{String(value)}</Text> : null}
-    </View>)}
-    {'id' in command ? <TargetLabel id={command.id} type={command.type} /> : null}
+    </View>) : null}
+    {receipt && receipt.entity.kind !== 'checkin' ? <TargetLabel id={receipt.entity.id} type={`${receipt.entity.kind}.read`} /> : 'id' in command ? <TargetLabel id={command.id} type={command.type} /> : null}
     {command.type === 'task.complete' ? <Text style={{ fontSize: 12, color: c.textSecondary }}>{command.completed ? '标记完成' : '恢复未完成'}</Text> : null}
     {command.type === 'activity.start' && command.habitId ? <TargetLabel id={command.habitId} type="habit.checkin" /> : null}
     {proposal?.source_refs && proposal.source_refs !== '[]' ? <Text style={{ fontSize: 11, color: c.textMuted }}>依据本轮选择的原文版本；接受时重新核对版本。</Text> : null}
-    {pending ? <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+    {pending && !receipt ? <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
       {editing ? button('保存修改', () => void act(async () => { await domain.editProposal(proposal.id, proposal.revision, draft, { actor: 'ui' }); setEditing(false); })) : button('修改', () => { setDraft({ ...command }); setEditing(true); })}
       {!editing ? button('确认保存', () => void act(async () => { setReceipt(await domain.acceptProposal(proposal.id, proposal.revision, { actor: 'ui', operationId: Crypto.randomUUID() })); })) : button('取消修改', () => setEditing(false))}
       {!editing ? button('拒绝', () => void act(async () => { await domain.rejectProposal(proposal.id, proposal.revision, { actor: 'ui' }); })) : null}

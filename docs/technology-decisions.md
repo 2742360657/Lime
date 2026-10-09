@@ -85,3 +85,5 @@ P2-A安装后的production audit仍有39项告警（1 low/10 moderate/28 high）
 AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2.0）使用相同provider v4协议；Node22满足构建要求。直接传入createDeepSeek生成的模型对象与expo/fetch，不使用字符串模型Gateway、自建后端或SDK工作流服务。SDK承担SSE/schema/工具循环，产品模块仅保存请求、授权和业务回执。
 
 默认模型为官方别名`deepseek-flash`；[官方模型说明](https://api-docs.deepseek.com/quick_start/pricing/)将其指向V4.1-Flash。本批仅文本和工具接入，模型支持视觉不等于应用附件入口已经实现。人格文件只保存在手机私有库，不预置个人角色原文。Node真实SDK测试通过；Android/Hermes与真实API验收仍须分别记录，不以npm安装作为兼容证据。
+
+真机发现RN自带AbortController缺少现代AbortSignal接口。采用`abortcontroller-polyfill@1.7.8`（MIT）的`abortsignal-polyfill-only`补齐reason/any/throwIfAborted；不加载其fetch补丁，网络仍使用Expo原生fetch。产品超时用可清理的控制器定时器，避免每轮留下timeout信号定时器。补丁来源为[官方项目](https://github.com/mo/abortcontroller-polyfill)，包完整性按npm发布的SHA-512核对，未复制源码进仓库。当前真机SDK流、工具循环、SecureStore、隔离数据库关闭重开及一次打卡已通过；真实API与界面体验分别记录。

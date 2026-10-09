@@ -135,7 +135,7 @@ export function createAgentRuntime(options: Options) {
       const role = settings.persona?.enabled ? `用户选择的角色表达设定：\n${settings.persona.body}\n\n` : '使用中性、友善、简洁的个人助手身份。\n';
       const response = streamText({ model, instructions: `${role}${INSTRUCTIONS}`, messages, tools,
         providerOptions: { deepseek: { thinking: { type: 'disabled' } } },
-        maxOutputTokens: 4096, maxRetries: 0, streamRetries: 0, stopWhen: isStepCount(6), abortSignal: signal, timeout: 120000,
+        maxOutputTokens: 4096, maxRetries: 0, streamRetries: 0, stopWhen: isStepCount(6), abortSignal: signal,
       });
       for await (const part of response.stream) {
         if (part.type === 'text-delta') {
@@ -148,12 +148,14 @@ export function createAgentRuntime(options: Options) {
       if (error) throw error;
       if (!finished && !signal.aborted) throw new Error('INCOMPLETE_STREAM');
       if (!text && !signal.aborted) text = '本轮已结束，请查看下方的操作结果。';
-      await store.finish(request.id, text, signal.aborted ? 'stopped' : 'complete', signal.aborted ? '生成已停止，已提交操作仍保留。' : null);
+      const timedOut = signal.aborted && signal.reason?.message === 'DEADLINE_EXCEEDED';
+      await store.finish(request.id, text, timedOut ? 'error' : signal.aborted ? 'stopped' : 'complete', timedOut ? '生成超时，请重试。已提交操作仍保留。' : signal.aborted ? '生成已停止，已提交操作仍保留。' : null);
     } catch (e) {
-      const message = signal.aborted ? '生成已停止，已提交操作仍保留。' : safeAgentError(e);
+      const timedOut = signal.aborted && signal.reason?.message === 'DEADLINE_EXCEEDED';
+      const message = timedOut ? '生成超时，请重试。已提交操作仍保留。' : signal.aborted ? '生成已停止，已提交操作仍保留。' : safeAgentError(e);
       // Preserve an earlier partial answer if retry failed before a new token arrived.
       if (!text) text = (await store.messages(request.session_id)).find(m => m.id === `${request.id}:a`)?.body ?? '';
-      await store.finish(request.id, text, signal.aborted ? 'stopped' : 'error', message);
+      await store.finish(request.id, text, signal.aborted && !timedOut ? 'stopped' : 'error', message);
       publish({ error: message, text });
     } finally { controller = null; publish({ busy: false }); }
   }
@@ -167,7 +169,10 @@ export function createAgentRuntime(options: Options) {
       if (!await options.key()) throw new Error('请先在设置 → 助手配置中保存 DeepSeek API Key。');
       const request = retryId ? await store.restart(retryId) : await store.begin(sessionId, text, refs, await domain.listActivities({ limit: 100 }));
       publish({ requestId: request.id, sessionId: request.session_id });
-      await run(request, controller.signal);
+      // Cancellable product deadline; don't allocate an uncollectable AbortSignal.timeout timer per turn.
+      const activeController = controller;
+      const deadline = setTimeout(() => activeController.abort(new Error('DEADLINE_EXCEEDED')), 120000);
+      try { await run(request, activeController.signal); } finally { clearTimeout(deadline); }
     } catch (e) { controller = null; publish({ busy: false }); throw e; }
   }
   return { start, stop: () => controller?.abort(), getSnapshot: () => state,

@@ -1,4 +1,7 @@
 import { registerRootComponent } from 'expo';
+import 'react-native/Libraries/Core/InitializeCore';
+// SDK v7 needs reason/timeout/any/throwIfAborted. Patch AbortSignal only; retain Expo fetch.
+import 'abortcontroller-polyfill/dist/abortsignal-polyfill-only';
 
 import App from './App';
 import { registerDatabaseProbe } from './src/development/registerDatabaseProbe';

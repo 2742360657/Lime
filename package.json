@@ -18,6 +18,7 @@
     "@react-native-community/datetimepicker": "8.6.0",
     "@react-navigation/drawer": "^7.14.2",
     "@react-navigation/native": "^7.4.1",
+    "abortcontroller-polyfill": "1.7.8",
     "ai": "7.0.136",
     "expo": "~55.0.31",
     "expo-crypto": "~55.0.19",
