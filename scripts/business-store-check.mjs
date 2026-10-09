@@ -35,7 +35,7 @@ assert.equal((await tx.getAll('SELECT * FROM local_meta')).length,0);
 assert.equal((await tx.getAll('SELECT * FROM habits')).length,0);
 failImport=false;
 const first=await store.migrateLegacyBusiness(data);
-assert.deepEqual(first,data);
+assert.deepEqual(first,{...data,habits:data.habits.map(h=>({...h,revision:1})),todos:data.todos.map(t=>({...t,revision:1}))});
 assert.equal(JSON.parse((await tx.getOptional("SELECT value FROM local_meta WHERE id='business-import-backup-v1'")).value).todos[0].note,'original-note');
 const changed=structuredClone(first);changed.habits[0].checkins=[];changed.todos[0].title='Updated';changed.todos[0].completedAt=500;
 await globalThis.__businessTestDB.writeTransaction(tx=>store.writeBusiness(tx,first,changed));

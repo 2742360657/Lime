@@ -1,5 +1,5 @@
 import type { PowerSyncDatabase, Transaction } from '@powersync/react-native';
-import { localTables, tableColumns } from './databaseSchema';
+import { migrationTables, tableColumns } from './databaseSchema';
 
 export const LOCAL_MIGRATION_KEY = 'lime-local-migration-v1';
 type Row = Record<string, string | number | null>;
@@ -12,13 +12,13 @@ export async function migrateLocalDatabase(target: Database, source: Database | 
   async function copy(read: Pick<Transaction, 'getAll' | 'getOptional'> | null) {
     await target.writeTransaction(async write => {
       if (await write.getOptional('SELECT value FROM local_meta WHERE id=?', [LOCAL_MIGRATION_KEY])) return;
-      for (const table of localTables) {
+      for (const table of migrationTables) {
         if (await write.getOptional(`SELECT id FROM ${table} LIMIT 1`)) {
           throw new Error('本地库存在尚未确认的迁移内容，请保留应用数据，不要清空或覆盖。');
         }
       }
       const counts: Record<string, number> = {};
-      for (const table of localTables) {
+      for (const table of migrationTables) {
         const fields = ['id', ...Object.keys(tableColumns[table])];
         let count = 0, lastId: string | null = null;
         if (read) {

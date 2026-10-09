@@ -9,6 +9,7 @@ export type CheckinRecord = {
 };
 
 export type Habit = {
+  revision?: number;
   id: string;
   name: string;
   groupId: string | null;
@@ -30,6 +31,7 @@ export type HabitGroup = {
 export type HabitCadence = 'daily' | 'weekly' | 'monthly';
 
 export type TodoItem = {
+  revision?: number;
   id: string;
   title: string;
   note: string;

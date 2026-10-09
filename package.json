@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
     "prebuild:android": "expo prebuild --platform android && node scripts/apply-signing.mjs && node scripts/apply-development.mjs",
-    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
+    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
+    "test:phase": "jest --runInBand"
   },
   "dependencies": {
     "@op-engineering/op-sqlite": "18.2.5",
@@ -29,12 +30,16 @@
     "react-native-reanimated": "4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
-    "react-native-worklets": "0.7.4"
+    "react-native-worklets": "0.7.4",
+    "zod": "4.6.5"
   },
   "devDependencies": {
+    "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~55.0.12",
     "expo-doctor": "1.20.4",
+    "jest": "29.7.0",
+    "jest-expo": "55.0.22",
     "typescript": "~5.9.2"
   },
   "private": true

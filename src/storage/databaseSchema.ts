@@ -1,7 +1,7 @@
 import { Schema, Table, column } from '@powersync/react-native';
 
 // Keep the existing columns and IDs: storage isolation does not change record semantics.
-export const tableColumns = {
+export const legacyTableColumns = {
   document_groups: { owner_id: column.text, kind: column.text, name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
   documents: { group_id: column.text, sort_order: column.integer, created_at: column.integer, edited_at: column.integer, deleted_at: column.integer, owner_id: column.text, kind: column.text, title: column.text, body: column.text, date: column.text, revision: column.integer, deleted: column.integer, updated_at: column.text },
   tasks: { owner_id: column.text, title: column.text, status: column.text, document_id: column.text, due_at: column.text, note: column.text, due_date_key: column.text, due_time: column.text, sort_order: column.integer, created_at: column.integer, completed_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
@@ -14,11 +14,22 @@ export const tableColumns = {
   local_drafts: { base_content: column.text, kind: column.text, group_id: column.text, base_revision: column.integer, title: column.text, body: column.text, date: column.text, document_id: column.text },
 };
 
+// Additive local-only objects. Never change the historical source schema on migration.
+export const tableColumns = {
+  ...legacyTableColumns,
+  local_operations: { fingerprint: column.text, receipt: column.text, created_at: column.integer },
+  local_memories: { kind: column.text, key: column.text, content: column.text, forgotten: column.integer, revision: column.integer, created_at: column.integer, updated_at: column.text },
+  local_activities: { kind: column.text, title: column.text, note: column.text, completion_note: column.text, habit_id: column.text, status: column.text, checkin_id: column.text, revision: column.integer, created_at: column.integer, updated_at: column.text, completed_at: column.integer },
+  local_proposals: { command: column.text, fingerprint: column.text, source_refs: column.text, request_id: column.text, revision: column.integer, status: column.text, operation_id: column.text, receipt: column.text, created_at: column.integer, updated_at: column.text },
+};
+
 export type LocalTable = keyof typeof tableColumns;
 export const localTables = Object.keys(tableColumns) as LocalTable[];
+export const migrationTables = Object.keys(legacyTableColumns) as (keyof typeof legacyTableColumns)[];
 
 export function createDatabaseSchema(localOnly = true) {
-  return new Schema(Object.fromEntries(localTables.map(name => [name,
+  const names: LocalTable[] = localOnly ? localTables : migrationTables;
+  return new Schema(Object.fromEntries(names.map(name => [name,
     new Table(tableColumns[name], { localOnly: localOnly || name.startsWith('local_') }),
   ])));
 }
