@@ -79,3 +79,7 @@ bash scripts/android-build.sh release arm64-v8a
 当前源码debug + 本仓库Metro就绪后，用`python3 scripts/p3-material-device-check.py --serial <device>`执行随机隔离库/合成原件探针；普通数据不被重置。`python3 scripts/p3-material-ui-emulator-check.py`只允许模拟器，实际系统选择/分享/原件/建议/来源流程使用合成件。失败可按`--from-stage picker`或`proposal`从已记录完成的阶段续跑；不能在没有前段结果时声称全流程通过。debug菜单“准备模拟器材料建议”不调用模型且拒绝真机普通库。
 
 当前开发机localhost默认优先IPv6，Metro可用`NODE_OPTIONS=--dns-result-order=ipv4first npx expo start --localhost --port 8081`绑定本任务IPv4回环，确保模拟器`10.0.2.2`加载当前源码；不修改系统DNS。结束只停止本任务Metro，preview必须停Metro独立检查。P3本批UI为定位修正后分段续跑，手机云聊天/中文IME与未覆盖组合仍待测，见[P3报告](p3-materials-validation.md)。
+
+## P4-A验收入口
+
+本批实现和准确证据见[P4-A报告](p4-reminders-validation.md)。debug/当前Metro下显式指定设备运行`python3 scripts/p4-reminder-device-check.py --serial <device>`，使用独立SQLite/系统通知ID，收尾只取消自己的合成队列并删除自己的测试库；不请求通知权限、不测试送达。独立preview且提醒关闭时可运行`python3 scripts/p4-reminder-settings-check.py --serial <device>`检查只读设置/编辑取消/日期选择取消/重开。与生产提醒队列分开，不用cancelAll清其它通知。

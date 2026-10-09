@@ -58,7 +58,7 @@ Office/复杂表格移动端解析尚未定型，不在本轮承诺全格式支�
 
 官方源码：[腾讯微信协议](https://github.com/Tencent/openclaw-weixin/blob/main/docs/protocol_zh_CN.md)、[微信插件依赖](https://github.com/Tencent/openclaw-weixin/blob/main/package.json)、[QQ插件](https://github.com/tencent-connect/openclaw-qqbot)、[Android应用沙箱](https://source.android.com/docs/security/app-sandbox)。
 
-## ADR-008 本地通知（成熟组件，P4）
+## ADR-008 本地通知（P4-A已接入，送达待验）
 
 选Expo Notifications预排确定时间提醒；到点不用唤醒模型。手机后台不能保证常驻Agent，Doze/WorkManager/特定前台服务都有约束；本项目已无需实时后台收件，不加入长期轮询服务。
 
@@ -95,3 +95,5 @@ AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2
 采用既有Expo DocumentPicker/FileSystem/Sharing与Android ContentResolver/Bitmap/PdfRenderer；新增小型Android适配负责有界私有复制、持久入站批次和SEND/VIEW，不自写PDF/OCR引擎。文件选择器禁用提前缓存复制，临时content授权在本次操作内用于限流存入私有目录，不删除外部原件。图片按当前AI SDK provider协议使用JPEG file part，最终序列化为本次请求的image_url，没有云Files持久上传。
 
 原生API36隔离合成探针通过文本/图片/PDF文本与扫描页、限流/保留原件、来源阻断/去重/重开及零队列。Node真实生产运行时一次DeepSeek视觉请求识别合成图片成功；不以此声称手机真实Key聊天通过。完整本批结果、界面与构建身份及限制见[P3报告](p3-materials-validation.md)。Office仅保存，加密/复杂PDF和真机提供方仍按限制与待测项记录。
+
+P4-A锁定expo-notifications55.0.27（MIT）；现有已提交Android工程通过依赖manifest合并加入通知/重启组件，未执行prebuild --clean、未索取精确闹钟权限。真机实际队列/改期取消与独立preview入口已验证，实际送达仍待验，见[P4-A报告](p4-reminders-validation.md)。
