@@ -61,10 +61,10 @@ export function TasksScreen() {
     setEditingTodo(todo);
     setEditorVisible(true);
   };
-  const handleToggle = (todo: TodoItem) => {
+  const handleToggle = async (todo: TodoItem) => {
     const completing = todo.completedAt === null;
-    setTodoCompleted(todo.id, completing);
-    if (completing) {
+    const success = await setTodoCompleted(todo.id, completing, todo.revision);
+    if (success && completing) {
       setUndoTodoId(todo.id);
     }
   };

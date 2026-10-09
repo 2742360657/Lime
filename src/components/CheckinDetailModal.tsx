@@ -137,18 +137,18 @@ export function CheckinDetailModal({
           initialTimestamp={editorState?.mode === 'edit' ? editorState.record.timestamp : undefined}
           initialNote={editorState?.mode === 'edit' ? editorState.record.note : ''}
           onClose={() => setEditorState(null)}
-          onSubmit={(timestamp, note) => {
+          onSubmit={async (timestamp, note) => {
             if (!habit) {
-              return;
+              return false;
             }
 
             if (editorState?.mode === 'edit') {
               updateCheckin(habit.id, editorState.record.id, timestamp, note);
             } else {
-              addCheckin(habit.id, dateKey, timestamp, note);
+              if (!await addCheckin(habit.id, dateKey, timestamp, note)) return false;
             }
 
-            setEditorState(null);
+            return true;
           }}
         />
       ) : null}

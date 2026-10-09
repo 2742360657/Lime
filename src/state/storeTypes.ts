@@ -140,16 +140,16 @@ export type HabitContextValue = HabitState & {
   restoreArchivedHabit: (habitId: string) => void;
   deleteHabit: (habitId: string) => void;
   addCheckinNow: (habitId: string) => Promise<string>;
-  addCheckin: (habitId: string, dateKey: string, timestamp: number, note: string) => void;
+  addCheckin: (habitId: string, dateKey: string, timestamp: number, note: string) => Promise<boolean>;
   updateCheckin: (habitId: string, recordId: string, timestamp: number, note: string) => void;
   deleteCheckin: (habitId: string, recordId: string) => void;
   setThemeId: (themeId: ThemeId) => void;
   updateProfile: (name: string, signature: string, avatarUri: string | null) => boolean;
   replaceAppData: (appData: AppData) => void;
-  addTodo: (input: TodoInput) => boolean;
-  updateTodo: (todoId: string, input: TodoInput) => boolean;
-  setTodoCompleted: (todoId: string, completed: boolean) => void;
-  deleteTodo: (todoId: string) => void;
+  addTodo: (input: TodoInput) => Promise<boolean>;
+  updateTodo: (todoId: string, input: TodoInput, expectedRevision?: number) => Promise<boolean>;
+  setTodoCompleted: (todoId: string, completed: boolean, expectedRevision?: number) => Promise<boolean>;
+  deleteTodo: (todoId: string, expectedRevision?: number) => Promise<boolean>;
   reorderTodos: (todoIds: string[]) => void;
 };
 

@@ -6,5 +6,7 @@ const existing = config.resolver.blockList;
 config.resolver.blockList = [
   ...(Array.isArray(existing) ? existing : existing ? [existing] : []),
   /\/android\/(?:.*\/)?(?:\.cxx|build|\.gradle)\/.*/,
+  // Private publication snapshots can contain another package.json with the same name.
+  /\/(?:\.local|artifacts|tests)\/.*/,
 ];
 module.exports = config;

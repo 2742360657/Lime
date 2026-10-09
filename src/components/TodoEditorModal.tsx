@@ -39,6 +39,7 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
   const [dueMode, setDueMode] = useState<DueMode>('none');
   const [customDate, setCustomDate] = useState(getTodayKey());
   const [dueTime, setDueTime] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -62,7 +63,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
     );
   }, [todo, visible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return;
     const todayKey = getTodayKey();
     let dueDateKey: string | null = null;
     if (dueMode === 'today') {
@@ -89,10 +91,11 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
       dueDateKey,
       dueTime: dueDateKey ? normalizedTime : null,
     };
-    const success = todo ? updateTodo(todo.id, input) : addTodo(input);
-    if (success) {
-      onClose();
-    }
+    setSaving(true);
+    try {
+      const success = todo ? await updateTodo(todo.id, input, todo.revision) : await addTodo(input);
+      if (success) onClose();
+    } finally { setSaving(false); }
   };
 
   const handleDelete = () => {
@@ -104,9 +107,11 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
       {
         text: '删除',
         style: 'destructive',
-        onPress: () => {
-          deleteTodo(todo.id);
-          onClose();
+        onPress: async () => {
+          if (saving) return;
+          setSaving(true);
+          try { if (await deleteTodo(todo.id, todo.revision)) onClose(); }
+          finally { setSaving(false); }
         },
       },
     ]);
@@ -116,12 +121,12 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
+          <TouchableOpacity disabled={saving} onPress={onClose} style={styles.headerButton}>
             <Text style={styles.headerButtonText}>取消</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{todo ? '编辑待办' : '新建待办'}</Text>
-          <TouchableOpacity onPress={handleSubmit} style={[styles.headerButton, styles.saveButton]}>
-            <Text style={styles.saveButtonText}>保存</Text>
+          <TouchableOpacity disabled={saving} onPress={handleSubmit} style={[styles.headerButton, styles.saveButton]}>
+            <Text style={styles.saveButtonText}>{saving ? '保存中' : '保存'}</Text>
           </TouchableOpacity>
         </View>
 

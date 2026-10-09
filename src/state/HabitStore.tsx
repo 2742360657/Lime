@@ -15,9 +15,9 @@ import { migrateLegacyBusiness, readBusiness, writeBusiness } from '../assistant
 import type { AppData, Memo } from '../types/habit';
 import { clampToMinute, getTodayKey } from '../utils/date';
 import { createId } from '../utils/id';
+import { domain, type Command } from '../domain';
 
 import { habitReducer } from './habitReducer';
-import { createCheckinRecord } from './reducerHelpers';
 import { HabitContext, initialState, type HabitInput, type TodoInput, type HabitAction } from './storeTypes';
 
 // 对外保持原有导入路径，避免调用方改动。
@@ -55,6 +55,28 @@ export function HabitProvider({ children }: PropsWithChildren) {
     });
     return operation;
   },[publish]);
+  const runUiCommand = useCallback((command: Command) => {
+    const operationId = createId();
+    const operation = mutationQueue.current.then(async () => {
+      const receipt = await domain.execute(command, { actor: 'ui', operationId });
+      try {
+        const appData = await database.readTransaction(tx => readBusiness(tx, current.current.appData));
+        publish({ ...current.current, appData });
+      } catch {
+        // A refresh error cannot turn a committed create into a retry with a new ID.
+        current.current = { ...current.current, error: '记录已保存，但页面刷新失败。请重新打开页面核对。' };
+        rawDispatch({ type: 'set-error', error: current.current.error });
+      }
+      return receipt;
+    });
+    mutationQueue.current = operation.then(() => {}).catch(() => {});
+    return operation;
+  }, [publish]);
+  const reportCommandError = useCallback((error: unknown) => {
+    const message = error instanceof Error ? error.message : '操作未保存，请重试。';
+    current.current = { ...current.current, error: message };
+    rawDispatch({ type: 'set-error', error: message });
+  }, []);
   const dispatch = useCallback((action: HabitAction) => {
     if(['hydrate','set-error','clear-error'].includes(action.type)) {
       current.current=habitReducer(current.current,action);rawDispatch(action);return;
@@ -368,14 +390,20 @@ export function HabitProvider({ children }: PropsWithChildren) {
 
   const addCheckinNow = useCallback(async (habitId: string) => {
     const timestamp = clampToMinute(Date.now());
-    const record = createCheckinRecord(getTodayKey(), timestamp, '');
-    await commitAction({ type: 'add-checkin-now', habitId, record });
-    return record.id;
-  }, [commitAction]);
+    const expectedRevision = current.current.appData.habits.find(h => h.id === habitId)?.revision ?? 0;
+    try {
+      const receipt = await runUiCommand({ type: 'habit.checkin', id: habitId, expectedRevision, timestamp, dateKey: getTodayKey(), note: '' });
+      return receipt.entity.id;
+    } catch (error) { reportCommandError(error); throw error; }
+  }, [runUiCommand, reportCommandError]);
 
-  const addCheckin = useCallback((habitId: string, dateKey: string, timestamp: number, note: string) => {
-    dispatch({ type: 'add-checkin', habitId, dateKey, timestamp, note });
-  }, []);
+  const addCheckin = useCallback(async (habitId: string, dateKey: string, timestamp: number, note: string) => {
+    const expectedRevision = current.current.appData.habits.find(h => h.id === habitId)?.revision ?? 0;
+    try {
+      await runUiCommand({ type: 'habit.checkin', id: habitId, expectedRevision, timestamp, dateKey, note });
+      return true;
+    } catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
   const updateCheckin = useCallback(
     (habitId: string, recordId: string, timestamp: number, note: string) => {
@@ -411,57 +439,36 @@ export function HabitProvider({ children }: PropsWithChildren) {
     return true;
   }, []);
 
-  const addTodo = useCallback(
-    (input: TodoInput) => {
-      const title = input.title.trim();
-      if (!title) {
-        dispatch({ type: 'set-error', error: '待办标题不能为空。' });
-        return false;
-      }
-
-      dispatch({
-        type: 'add-todo',
-        todo: {
-          id: createId(),
-          title,
-          note: input.note.trim(),
-          dueDateKey: input.dueDateKey,
-          dueTime: input.dueTime,
-          order: state.appData.todos.length,
-          createdAt: Date.now(),
-          completedAt: null,
-        },
-      });
+  const addTodo = useCallback(async (input: TodoInput) => {
+    try {
+      await runUiCommand({ type: 'task.create', ...input });
       return true;
-    },
-    [state.appData.todos.length]
-  );
+    } catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
-  const updateTodo = useCallback((todoId: string, input: TodoInput) => {
-    const title = input.title.trim();
-    if (!title) {
-      dispatch({ type: 'set-error', error: '待办标题不能为空。' });
-      return false;
-    }
+  const updateTodo = useCallback(async (todoId: string, input: TodoInput, expectedRevision?: number) => {
+    try {
+      await runUiCommand({ type: 'task.update', id: todoId,
+        expectedRevision: expectedRevision ?? current.current.appData.todos.find(t => t.id === todoId)?.revision ?? 0, ...input });
+      return true;
+    } catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
-    dispatch({
-      type: 'update-todo',
-      todoId,
-      title,
-      note: input.note.trim(),
-      dueDateKey: input.dueDateKey,
-      dueTime: input.dueTime,
-    });
-    return true;
-  }, []);
+  const setTodoCompleted = useCallback(async (todoId: string, completed: boolean, expectedRevision?: number) => {
+    try {
+      await runUiCommand({ type: 'task.complete', id: todoId, completed,
+        expectedRevision: expectedRevision ?? current.current.appData.todos.find(t => t.id === todoId)?.revision ?? 0 });
+      return true;
+    } catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
-  const setTodoCompleted = useCallback((todoId: string, completed: boolean) => {
-    dispatch({ type: 'set-todo-completed', todoId, completedAt: completed ? Date.now() : null });
-  }, []);
-
-  const deleteTodo = useCallback((todoId: string) => {
-    dispatch({ type: 'delete-todo', todoId });
-  }, []);
+  const deleteTodo = useCallback(async (todoId: string, expectedRevision?: number) => {
+    try {
+      await runUiCommand({ type: 'task.trash', id: todoId,
+        expectedRevision: expectedRevision ?? current.current.appData.todos.find(t => t.id === todoId)?.revision ?? 0 });
+      return true;
+    } catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
   const reorderTodos = useCallback((todoIds: string[]) => {
     dispatch({ type: 'reorder-todos', todoIds });

@@ -84,10 +84,10 @@ export function TodayScreen() {
     setEditingTodo(todo);
     setEditorVisible(true);
   };
-  const handleToggleTodo = (todo: TodoItem) => {
+  const handleToggleTodo = async (todo: TodoItem) => {
     const completing = todo.completedAt === null;
-    setTodoCompleted(todo.id, completing);
-    if (completing) {
+    const success = await setTodoCompleted(todo.id, completing, todo.revision);
+    if (success && completing) {
       setUndoState({ kind: 'todo', todoId: todo.id });
     }
   };

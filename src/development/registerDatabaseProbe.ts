@@ -4,6 +4,15 @@ import { Alert, DevSettings } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证本地助手命令', async () => {
+    try {
+      const { runDomainProbe } = await import('./domainProbe');
+      await runDomainProbe();
+      Alert.alert('本地命令验证通过', '合成活动与一次打卡、建议确认、显式记忆、事务失败回滚与关闭重开已验证。本地上传队列为0。');
+    } catch {
+      Alert.alert('本地命令验证失败', '合成验证未通过，没有操作实际记录或调用模型。');
+    }
+  });
   DevSettings.addMenuItem('验证本地迁移与记录', async () => {
     try {
       const { runLocalMigrationProbe } = await import('./localMigrationProbe');

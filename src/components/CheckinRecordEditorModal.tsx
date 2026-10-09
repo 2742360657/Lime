@@ -25,7 +25,7 @@ type CheckinRecordEditorModalProps = {
   initialTimestamp?: number;
   initialNote?: string;
   onClose: () => void;
-  onSubmit: (timestamp: number, note: string) => void;
+  onSubmit: (timestamp: number, note: string) => Promise<boolean>;
 };
 
 function getInitialParts(dateKey: string, initialTimestamp?: number) {
@@ -46,6 +46,7 @@ export function CheckinRecordEditorModal({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [time, setTime] = useState('08:00');
   const [note, setNote] = useState(initialNote);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -57,7 +58,8 @@ export function CheckinRecordEditorModal({
     setNote(initialNote);
   }, [dateKey, initialNote, initialTimestamp, visible]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return;
     const normalized = parseFlexibleTimeInput(time);
     if (!normalized) {
       Alert.alert('没认出这个时间', '可以试试 8:30、830、下午3点或 3pm。');
@@ -67,14 +69,15 @@ export function CheckinRecordEditorModal({
     const timestamp = buildTimestampForDateTime(dateKey, hour, minute);
     if (timestamp === null) return;
 
-    onSubmit(timestamp, note);
-    onClose();
+    setSaving(true);
+    try { if (await onSubmit(timestamp, note)) onClose(); }
+    finally { setSaving(false); }
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable disabled={saving} style={styles.backdrop} onPress={onClose} />
         <View style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <TextInput
@@ -121,11 +124,11 @@ export function CheckinRecordEditorModal({
           </View>
 
           <View style={styles.actions}>
-            <TouchableOpacity onPress={onClose} style={[styles.button, styles.secondaryButton]}>
+            <TouchableOpacity disabled={saving} onPress={onClose} style={[styles.button, styles.secondaryButton]}>
               <Text style={styles.secondaryButtonText}>取消</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} style={[styles.button, styles.primaryButton]}>
-              <Text style={styles.primaryButtonText}>保存</Text>
+            <TouchableOpacity disabled={saving} onPress={handleSubmit} style={[styles.button, styles.primaryButton]}>
+              <Text style={styles.primaryButtonText}>{saving ? '保存中' : '保存'}</Text>
             </TouchableOpacity>
           </View>
         </View>
