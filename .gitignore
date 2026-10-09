@@ -67,6 +67,8 @@ android/.idea/
 *.db
 *.db-*
 *.log
+__pycache__/
+*.py[cod]
 credentials*.json
 keystore.properties
 .gitleaks-report.json

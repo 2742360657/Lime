@@ -2,7 +2,7 @@
 
 面向个人使用的 Android 日常记录与 AI 助手应用：待办、习惯、日记、备忘录和聊天使用同一份手机数据。
 
-**当前P1已实现纯本地记录改造，正在集中验收；独立助手尚未交付。** 配对、同步和服务器发送已退出，聊天暂提供本机历史查看，直连模型在P2实现。具体通过/未测项见[当前状态](docs/project-status.md)。
+**当前P1本地记录与模拟器技术验收完成，独立助手尚未交付。** 配对、同步和服务器发送已退出，聊天暂提供本机历史查看，直连模型在P2实现。小米真机体验待测；具体证据及限制见[P1报告](docs/p1-local-records-validation.md)。
 
 ## 本轮确定的范围
 
@@ -64,4 +64,4 @@ bash scripts/android-build.sh preview arm64-v8a
 
 `debug`需要Metro；`preview`包含JS用于独立试用；`release`使用本地私密正式签名。构建脚本在本机生成开发签名，不将任何keystore提交。新增应用ID为 `app.lime.personalassistant`，开发包加 `.dev`，与旧应用隔离；不自动卸载旧应用或抹掉记录。要迁移旧记录，先在旧应用导出，再按格式合并导入；不声称旧聊天/服务器记忆能随基础记录一并迁移。
 
-不要运行 `expo prebuild --clean`；必要的原生再生成须先检查diff。**本轮没有重新编译或运行新应用身份的APK**，相关验证留到P1集中验收。GitHub上发布的是源码与规划，不是可日用版本或APK Release。
+不要运行 `expo prebuild --clean`；必要的原生再生成须先检查diff。P1新身份的独立preview已在模拟器验收，ARM64候选包仅构建；助手仍暂未启用。GitHub初始发布的是源码与规划；本地阶段APK不自动成为GitHub Release。

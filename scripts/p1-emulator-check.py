@@ -177,7 +177,12 @@ else:
         tap('数据恢复')
         tree = ui()
         if find(tree, imported_name) is None:
-            tap('Show roots'); tap('Downloads')
+            tap('Show roots')
+            node = wait('Downloads')
+            x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds', '')))
+            # Stay inside the opening drawer rather than tapping the distant text midpoint.
+            adb('shell', 'input', 'tap', str(x1 + min(40, (x2 - x1) // 2)), str((y1 + y2) // 2))
+            wait('Files in Downloads')
         tap(imported_name)
 
     pick_import(); wait('合并恢复确认'); tap('合并恢复'); wait('本机恢复完成'); tap('OK')
