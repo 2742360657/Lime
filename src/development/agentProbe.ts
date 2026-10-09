@@ -22,6 +22,11 @@ export async function runAgentProbe() {
     return { domain, store, runtime };
   };
   try {
+    const timeoutSignal = AbortSignal.timeout(30);
+    await new Promise<void>(resolve => timeoutSignal.addEventListener('abort', () => resolve(), { once: true }));
+    ensure(timeoutSignal.aborted && timeoutSignal.reason?.name === 'TimeoutError');
+    let threw = false; try { timeoutSignal.throwIfAborted(); } catch { threw = true; }
+    ensure(threw);
     await SecureStore.setItemAsync(keyName, 'synthetic-not-a-real-credential');
     await db.init();
     let { domain, store, runtime } = services();
@@ -53,7 +58,7 @@ export async function runAgentProbe() {
     await store.saveSettings('deepseek-flash', { ...persona, enabled: 0 });
     ensure((await store.settings()).persona?.enabled === 0);
     ensure((await db.getUploadQueueStats()).count === 0);
-    const result = { status: 'passed', sdkStream: true, toolLoop: true, secureStore: true, personaReopen: true,
+    const result = { status: 'passed', nativeTimeout: true, sdkStream: true, toolLoop: true, secureStore: true, personaReopen: true,
       neutralOptional: true, interruptedRecovery: true, receiptReplay: true, crossSessionActivity: true, checkins: 1, localQueue: 0 };
     new File(Paths.document, 'lime-p2-agent-probe.json').write(JSON.stringify(result));
     console.info('[LimeP2AgentProbe]', JSON.stringify(result));

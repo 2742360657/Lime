@@ -62,6 +62,7 @@ describe('local assistant with real SDK/provider and SQLite', () => {
     expect((await store.requests(session))[0].status).toBe('complete');
     expect((await store.messages(session)).find(m => m.role === 'assistant').body).toBe('已保存。');
     expect(await store.results(req.id)).toHaveLength(1);
+    expect(captured[0].tools.find(t => t.function.name === 'change_record').function.parameters.type).toBe('object');
     expect(db.sql.prepare('SELECT count(*) n FROM local_operations').get().n).toBe(1);
     expect(JSON.stringify(db.sql.prepare('SELECT * FROM local_meta').all())).not.toContain(key);
   });
@@ -128,5 +129,15 @@ describe('local assistant with real SDK/provider and SQLite', () => {
     await runtime([call({ type: 'task.create', title: '恢复' }), sse({ content: '已保存。' })]).start(session, '', [], request.id);
     expect(await domain.listTasks()).toHaveLength(1);
     expect((await store.results(request.id))[0].receipt.disposition).toBe('replayed');
+  });
+  test('API errors are localized without logging key or request material', async () => {
+    const logger = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const session = await store.newSession();
+      await runtime([new Response(JSON.stringify({ error: { message: 'Synthetic private material', type: 'invalid_request_error' } }), { status: 400, headers: { 'Content-Type': 'application/json' } })]).start(session, '合成错误验证');
+      expect((await store.requests(session))[0].status).toBe('error');
+      expect((await store.requests(session))[0].error).not.toContain('Synthetic private material');
+      expect(logger).not.toHaveBeenCalled();
+    } finally { logger.mockRestore(); }
   });
 });

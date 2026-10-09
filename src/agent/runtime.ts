@@ -96,7 +96,7 @@ export function createAgentRuntime(options: Options) {
         }),
         change_record: tool({
           description: '执行用户明确授权的低风险记录命令，或生成待确认建议。以返回status判断是否已保存；不能自行升级权限。',
-          inputSchema: jsonSchema<Command>(z.toJSONSchema(commandSchema, { io: 'input', unrepresentable: 'any' }) as Parameters<typeof jsonSchema<Command>>[0]),
+          inputSchema: jsonSchema<Command>({ ...z.toJSONSchema(commandSchema, { io: 'input', unrepresentable: 'any' }), type: 'object' } as Parameters<typeof jsonSchema<Command>>[0]),
           execute: async value => {
             check(signal);
             if (++writes > 8) return { status: 'error', message: '本轮操作数量达到上限，请分批处理。' };
@@ -136,6 +136,9 @@ export function createAgentRuntime(options: Options) {
       const response = streamText({ model, instructions: `${role}${INSTRUCTIONS}`, messages, tools,
         providerOptions: { deepseek: { thinking: { type: 'disabled' } } },
         maxOutputTokens: 4096, maxRetries: 0, streamRetries: 0, stopWhen: isStepCount(6), abortSignal: signal,
+        // SDK's default callback logs the complete API error (including request material).
+        // Consume errors below and expose only localized/redacted messages.
+        onError: () => {},
       });
       for await (const part of response.stream) {
         if (part.type === 'text-delta') {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 import { useHabits } from '../state/HabitStore';
 import { domain } from '../domain';
