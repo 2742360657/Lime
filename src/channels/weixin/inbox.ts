@@ -1,6 +1,7 @@
 import type { DomainDatabase } from '../../domain/types';
 import { WeixinError, incoming, type Binding, type MediaDescriptor, type Updates } from './protocol';
 export type InboxMessage = { id: string; account_id: string; message_key: string; fingerprint: string; state: string; body: string; parts: string; created_at: number; revision: number };
+type PreparedMessage = { id: string; key: string; state: string; fingerprint: string; createdAt: number; body: string; parts: string };
 export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; digest(value: string): Promise<string>; stageMedia(id: string, descriptor: MediaDescriptor): Promise<void> }) {
   const accountId = (binding: Binding) => deps.digest(JSON.stringify([binding.botId, binding.userId]));
   return {
@@ -9,7 +10,8 @@ export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; dig
       return row?.cursor ?? '';
     },
     async commit(binding: Binding, expectedCursor: string, packet: Updates) {
-      const account = await accountId(binding), messages = [];
+      const account = await accountId(binding);
+      const messages: PreparedMessage[] = [];
       let ignored = 0;
       for (const raw of packet.msgs) {
         const msg = incoming(raw, binding); if (!msg) { ignored++; continue; }
