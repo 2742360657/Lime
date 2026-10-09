@@ -54,6 +54,7 @@ function open(filename = ':memory:') {
 }
 try {
   const source = open(), targetPath = join(folder, 'target.sqlite'), target = open(targetPath);
+  await source.execute('INSERT INTO document_groups(id,kind,name,revision,deleted) VALUES(?,?,?,?,?)', ['group', 'diary', 'synthetic group', 1, 0]);
   for (let n = 0; n < 205; n++) {
     await source.execute('INSERT INTO documents(id,kind,title,body,date,revision,deleted) VALUES(?,?,?,?,?,?,?)', [`diary-${String(n).padStart(4, '0')}`, n % 2 ? 'memo' : 'diary', '合成记录', `原文\n${n}`, '2026-10-09', 4, n === 0 ? 1 : 0]);
   }
