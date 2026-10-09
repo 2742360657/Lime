@@ -7,9 +7,10 @@ export type NotificationDriver = {
   cancel(id: string): Promise<void>;
   schedule(id: string, occurrence: Occurrence): Promise<void>;
 };
-export type ReminderStatus = { busy: boolean; enabled: boolean; allowed: boolean; scheduled: number; delayed: number; deferred: number; farther: number; error: string | null };
+export type ReminderFailure = { id: string; sourceKind: Occurrence['sourceKind']; sourceId: string; title: string };
+export type ReminderStatus = { busy: boolean; enabled: boolean; allowed: boolean; scheduled: number; delayed: number; failures: ReminderFailure[]; deferred: number; farther: number; error: string | null };
 type Instance = { id: string; source_kind: string; source_id: string; source_revision: number; scheduled_at: number; status: string };
-const EMPTY: ReminderStatus = { busy: false, enabled: false, allowed: false, scheduled: 0, delayed: 0, deferred: 0, farther: 0, error: null };
+const EMPTY: ReminderStatus = { busy: false, enabled: false, allowed: false, scheduled: 0, delayed: 0, failures: [], deferred: 0, farther: 0, error: null };
 
 export function createReminderService(db: DomainDatabase, driver: NotificationDriver, deps: { now(): number; digest(value: string): Promise<string> }) {
   let state = EMPTY, tail: Promise<void> | null = null, dirty = false;
@@ -24,7 +25,9 @@ export function createReminderService(db: DomainDatabase, driver: NotificationDr
     }));
     const enabled = snapshot.meta.some(m => m.id === 'reminders-enabled' && m.value === '1');
     const taskEnabled = snapshot.meta.some(m => m.id === 'reminders-tasks' && m.value === '1');
+    publish({ enabled, allowed: false, scheduled: 0, delayed: 0, failures: [], deferred: 0, farther: 0, error: null });
     const allowed = enabled && await driver.allowed();
+    publish({ allowed });
     const now = deps.now();
     const plan = planReminders(snapshot.rules, snapshot.tasks, taskEnabled, now);
     const desired = new Map<string, Occurrence>();
@@ -50,6 +53,7 @@ export function createReminderService(db: DomainDatabase, driver: NotificationDr
         await tx.execute('UPDATE local_reminder_instances SET status=?,updated_at=? WHERE id=?', [instance.scheduled_at <= deps.now() ? 'elapsed' : 'cancelled', deps.now(), instance.id]);
     });
     let scheduled = 0, delayed = 0;
+    const failures: ReminderFailure[] = [];
     for (const [id, occurrence] of desired) {
       if (dirty) return; // A record changed during network/native calls; restart with fresh versions.
       const values = [occurrence.sourceKind, occurrence.sourceId, occurrence.sourceRevision, occurrence.at, occurrence.title, occurrence.body];
@@ -65,17 +69,20 @@ export function createReminderService(db: DomainDatabase, driver: NotificationDr
         }
         continue;
       }
-      try {
-        if (!pending.has(id)) await driver.schedule(id, occurrence);
-        // Stable ID + actual OS queue recovers a crash between this native call and the DB update.
-        await db.writeTransaction(tx => tx.execute("UPDATE local_reminder_instances SET status='scheduled',updated_at=? WHERE id=?", [deps.now(), id]));
-        scheduled++;
-      } catch (error) {
-        await db.writeTransaction(tx => tx.execute("UPDATE local_reminder_instances SET status='error',updated_at=? WHERE id=?", [deps.now(), id]));
-        throw error;
+      if (!pending.has(id)) {
+        try { await driver.schedule(id, occurrence); }
+        catch {
+          // Only a per-item native schedule failure is isolated. DB failures abort the pass.
+          await db.writeTransaction(tx => tx.execute("UPDATE local_reminder_instances SET status='error',updated_at=? WHERE id=?", [deps.now(), id]));
+          failures.push({ id, sourceKind: occurrence.sourceKind, sourceId: occurrence.sourceId, title: occurrence.title });
+          continue;
+        }
       }
+      // Stable ID + actual OS queue recovers a crash between the native call and this DB update.
+      await db.writeTransaction(tx => tx.execute("UPDATE local_reminder_instances SET status='scheduled',updated_at=? WHERE id=?", [deps.now(), id]));
+      scheduled++;
     }
-    publish({ enabled, allowed: !!allowed, scheduled, delayed, deferred: plan.deferred + (allowed ? Math.max(0, plan.occurrences.length - (MAX_SCHEDULED - retained)) : 0), farther: plan.farther, error: null });
+    publish({ enabled, allowed: !!allowed, scheduled, delayed, failures, deferred: plan.deferred + (allowed ? Math.max(0, plan.occurrences.length - (MAX_SCHEDULED - retained)) : 0), farther: plan.farther, error: null });
   }
   function refresh(): Promise<void> {
     dirty = true;

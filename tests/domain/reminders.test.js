@@ -192,3 +192,51 @@ test('missing DB acknowledgement recovers a late native notification without a s
   expect(os.size).toBe(1); expect(driver.schedule).toHaveBeenCalledTimes(1);
   expect(service.getSnapshot()).toMatchObject({ delayed: 1, error: null });
 });
+
+
+test('one persistent schedule failure cannot starve other reminders; retry does not duplicate successes', async () => {
+  const first = await execute(once);
+  await execute({ ...once, title: '正常二', time: '10:00' });
+  await execute({ ...once, title: '正常三', time: '11:00' });
+  let broken = true;
+  driver.schedule.mockImplementation(async (id, occurrence) => {
+    if (broken && occurrence.sourceId === first.entity.id) throw new Error('Synthetic per-item failure');
+    os.add(id);
+  });
+  await enabled();
+  expect(os.size).toBe(2); expect(driver.schedule).toHaveBeenCalledTimes(3);
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 2, error: null, failures: [{ sourceId: first.entity.id, title: once.title }] });
+  expect((await db.tx.getAll("SELECT status FROM local_reminder_instances WHERE source_id=?", [first.entity.id]))[0].status).toBe('error');
+  await service.refresh(); expect(os.size).toBe(2); expect(driver.schedule).toHaveBeenCalledTimes(4);
+  broken = false; await service.refresh();
+  expect(os.size).toBe(3); expect(driver.schedule).toHaveBeenCalledTimes(5);
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 3, failures: [], error: null });
+});
+
+test('failure acknowledgement is transactional: DB errors abort and retry recovers other items', async () => {
+  await execute(once); await execute({ ...once, title: '正常后项', time: '10:00' });
+  driver.schedule.mockRejectedValueOnce(new Error('Synthetic native failure'));
+  db.failOn("SET status='error'"); await enabled();
+  expect(driver.schedule).toHaveBeenCalledTimes(1); expect(os.size).toBe(0);
+  expect(service.getSnapshot().error).not.toBeNull(); expect(service.getSnapshot().failures).toEqual([]);
+  db.failOn(null); await service.refresh(); expect(os.size).toBe(2);
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 2, failures: [], error: null });
+});
+
+test('a failed expired item is not retried while later valid items remain queued', async () => {
+  await execute(once); await execute({ ...once, title: '后项', time: '11:00' });
+  driver.schedule.mockRejectedValueOnce(new Error('Synthetic failure'));
+  await enabled(); expect(service.getSnapshot().failures).toHaveLength(1);
+  clock = shanghaiTimestamp(once.dateKey, once.time) + 120000; await service.refresh();
+  expect(driver.schedule).toHaveBeenCalledTimes(2); expect(os.size).toBe(1);
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 1, delayed: 0, failures: [], error: null });
+});
+
+test('global queue failure clears stale success counts and does not cancel or reschedule unknown state', async () => {
+  await execute(once); await enabled(); expect(service.getSnapshot().scheduled).toBe(1);
+  driver.pending.mockRejectedValueOnce(new Error('Synthetic queue failure')); await service.refresh();
+  expect(service.getSnapshot()).toMatchObject({ scheduled: 0, delayed: 0, failures: [] });
+  expect(service.getSnapshot().error).not.toBeNull(); expect(os.size).toBe(1);
+  expect(driver.cancel).not.toHaveBeenCalled(); expect(driver.schedule).toHaveBeenCalledTimes(1);
+  await service.refresh(); expect(service.getSnapshot()).toMatchObject({ scheduled: 1, error: null });
+});

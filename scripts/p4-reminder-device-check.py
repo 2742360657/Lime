@@ -64,9 +64,9 @@ wait('提醒验证通过')
 result = json.loads(adb('shell', 'run-as', PACKAGE, 'cat', 'files/lime-p4-reminder-probe.json'))
 assert result['status'] == 'passed' and result['localQueue'] == 0
 assert result['permissionRequested'] is False and result['deliveryTested'] is False
-assert all(result[field] for field in ('nativeSchedule', 'reopenedOnce', 'replaceOld', 'cancel', 'softRule'))
+assert all(result[field] for field in ('nativeSchedule', 'reopenedOnce', 'replaceOld', 'cancel', 'softRule', 'lateQueuedRetention', 'simulatedClock', 'failureIsolation', 'failureRetry'))
 path = ROOT / '.local' / 'p4-reminder-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)
 # English/Chinese system button labels vary. The result is already persisted.
-print('PASS native reminders: native scheduling, reopen once, replace/cancel and zero queue; delivery not tested')
+print('PASS native reminders: native scheduling, reopen once, replace/cancel, simulated late queue, isolated failure/retry and zero queue; delivery not tested')
