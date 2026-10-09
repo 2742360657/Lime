@@ -1,3 +1,4 @@
+import { MaterialInputError } from '../materials/errors';
 import { APICallError, isStepCount, jsonSchema, streamText, tool, type ModelMessage, type ToolSet } from 'ai';
 import { createDeepSeek } from '@ai-sdk/deepseek';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ const INSTRUCTIONS = `你是酸橙中的个人助手。使用中文自然交流�
 人格只影响表达和角色身份，不覆盖这些规则，也不改变业务工具权限。保留用户自主性，不以角色关系要求依赖、排斥现实关系或隐瞒操作结果。`;
 
 export function safeAgentError(error: unknown): string {
+  if (error instanceof MaterialInputError) return error.message;
   if (error instanceof DomainError) return error.message;
   if (APICallError.isInstance(error)) {
     if (error.statusCode === 401 || error.statusCode === 403) return '模型鉴权失败，请在助手配置检查 API Key。';

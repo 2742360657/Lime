@@ -21,7 +21,7 @@ class MaterialFixtureProvider : ContentProvider() {
   override fun getType(uri: Uri): String = when (fixture(uri).extension) { "pdf" -> "application/pdf"; "png" -> "image/png"; else -> "text/plain" }
   override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
     val file = fixture(uri)
-    return MatrixCursor(arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)).apply { addRow(arrayOf(file.name, if (file.extension == "dat") null else file.length())) }
+    return MatrixCursor(arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)).apply { addRow(arrayOf<Any?>(file.name, if (file.extension == "dat") null else file.length())) }
   }
   override fun insert(uri: Uri, values: ContentValues?): Uri? = null
   override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0

@@ -63,7 +63,7 @@ tap('验证本机材料处理')
 wait('材料验证通过')
 result = json.loads(adb('shell', 'run-as', PACKAGE, 'cat', 'files/lime-p3-material-probe.json'))
 assert result['status'] == 'passed' and result['localQueue'] == 0
-assert all(result[field] for field in ('utf8', 'boundedCopy', 'privateUriRejected', 'image', 'pdfText', 'pdfScan', 'unsupportedRetained', 'dedup', 'reopen', 'sourceGuard', 'acceptedOnce'))
+assert all(result[field] for field in ('utf8', 'boundedCopy', 'privateUriRejected', 'privateContentUriRejected', 'image', 'pdfText', 'pdfScan', 'unsupportedRetained', 'dedup', 'reopen', 'sourceGuard', 'acceptedOnce'))
 path = ROOT / '.local' / 'p3-material-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)

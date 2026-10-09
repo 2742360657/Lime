@@ -1,7 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-
-    <application android:label="@string/dev_app_name" android:usesCleartextTraffic="true" tools:targetApi="28" tools:ignore="GoogleAppIndexingWarning" tools:replace="android:usesCleartextTraffic,android:label" ><provider android:name="app.lime.personalassistant.MaterialFixtureProvider" android:authorities="${applicationId}.fixtures" android:exported="true" /></application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+  <application android:label="@string/dev_app_name" android:usesCleartextTraffic="true" tools:targetApi="28" tools:ignore="GoogleAppIndexingWarning" tools:replace="android:usesCleartextTraffic,android:label">
+    <provider android:name="app.lime.personalassistant.MaterialFixtureProvider" android:authorities="${applicationId}.fixtures" android:exported="true"/>
+    <activity android:name="app.lime.personalassistant.MaterialFixtureSender" android:exported="true"/>
+  </application>
 </manifest>

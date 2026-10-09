@@ -2,7 +2,9 @@
 
 面向个人使用的 Android 日常记录与 AI 助手应用：待办、习惯、日记、备忘录和聊天使用同一份手机数据。
 
-**P1与P2本地助手已完成本批实现和关键技术验收，人工日用体验仍待确认。** DeepSeek直连、持久化聊天、受限记录工具与可选人格设置已接入。人格可手动选择文件、预览后保存/替换、停用或移除，未启用时为中性助手。真实API运行时、小米原生探针、模拟器人格设置及独立preview已分项验证；手机真实Key聊天和中文输入体验不因此自动算通过。见[P1报告](docs/p1-local-records-validation.md)、[P2-A报告](docs/p2-domain-validation.md)与[P2助手报告](docs/p2-local-assistant-validation.md)。
+**P1与P2本地助手已完成关键技术验收，P3材料入口正在集中收尾，人工日用体验仍待确认。** DeepSeek直连、持久化聊天、受限记录工具与可选人格设置已接入。人格可手动选择文件、预览后保存/替换、停用或移除，未启用时为中性助手。真实API运行时、小米原生探针、模拟器人格设置及独立preview已分项验证；手机真实Key聊天和中文输入体验不因此自动算通过。见[P1报告](docs/p1-local-records-validation.md)、[P2-A报告](docs/p2-domain-validation.md)与[P2助手报告](docs/p2-local-assistant-validation.md)。
+
+P3增加应用内文件/图片、系统分享/打开文件与本地材料来源管理：仅选中发送才分析，文本/图片/有界PDF支持解析，Office仅保存。原生探针和一次真实视觉API已有分项结果，详见[P3报告](docs/p3-materials-validation.md)。
 
 ## 本轮确定的范围
 

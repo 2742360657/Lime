@@ -37,7 +37,7 @@ export function MaterialViewer({ id, snapshot, onClose }: { id: string | null; s
             {button('归档材料', () => void run(async m => { await materialStore.archive(m.id, m.revision); onClose(); }))}
           </> : null}
         </View>
-      </> : <Text style={{ color: c.textSecondary, fontSize: 13 }}>材料读取中；若原件不存在，正文快照仍在对话中保留。</Text>}
+      </> : <><Text style={{ color: c.textSecondary, fontSize: 13 }}>材料暂未读取；以下为发送时的正文快照。</Text>{snapshot ? <Text selectable style={{ color: c.textPrimary, fontSize: 14, lineHeight: 22 }}>{snapshot.body}</Text> : null}</>}
       {busy ? <Text style={{ color: c.textMuted, fontSize: 12 }}>处理中…</Text> : null}
       {error ? <Text style={{ color: c.textSecondary, fontSize: 12 }}>{error}</Text> : null}
     </ScrollView>

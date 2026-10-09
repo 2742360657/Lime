@@ -89,3 +89,9 @@ AI SDK Core `ai@7.0.136`（Apache-2.0）与 `@ai-sdk/deepseek@3.0.63`（Apache-2
 真机发现RN自带AbortController缺少现代AbortSignal接口。采用`abortcontroller-polyfill@1.7.8`（MIT）的完整`cjs-ponyfill`补齐reason/any/throwIfAborted与一次性事件；不加载其fetch补丁，网络仍使用Expo原生fetch。产品超时用可清理的控制器定时器，避免每轮留下timeout信号定时器。补丁来源为[官方项目](https://github.com/mo/abortcontroller-polyfill)，包完整性按npm发布的SHA-512核对，未复制源码进仓库。当前真机SDK流、工具循环、SecureStore、隔离数据库关闭重开及一次打卡已通过；真实API与界面体验分别记录。
 
 延迟验证进一步发现：RN缺少全局DOMException，signal-only补丁在旧控制器上重复派发事件，使once监听丢失。最终使用包内完整控制器/信号ponyfill，不加载fetch补丁；DOMException复用固定RN0.83.10内置WebIDL实现并安装到global。该RN导入是私有路径，后续升级RN/Expo必须复测现代取消、超时、once监听和原生SDK流；不得盲目删掉兼容模块。短超时与合并取消事件已在当前真机验证。
+
+## P3本机材料实现与分项证据
+
+采用既有Expo DocumentPicker/FileSystem/Sharing与Android ContentResolver/Bitmap/PdfRenderer；新增小型Android适配负责有界私有复制、持久入站批次和SEND/VIEW，不自写PDF/OCR引擎。文件选择器禁用提前缓存复制，临时content授权在本次操作内用于限流存入私有目录，不删除外部原件。图片按当前AI SDK provider协议使用JPEG file part，最终序列化为本次请求的image_url，没有云Files持久上传。
+
+原生API36隔离合成探针通过文本/图片/PDF文本与扫描页、限流/保留原件、来源阻断/去重/重开及零队列。Node真实生产运行时一次DeepSeek视觉请求识别合成图片成功；不以此声称手机真实Key聊天通过。完整本批结果、界面与构建身份及限制见[P3报告](p3-materials-validation.md)。Office仅保存，加密/复杂PDF和真机提供方仍按限制与待测项记录。

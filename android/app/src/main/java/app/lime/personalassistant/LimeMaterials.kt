@@ -45,6 +45,9 @@ internal object MaterialFiles {
       val file = File(uri.path ?: "").canonicalFile
       require(file.path.startsWith(context.cacheDir.canonicalPath + File.separator)) { "INVALID_URI" }
     }
+    if (uri.scheme == "content" && uri.authority?.startsWith(context.packageName + ".") == true) {
+      require(BuildConfig.DEBUG && uri.authority == context.packageName + ".fixtures") { "INVALID_URI" }
+    }
     var name = suppliedName; var size: Long? = null
     if (uri.scheme == "content") context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
       if (cursor.moveToFirst()) {
@@ -218,7 +221,7 @@ class LimeMaterialsModule(private val context: ReactApplicationContext) : ReactC
       }; File(folder, name).outputStream().use { doc.writeTo(it) } } finally { doc.close() }
     }
     bitmap.recycle()
-    JSONObject().put("authority", context.packageName + ".fixtures").toString()
+    JSONObject().put("authority", context.packageName + ".fixtures").put("emulator", Build.HARDWARE in listOf("ranchu", "goldfish") || Build.FINGERPRINT.startsWith("generic")).toString()
   }
   @ReactMethod fun addListener(event: String) {}
   @ReactMethod fun removeListeners(count: Double) {}
@@ -228,6 +231,7 @@ class LimeMaterialsModule(private val context: ReactApplicationContext) : ReactC
   }
 }
 class LimeMaterialsPackage : ReactPackage {
-  override fun createNativeModules(context: ReactApplicationContext): List<NativeModule> = listOf(LimeMaterialsModule(context))
-  override fun createViewManagers(context: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
+  @Suppress("OVERRIDE_DEPRECATION")
+  override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> = listOf(LimeMaterialsModule(reactContext))
+  override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> = emptyList()
 }

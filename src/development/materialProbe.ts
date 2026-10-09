@@ -1,3 +1,4 @@
+import { ANDROID_DATABASE_PATH } from '@op-engineering/op-sqlite';
 import { NativeModules } from 'react-native';
 import { PowerSyncDatabase } from '@powersync/react-native';
 import { File, Paths } from 'expo-file-system';
@@ -30,6 +31,7 @@ export async function runMaterialProbe() {
     }
     let oversized = false; try { await copy('synthetic-large.dat'); } catch { oversized = true; } ensure(oversized);
     let unsafe = false; try { await materialNative.copy('file:///data/data/invalid/secret.txt', 'secret.txt'); } catch { unsafe = true; } ensure(unsafe);
+    let unsafeContent = false; try { await materialNative.copy(`content://${authority.replace('.fixtures', '.FileSystemFileProvider')}/private.txt`, 'private.txt'); } catch { unsafeContent = true; } ensure(unsafeContent);
     const ref = { id: material.id, revision: 1, kind: 'attachment' as const }, session = await agent.newSession();
     await store.saveDraft(session, [ref]); await store.stage('synthetic-batch', { refs: [ref], errors: [] });
     const request = await agent.begin(session, '总结合成材料', [ref], []); ensure(!(await agent.grants(request.id)).length);
@@ -44,9 +46,9 @@ export async function runMaterialProbe() {
     await store.archive(material.id, 1); let blocked = false;
     try { await domain.acceptProposal(stale.id, 1, { actor: 'ui', operationId: Crypto.randomUUID() }); } catch { blocked = true; } ensure(blocked);
     const queue = await db.getUploadQueueStats(); ensure(queue.count === 0);
-    new File(Paths.document, 'lime-p3-material-probe.json').write(JSON.stringify({ status: 'passed', utf8: true, boundedCopy: true, privateUriRejected: true, image: true, pdfText: true, pdfScan: true, unsupportedRetained: true, dedup: true, reopen: true, sourceGuard: true, acceptedOnce: true, localQueue: queue.count }));
+    new File(Paths.document, 'lime-p3-material-probe.json').write(JSON.stringify({ status: 'passed', utf8: true, boundedCopy: true, privateUriRejected: true, privateContentUriRejected: true, image: true, pdfText: true, pdfScan: true, unsupportedRetained: true, dedup: true, reopen: true, sourceGuard: true, acceptedOnce: true, localQueue: queue.count }));
   } finally {
     try { await db.close(); } catch {}
-    for (const suffix of ['', '-wal', '-shm']) { try { const file = new File(Paths.document, filename + suffix); if (file.exists) file.delete(); } catch {} }
+    for (const suffix of ['', '-wal', '-shm']) { try { const file = new File(`file://${ANDROID_DATABASE_PATH}/${filename}${suffix}`); if (file.exists) file.delete(); } catch {} }
   }
 }
