@@ -18,7 +18,7 @@ import { createNavigationContainerRef, NavigationContainer } from '@react-naviga
 import { AppNavigator } from './src/components/AppNavigator';
 import { useBackHandler, useSystemBack } from './src/navigation/back';
 import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
-import { AssistantProvider } from './src/assistant/AssistantProvider';
+import { DatabaseProvider } from './src/storage/DatabaseProvider';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { DiaryScreen } from './src/screens/DiaryScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -150,9 +150,9 @@ function AppShell() {
 export default function App() {
   return (
     <SafeAreaProvider><GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantProvider>
+      <DatabaseProvider>
         <HabitProvider><AppShell /></HabitProvider>
-      </AssistantProvider>
+      </DatabaseProvider>
     </GestureHandlerRootView></SafeAreaProvider>
   );
 }

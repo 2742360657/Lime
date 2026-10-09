@@ -1,18 +1,5 @@
-import { PowerSyncDatabase, Schema, Table, column } from '@powersync/react-native';
-export const database = new PowerSyncDatabase({
- schema: new Schema({
-  document_groups: new Table({owner_id:column.text,kind:column.text,name:column.text,sort_order:column.integer,created_at:column.integer,revision:column.integer,deleted:column.integer,updated_at:column.text}),
-  documents: new Table({group_id:column.text,sort_order:column.integer,created_at:column.integer,edited_at:column.integer,deleted_at:column.integer, owner_id:column.text,kind:column.text,title:column.text,body:column.text,date:column.text,revision:column.integer,deleted:column.integer,updated_at:column.text }),
-  tasks: new Table({ owner_id:column.text,title:column.text,status:column.text,document_id:column.text,due_at:column.text,note:column.text,due_date_key:column.text,due_time:column.text,sort_order:column.integer,created_at:column.integer,completed_at:column.integer,revision:column.integer,deleted:column.integer,updated_at:column.text }),
-  habit_groups: new Table({owner_id:column.text,name:column.text,sort_order:column.integer,created_at:column.integer,revision:column.integer,deleted:column.integer,updated_at:column.text}),
-  habits: new Table({owner_id:column.text,name:column.text,group_id:column.text,cadence:column.text,target_count:column.integer,sort_order:column.integer,created_at:column.integer,archived_at:column.integer,revision:column.integer,deleted:column.integer,updated_at:column.text}),
-  checkins: new Table({owner_id:column.text,habit_id:column.text,date_key:column.text,timestamp:column.integer,note:column.text,created_at:column.integer,revision:column.integer,deleted:column.integer,updated_at:column.text}),
-  suggestions: new Table({ owner_id:column.text,document_id:column.text,document_revision:column.integer,request_id:column.text,summary:column.text,tasks:column.text,model:column.text,status:column.text,updated_at:column.text }),
-  local_meta: new Table({value:column.text},{localOnly:true}),
-  local_conflicts: new Table({payload:column.text,snapshots:column.text,error:column.text,created_at:column.text},{localOnly:true}),
-  local_drafts: new Table({base_content:column.text,kind:column.text,group_id:column.text,base_revision:column.integer,title:column.text,body:column.text,date:column.text,document_id:column.text},{localOnly:true}),
- }),database:{dbFilename:'angelime-assistant.sqlite'},
-});
+import { database } from '../storage/database';
+export { database } from '../storage/database';
 export type DocumentContent={title:string;body:string;date:string;group_id?:string|null};
 export type DocumentRow={base_content?:DocumentContent;id:string;kind:string;title:string;body:string;date:string;revision:number;deleted:number;updated_at:string;group_id?:string|null;sort_order?:number;created_at?:number;edited_at?:number;deleted_at?:number|null};
 export type SuggestionRow={id:string;document_id:string;document_revision:number;summary:string;tasks:string;status:string};
