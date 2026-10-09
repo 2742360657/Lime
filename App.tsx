@@ -1,7 +1,8 @@
 import { IncomingMaterials } from './src/materials/IncomingMaterials';
 import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ReminderLifecycle } from './src/reminders/ReminderLifecycle';
 import {
   ActivityIndicator,
   BackHandler,
@@ -62,6 +63,13 @@ function AppShell() {
   const { isLoading, error, clearError, theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
+  const pendingReminder = useRef<{ kind: 'rule' | 'task'; id: string } | null>(null);
+  const openReminder = useCallback((kind: 'rule' | 'task', id: string) => {
+    if (!navigationRef.isReady()) { pendingReminder.current = { kind, id }; return; }
+    navigationRef.navigate(kind === 'task' ? 'tasks' : 'settings', kind === 'task'
+      ? { reminderTaskId: id, reminderNonce: String(Date.now()) } : { reminderNonce: String(Date.now()) });
+    pendingReminder.current = null;
+  }, []);
 
   useSystemBack();
 
@@ -123,13 +131,14 @@ function AppShell() {
             <Text style={styles.loadingText}>正在读取本地数据...</Text>
           </View>
         ) : (
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer ref={navigationRef} onReady={() => { const pending = pendingReminder.current; if (pending) openReminder(pending.kind, pending.id); }}>
             <AppNavigator screens={SCREENS} />
           </NavigationContainer>
         )}
       </View>
 
       <IncomingMaterials onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('assistant', { materialsNonce: String(Date.now()) }); }} />
+      <ReminderLifecycle onOpen={openReminder} />
       {exitPromptVisible ? (
         <View style={styles.promptOverlay} pointerEvents="box-none">
           <View style={styles.promptCard}>

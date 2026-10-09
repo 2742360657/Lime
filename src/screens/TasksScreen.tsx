@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRoute } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -39,6 +40,15 @@ export function TasksScreen() {
   const [undoTodoId, setUndoTodoId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const route = useRoute();
+  const reminderParams = route.params as { reminderTaskId?: string; reminderNonce?: string } | undefined;
+  const consumedReminder = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!reminderParams?.reminderNonce || consumedReminder.current === reminderParams.reminderNonce) return;
+    consumedReminder.current = reminderParams.reminderNonce;
+    const todo = todos.find(item => item.id === reminderParams.reminderTaskId);
+    if (todo) { setEditingTodo(todo); setEditorVisible(true); }
+  }, [reminderParams?.reminderNonce, reminderParams?.reminderTaskId, todos]);
 
   const buckets = useMemo(() => buildTodoBuckets(todos), [todos]);
   const completedTodos = useMemo(

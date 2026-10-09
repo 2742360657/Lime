@@ -1,5 +1,7 @@
 import { Alert } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRoute } from '@react-navigation/native';
+import { ReminderSettingsModal } from '../reminders/ReminderSettingsModal';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
@@ -21,6 +23,10 @@ export function SettingsScreen() {
   const [profileVisible, setProfileVisible] = useState(false);
   const [archivedVisible, setArchivedVisible] = useState(false);
   const [assistantVisible, setAssistantVisible] = useState(false);
+  const [remindersVisible, setRemindersVisible] = useState(false);
+  const route = useRoute();
+  const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
+  useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
 
   const handleBackup = async () => {
     try {
@@ -95,11 +101,12 @@ export function SettingsScreen() {
             onPress={() => setArchivedVisible(true)}
           />
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
+          <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>本机记录备份与恢复</Text>
-          <Text style={styles.description}>包含日记、备忘录、待办、习惯、打卡、草稿与恢复副本。不包含聊天、附件和个人记忆。</Text>
+          <Text style={styles.description}>包含日记、备忘录、待办、习惯、打卡、草稿与恢复副本。不包含聊天、附件、个人记忆和提醒规则。</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity
               disabled={busyAction !== null}
@@ -128,6 +135,7 @@ export function SettingsScreen() {
       <ProfileEditorModal visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <ArchivedHabitsModal visible={archivedVisible} onClose={() => setArchivedVisible(false)} />
       <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
+      <ReminderSettingsModal visible={remindersVisible} onClose={() => setRemindersVisible(false)} />
     </ScreenScaffold>
   );
 

@@ -13,12 +13,23 @@ export function dateKeyAt(timestamp: number): string {
 }
 const dateKey = z.string().refine(isDateKey);
 const timestamp = z.number().int().min(0).max(253402214400000);
+const reminderFields = {
+  title: z.string().trim().min(1).max(100), note: z.string().trim().max(300).default(''),
+  mode: z.enum(['once', 'annual']), dateKey: dateKey.nullable().default(null),
+  monthDay: z.string().regex(/^\d{2}-\d{2}$/).nullable().default(null),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  advanceDays: z.number().int().min(0).max(30).default(0), dayOf: z.boolean().default(true),
+  enabled: z.boolean().default(true),
+};
 const taskFields = {
   title: z.string().trim().min(1).max(80), note: z.string().trim().max(300).default(''),
   dueDateKey: dateKey.nullable().default(null),
   dueTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().default(null),
 };
 export const commandSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('reminder.create'), ...reminderFields }),
+  z.strictObject({ type: z.literal('reminder.update'), id: identifier, expectedRevision: revision, ...reminderFields }),
+  z.strictObject({ type: z.literal('reminder.cancel'), id: identifier, expectedRevision: revision }),
   z.strictObject({ type: z.literal('task.create'), ...taskFields }),
   z.strictObject({ type: z.literal('task.update'), id: identifier, expectedRevision: revision, ...taskFields }),
   z.strictObject({ type: z.literal('task.complete'), id: identifier, expectedRevision: revision, completed: z.boolean() }),
@@ -37,6 +48,11 @@ export const commandSchema = z.discriminatedUnion('type', [
     note: z.string().trim().max(300).default('') }),
   z.strictObject({ type: z.literal('activity.cancel'), id: identifier, expectedRevision: revision }),
 ]).superRefine((command, ctx) => {
+  if (command.type === 'reminder.create' || command.type === 'reminder.update') {
+    if ((command.mode === 'once' && (!command.dateKey || command.monthDay !== null || command.advanceDays !== 0 || !command.dayOf)) ||
+      (command.mode === 'annual' && (command.dateKey !== null || !command.monthDay || !isDateKey(`2000-${command.monthDay}`) || (!command.dayOf && command.advanceDays === 0))))
+      ctx.addIssue({ code: 'custom', message: 'Invalid reminder recurrence', path: ['mode'] });
+  }
   if ((command.type === 'task.create' || command.type === 'task.update') && command.dueTime && !command.dueDateKey)
     ctx.addIssue({ code: 'custom', message: 'A time requires a date', path: ['dueTime'] });
   if (command.type === 'habit.checkin' && command.dateKey && command.timestamp !== undefined && dateKeyAt(command.timestamp) !== command.dateKey)

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { shanghaiTimestamp, type ReminderRow } from '../reminders/planner';
 import { canonicalJson, commandSchema, dateKeyAt, identifier, isDateKey, revision, type Command } from './commands';
 import { DomainError, type DocumentRef, type DomainDatabase, type DomainTransaction, type EntityRef, type ReadContext, type Receipt, type UiContext } from './types';
 
@@ -44,7 +45,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       if (!source || source.deleted || source.revision !== ref.revision) throw new DomainError('SOURCE_CHANGED');
     }
   }
-  async function target<T extends BaseRow>(tx: DomainTransaction, table: 'tasks' | 'habits' | 'local_memories' | 'local_activities', id: string, expected?: number): Promise<T> {
+  async function target<T extends BaseRow>(tx: DomainTransaction, table: 'tasks' | 'habits' | 'local_memories' | 'local_activities' | 'local_reminder_rules', id: string, expected?: number): Promise<T> {
     const row = await tx.getOptional<T>(`SELECT * FROM ${table} WHERE id=?`, [id]);
     if (!row || row.deleted || ('forgotten' in row && row.forgotten)) throw new DomainError('NOT_FOUND');
     if (expected !== undefined && row.revision !== expected) throw new DomainError('VERSION_CONFLICT');
@@ -66,6 +67,23 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     const changed = (kind: EntityRef['kind'], id: string, revision: number, unchanged = false): Omit<Receipt, 'operationId'> =>
       ({ disposition: unchanged ? 'unchanged' : 'committed', entity: { kind, id, revision } });
     switch (cmd.type) {
+      case 'reminder.create':
+      case 'reminder.update': {
+        if (cmd.mode === 'once' && cmd.enabled && shanghaiTimestamp(cmd.dateKey!, cmd.time) <= now) throw new DomainError('INVALID_ARGUMENT');
+        const row = cmd.type === 'reminder.update' ? await target<ReminderRow>(tx, 'local_reminder_rules', cmd.id, cmd.expectedRevision) : null;
+        const id = row?.id ?? deps.id();
+        if (row) await tx.execute('UPDATE local_reminder_rules SET title=?,note=?,mode=?,date_key=?,month_day=?,time=?,advance_days=?,day_of=?,enabled=?,revision=revision+1,updated_at=? WHERE id=?',
+          [cmd.title, cmd.note, cmd.mode, cmd.dateKey, cmd.monthDay, cmd.time, cmd.advanceDays, cmd.dayOf ? 1 : 0, cmd.enabled ? 1 : 0, updated, id]);
+        else await tx.execute('INSERT INTO local_reminder_rules(id,title,note,mode,date_key,month_day,time,advance_days,day_of,enabled,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)',
+          [id, cmd.title, cmd.note, cmd.mode, cmd.dateKey, cmd.monthDay, cmd.time, cmd.advanceDays, cmd.dayOf ? 1 : 0, cmd.enabled ? 1 : 0, now, updated]);
+        return changed('reminder', id, (row?.revision ?? 0) + 1);
+      }
+      case 'reminder.cancel': {
+        const row = await target<ReminderRow>(tx, 'local_reminder_rules', cmd.id, cmd.expectedRevision);
+        if (!row.enabled) return changed('reminder', row.id, row.revision, true);
+        await tx.execute('UPDATE local_reminder_rules SET enabled=0,revision=revision+1,updated_at=? WHERE id=?', [updated, row.id]);
+        return changed('reminder', row.id, row.revision + 1);
+      }
       case 'task.create': {
         const id = deps.id();
         const order = await tx.getOptional<{ next: number }>('SELECT COALESCE(MAX(sort_order),-1)+1 AS next FROM tasks WHERE deleted=0');
@@ -190,6 +208,9 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     },
     async listHabits(options: { limit?: number } = {}): Promise<HabitRow[]> {
       return db.readTransaction(tx => tx.getAll<HabitRow>('SELECT * FROM habits WHERE deleted=0 AND archived_at IS NULL ORDER BY sort_order,id LIMIT ?', [limit(options.limit)]));
+    },
+    async listReminders(options: { limit?: number } = {}): Promise<ReminderRow[]> {
+      return db.readTransaction(tx => tx.getAll<ReminderRow>('SELECT * FROM local_reminder_rules ORDER BY enabled DESC,updated_at DESC,id LIMIT ?', [limit(options.limit)]));
     },
     async listCheckins(options: { habitId: string; from: string; through: string; limit?: number }) {
       validId(options.habitId);

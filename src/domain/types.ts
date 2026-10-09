@@ -12,7 +12,7 @@ export type DocumentRef = { id: string; revision: number; kind?: 'attachment' };
 // Constructed by application code. None of these fields are model tool arguments.
 export type ReadContext = { actor: 'ui' | 'agent'; documentRefs?: DocumentRef[] };
 export type UiContext = { actor: 'ui' };
-export type EntityRef = { kind: 'task' | 'habit' | 'checkin' | 'memory' | 'activity'; id: string; revision: number };
+export type EntityRef = { kind: 'task' | 'habit' | 'checkin' | 'memory' | 'activity' | 'reminder'; id: string; revision: number };
 export type Receipt = {
   operationId: string;
   disposition: 'committed' | 'replayed' | 'unchanged';

@@ -4,6 +4,10 @@ import { Alert, DevSettings } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证本机提醒排程', async () => {
+    try { const { runReminderProbe } = await import('./reminderProbe'); await runReminderProbe(); Alert.alert('提醒验证通过', '隔离合成规则：系统预排、重开不重复、改期撤旧、停用取消与零上传队列通过。未请求通知权限，未测送达。'); }
+    catch { Alert.alert('提醒验证失败', '未修改普通记录，请检查当前原生通知组件与Metro。'); }
+  });
   DevSettings.addMenuItem('准备模拟器材料建议', async () => {
     try { const { prepareMaterialUiFixture } = await import('./materialUiFixture'); await prepareMaterialUiFixture(); Alert.alert('材料交互样本就绪', '仅模拟器合成材料：重开助手，编辑确认建议后查看待办来源。没有调用模型。'); }
     catch { Alert.alert('未创建交互样本', '此入口仅允许模拟器与合成数据。'); }

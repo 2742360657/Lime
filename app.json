@@ -26,6 +26,7 @@
     },
     "plugins": [
       "expo-sharing",
+      "expo-notifications",
       "expo-secure-store",
       "./plugins/with-lime-materials.cjs"
     ]
