@@ -1,4 +1,5 @@
 import { IncomingMaterials } from './src/materials/IncomingMaterials';
+import { QqValidationModal } from './src/development/QqValidationModal';
 import { Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -139,6 +140,7 @@ function AppShell() {
 
       <IncomingMaterials onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('assistant', { materialsNonce: String(Date.now()) }); }} />
       <ReminderLifecycle onOpen={openReminder} />
+      {__DEV__ ? <QqValidationModal /> : null}
       {exitPromptVisible ? (
         <View style={styles.promptOverlay} pointerEvents="box-none">
           <View style={styles.promptCard}>

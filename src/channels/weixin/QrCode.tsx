@@ -3,7 +3,7 @@ import { PixelRatio, Text, View, useWindowDimensions } from 'react-native';
 import { encodeWeixinQr } from './qr';
 
 // Matrix generation stays in the mature encoder; only black runs are drawn here.
-export function QrCode({ value }: { value: string }) {
+export function QrCode({ value, label = '微信绑定二维码' }: { value: string; label?: string }) {
   const { width } = useWindowDimensions();
   const matrix = useMemo(() => {
     try {
@@ -22,7 +22,7 @@ export function QrCode({ value }: { value: string }) {
   }, [value]);
   if (!matrix) return <Text style={{ color: '#222' }}>二维码生成失败，请重新获取。</Text>;
   const ratio = PixelRatio.get(), unit = Math.max(1, Math.floor(Math.min(width - 48, 288) * ratio / (matrix.size + 8))) / ratio;
-  return <View accessible accessibilityLabel="微信绑定二维码" style={{ alignSelf: 'center', width: (matrix.size + 8) * unit, height: (matrix.size + 8) * unit, padding: unit * 4, backgroundColor: '#fff' }}>
+  return <View accessible accessibilityLabel={label} style={{ alignSelf: 'center', width: (matrix.size + 8) * unit, height: (matrix.size + 8) * unit, padding: unit * 4, backgroundColor: '#fff' }}>
     {matrix.rows.map((runs, row) => <View key={row} style={{ height: unit, width: matrix.size * unit }}>{runs.map(run => <View key={run.start} style={{ position: 'absolute', left: run.start * unit, width: run.length * unit, height: unit, backgroundColor: '#000' }} />)}</View>)}
   </View>;
 }

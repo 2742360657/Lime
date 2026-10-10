@@ -1,9 +1,14 @@
-import { Alert, DevSettings } from 'react-native';
+import { Alert, DevSettings, DeviceEventEmitter } from 'react-native';
 
 // Only development builds register this manual probe. It uses its own database
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证QQ手机组件', async () => {
+    try { const {runQqProbe}=await import('./qqProbe');await runQqProbe();Alert.alert('QQ组件验证通过','隔离合成HTTP/WS、系统GCM、本人过滤、序号重开、会话恢复/失效、附件和P3解析通过；未连接QQ账号或模型。'); }
+    catch { Alert.alert('QQ组件验证失败','请检查当前原生包、Metro与8094合成服务，普通记录未修改。'); }
+  });
+  DevSettings.addMenuItem('打开QQ账号验证',()=>DeviceEventEmitter.emit('lime-open-qq-validation'));
   DevSettings.addMenuItem('验证完整备份组件', async () => {
     try { const { runBackupProbe } = await import('./backupProbe'); await runBackupProbe(); Alert.alert('完整备份验证通过', '隔离合成库的完整ZIP、原件、冲突副本、回滚、只读历史和重开通过，未读取普通记录或调用模型。'); }
     catch { Alert.alert('完整备份验证失败', '请检查当前原生包及私密阶段诊断；普通内容仍保留。'); }
