@@ -4,7 +4,7 @@
 
 ## 1. 环境与工作目录
 
-仓库可clone到任意开发目录；本机规范见忽略的 `.local/dev.env`。Node22/JDK17/Android SDK、Gradle wrapper与npm lock固定。SDK/AVD/缓存可继续复用已安装的工具，不能因换仓库复制数GB缓存进Git。
+仓库可clone到任意开发目录；本机唯一活动目录为 `/home/angelime/Projects/Lime`，环境配置见忽略的 `.local/dev.env`。工具位于用户 `.local/share/toolchains`，缓存位于 `.cache`，模拟器位于 `.android/avd`；[主机迁移验收](host-migration.md)记录实际结果。Node22/JDK17/Android SDK、Gradle wrapper与npm lock固定。SDK/AVD/缓存不能复制进Git。
 
 ```bash
 source scripts/env.sh

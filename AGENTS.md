@@ -1,5 +1,7 @@
 # Lime mobile-only development rules
 
+- This host's sole active checkout is `/home/angelime/Projects/Lime` on the Micron root filesystem. Host infrastructure belongs to the independent private `/home/angelime/Projects/server-infra` repository. Historical mixed workspaces are restricted archives under `/home/angelime/Archive/server-legacy`; never use them as active checkouts. See `docs/host-migration.md`.
+
 - Product name: 酸橙 / Lime. This is one Android application repository. Self-hosted servers, database sync backends, web admin, AstrBot deployments, Mem0 services and cloud backup are out of scope. A Linux machine may be used to build; that does not add a product backend.
 - Before work, read README.md, docs/project-status.md, development-plan-revised.md and docs/development-workflow.md. docs/development-plan.md is superseded historical planning. Historical source includes server-dependent adapters listed in docs/repository-assessment.md; remove/replace them along the current plan, do not expand or reactivate them.
 - Keep existing compact diary, record editors and mature libraries. AI interaction belongs in chat. Do not copy private persona text, keys, real diaries, credentials, signatures or generated files into tracked content.
