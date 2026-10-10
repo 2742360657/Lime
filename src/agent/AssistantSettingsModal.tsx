@@ -76,7 +76,7 @@ export function AssistantSettingsModal({ visible, onClose }: { visible: boolean;
             <View style={{ flexDirection: 'row' }}>{button('更正', () => { setEditing(memory); setContent(memory.content); }, busy || state.busy)}
               {button('忘记', () => Alert.alert('忘记这项记忆', '清除长期记忆内容，并阻止旧聊天作为后续上下文。聊天历史本身仍保留。', [{ text: '取消' }, { text: '忘记', onPress: () => void perform(async () => { await domain.execute({ type: 'memory.forget', id: memory.id, expectedRevision: memory.revision }, { actor: 'ui', operationId: Crypto.randomUUID() }); await refreshMemories(); }) }]), busy || state.busy)}</View></>}
         </View>)}
-        <Text style={{ fontSize: 12, lineHeight: 20, color: c.textMuted }}>当前基础记录备份不包含人格、聊天、活动和个人记忆。完整导出会在后续阶段补齐。</Text>
+        <Text style={{ fontSize: 12, lineHeight: 20, color: c.textMuted }}>设置中的完整数据包包含人格、聊天、活动、个人记忆和材料原件；API Key与微信绑定凭据不导出。</Text>
       </ScrollView>
     </SafeAreaView>
   </Modal>;
