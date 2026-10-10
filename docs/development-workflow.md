@@ -93,3 +93,9 @@ P4-A可靠性探针已扩展迟到队列保留和单项失败/重试。迟到部
 真实账号验证使用`python3 scripts/p4-weixin-account-step.py --serial <device> --action qr`，QR展示内容只写忽略的`.local`，不打印或提交。由所有者扫码确认后执行`--action status`；约定少量合成材料、关闭应用期间发送后再`--action read`及`--action download`。只输出状态/计数；实际消息、账号与媒体能力不进入公开报告。账号独立验证库与SecureStore不属于普通导出，普通收件UI尚未上线。不要用实际群通知做第一轮验证。
 
 测试结束停止本任务Metro/8093夹具，移除新增的8081/8093映射，恢复本批独立preview并核对APK摘要。普通记录摘要在可run-as的debug期间检查；preview不可run-as时不声称安装后SQL逐项比较已通过，也不为重复摘要检查来回安装旧包。详见[P4-B报告](p4-weixin-validation.md)。
+
+## P5-04完整备份验收入口
+
+debug/本仓库Metro就绪后，执行 `python3 scripts/p5-backup-device-check.py --serial <device>`。仅两个随机隔离库及合成文本/图片/PDF，原生ZIP/SQLite，无HTTP夹具、模型调用或通知许可请求。普通业务库不参与恢复；收尾只删除探针明确登记的新增合成文件、自己的缓存阶段与随机库，不扫描删除所有新文件。
+
+Node重点验证白名单、引用、惰性历史、防重、冲突依赖及事务；原生重点验证实际ZIP与跨目录原件/重开。失败只复测受影响模块；记录APK原生基线与Metro JS基线，不能混用。收尾恢复当前独立preview、核对手机APK摘要、停止本任务Metro/映射；系统保存/选择/确认取消和真实旧JSON提供方单独验收，不自动导出或恢复真人材料来做UI测试。完整结果见[P5报告](p5-backup-validation.md)。

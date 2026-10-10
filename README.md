@@ -6,7 +6,7 @@
 
 P3增加应用内文件/图片、系统分享/打开文件与本地材料来源管理：仅选中发送才分析，文本/图片/有界PDF支持解析，Office仅保存。原生探针、一次真实视觉API、模拟器分段UI与独立preview已有分项结果，详见[P3报告](docs/p3-materials-validation.md)。
 
-P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。两项提醒可靠性修正已实现，集中68项/类型/两包ARM64构建通过；新版小米隔离探针与独立preview只读界面已补验通过，实际送达仍待验，见[修正报告](docs/p4-reminder-reliability-validation.md)。微信独立能力验证已实现，手机扫码/短时关闭后读取3条及2份图片/文本文件下载/类型识别通过，86项集中测试通过；正式收件入口、长时补收与QQ仍未交付，见[P4-B报告](docs/p4-weixin-validation.md)。下一步先完整手动导出恢复，再集成正式渠道，路线见[复评与计划](docs/next-development-review.md)。
+P4-A本地提醒已接入：单次、公历年度提前/当天和可选待办到期提醒，设置集中管理，聊天生成确认建议。53项测试、小米原生排程及独立preview界面通过，实际通知送达未测；微信/QQ尚未接通，见[P4-A报告](docs/p4-reminders-validation.md)。两项提醒可靠性修正已实现，集中68项/类型/两包ARM64构建通过；新版小米隔离探针与独立preview只读界面已补验通过，实际送达仍待验，见[修正报告](docs/p4-reminder-reliability-validation.md)。微信独立能力验证已实现，手机扫码/短时关闭后读取3条及2份图片/文本文件下载/类型识别通过，86项集中测试通过；正式收件入口、长时补收与QQ仍未交付，见[P4-B报告](docs/p4-weixin-validation.md)。P5-04完整手动ZIP导出/安全恢复已实现并通过本批关键技术验收，详见[P5备份报告](docs/p5-backup-validation.md)。下一步集成正式微信渠道，人工数据保存/恢复体验继续单列，路线见[复评与计划](docs/next-development-review.md)。
 
 ## 本轮确定的范围
 
