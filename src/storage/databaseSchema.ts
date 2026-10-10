@@ -17,6 +17,8 @@ export const legacyTableColumns = {
 // Additive local-only objects. Never change the historical source schema on migration.
 export const tableColumns = {
   ...legacyTableColumns,
+  local_backup_imports: { receipt: column.text, created_at: column.integer },
+  local_backup_archives: { uri: column.text, hash: column.text, size: column.integer, summary: column.text, created_at: column.integer },
   local_reminder_rules: { title: column.text, note: column.text, mode: column.text, date_key: column.text, month_day: column.text, time: column.text, advance_days: column.integer, day_of: column.integer, enabled: column.integer, revision: column.integer, created_at: column.integer, updated_at: column.text },
   local_reminder_instances: { source_kind: column.text, source_id: column.text, source_revision: column.integer, scheduled_at: column.integer, title: column.text, body: column.text, status: column.text, updated_at: column.integer },
   local_operations: { fingerprint: column.text, receipt: column.text, created_at: column.integer },

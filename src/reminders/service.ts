@@ -18,7 +18,7 @@ export function createReminderService(db: DomainDatabase, driver: NotificationDr
   const publish = (patch: Partial<ReminderStatus>) => { state = { ...state, ...patch }; for (const listener of listeners) listener(); };
   async function reconcile() {
     const snapshot = await db.readTransaction(async tx => ({
-      meta: await tx.getAll<{ id: string; value: string }>("SELECT id,value FROM local_meta WHERE id IN ('reminders-enabled','reminders-tasks')"),
+      meta: await tx.getAll<{ id: string; value: string }>("SELECT id,value FROM local_meta WHERE id IN ('reminders-enabled','reminders-tasks') OR id LIKE 'restored-task-notify-%'"),
       rules: await tx.getAll<ReminderRow>('SELECT * FROM local_reminder_rules'),
       tasks: await tx.getAll<ReminderTask>('SELECT * FROM tasks'),
       instances: await tx.getAll<Instance>('SELECT * FROM local_reminder_instances'),
@@ -29,6 +29,8 @@ export function createReminderService(db: DomainDatabase, driver: NotificationDr
     const allowed = enabled && await driver.allowed();
     publish({ allowed });
     const now = deps.now();
+    const suppressed = new Map(snapshot.meta.filter(m => m.id.startsWith('restored-task-notify-')).map(m => [m.id.slice('restored-task-notify-'.length),Number(m.value)]));
+    snapshot.tasks = snapshot.tasks.filter(task => suppressed.get(task.id) !== task.revision);
     const plan = planReminders(snapshot.rules, snapshot.tasks, taskEnabled, now);
     const desired = new Map<string, Occurrence>();
     const pending = new Set((await driver.pending()).filter(id => id.startsWith(NOTIFICATION_PREFIX)));
