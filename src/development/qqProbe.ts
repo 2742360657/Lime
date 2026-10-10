@@ -4,7 +4,7 @@ import { File, Paths } from 'expo-file-system';
 import { fetch } from 'expo/fetch';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
-import { AppState, NativeModules } from 'react-native';
+import { AppState, NativeEventEmitter, NativeModules } from 'react-native';
 import { createQqClient } from '../channels/qq/client';
 import { createQqInbox } from '../channels/qq/inbox';
 import { createQqReceiver, type QqReceivePhase } from '../channels/qq/receiver';
@@ -33,7 +33,10 @@ export async function qqValidationBound(){return __DEV__ && !!await vault().load
 export async function readQqValidation(){
   if(!__DEV__)throw new QqError('PROTOCOL');return foreground(async signal=>{const binding=await vault().load();if(!binding)throw new QqError('SESSION');const db=new PowerSyncDatabase({schema:createQqSchema(),database:{dbFilename:'lime-qq-validation.sqlite'}});
     const phases:QqReceivePhase[]=[],trace=new File(Paths.document,'lime-qq-validation-trace.json');
-    try{await db.init();const inbox=createQqInbox(db,{digest,stage:vault().stage}),result=await createQqReceiver(client(),inbox,qqSocket,60000,phase=>{if(!phases.includes(phase)){phases.push(phase);trace.write(JSON.stringify({status:'reading',phases}));}}).read(binding,signal);new File(Paths.document,'lime-qq-validation-read.json').write(JSON.stringify({...result,modelCalls:0}));trace.write(JSON.stringify({status:'passed',phases}));return result;}catch(error){trace.write(JSON.stringify({status:'failed',phases,code:error instanceof QqError?error.code:'CHECK'}));throw error;}finally{await db.close();}
+    // Development diagnostics retain only transport hosts, never paths, queries or message data.
+    const hosts=new File(Paths.document,'lime-qq-validation-hosts.json');hosts.write('[]');
+    const observer=new NativeEventEmitter(NativeModules.LimeQq).addListener('lime-qq-ws',(event:{type:string;data:string})=>{try{if(event.type!=='message')return;const f=JSON.parse(event.data);if(f.t!=='C2C_MESSAGE_CREATE' || f.d?.author?.user_openid!==binding.userOpenid)return;const details=(f.d.attachments??[]).slice(0,8).map((part:{url?:unknown})=>{if(typeof part.url!=='string')return {format:'missing'};try{const u=new URL(part.url.startsWith('//')?'https:'+part.url:part.url);return {scheme:u.protocol,host:u.hostname,port:u.port,relative:part.url.startsWith('//'),credentials:!!(u.username||u.password),fragment:!!u.hash};}catch{return {format:'unparsed'};}});if(details.length)hosts.write(JSON.stringify(details));}catch{}});
+    try{await db.init();const inbox=createQqInbox(db,{digest,stage:vault().stage}),result=await createQqReceiver(client(),inbox,qqSocket,60000,phase=>{if(!phases.includes(phase)){phases.push(phase);trace.write(JSON.stringify({status:'reading',phases}));}}).read(binding,signal);new File(Paths.document,'lime-qq-validation-read.json').write(JSON.stringify({...result,modelCalls:0}));trace.write(JSON.stringify({status:'passed',phases}));return result;}catch(error){trace.write(JSON.stringify({status:'failed',phases,code:error instanceof QqError?error.code:'CHECK'}));throw error;}finally{observer.remove();await db.close();}
   });
 }
 export async function downloadQqValidation(){

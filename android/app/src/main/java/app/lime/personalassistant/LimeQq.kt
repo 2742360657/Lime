@@ -78,7 +78,7 @@ class LimeQqModule(private val context: ReactApplicationContext):ReactContextBas
   private fun validUrl(value:String,fixture:Boolean):URL{
     val u=Uri.parse(value)
     if(fixture){require(BuildConfig.DEBUG && u.scheme=="http" && u.host=="127.0.0.1" && u.port==8094 && u.path=="/media");return URL(value)}
-    require(value.length<=16384 && u.scheme=="https" && u.host in listOf("multimedia.nt.qq.com.cn","multimedia.nt.qq.com","gchat.qpic.cn","c2cpicdw.qpic.cn") && u.port in listOf(-1,443) && u.userInfo==null && u.fragment==null){"HOST"};return URL(value)
+    require(value.length<=16384 && u.scheme=="https" && u.host in listOf("grouptalk.c2c.qq.com","multimedia.nt.qq.com.cn","multimedia.nt.qq.com","gchat.qpic.cn","c2cpicdw.qpic.cn") && u.port in listOf(-1,443) && u.userInfo==null && u.fragment==null){"HOST"};return URL(value)
   }
   @ReactMethod fun download(id:String,url:String,size:Double,promise:Promise)=transfer(id,url,size,promise,false)
   @ReactMethod fun fixtureDownload(id:String,kind:String,size:Double,promise:Promise){

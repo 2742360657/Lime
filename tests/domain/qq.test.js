@@ -32,6 +32,10 @@ test('protocol-relative QQ attachments become HTTPS while all host and credentia
  expect(mediaUrl('//multimedia.nt.qq.com.cn/download?synthetic=1')).toBe('https://multimedia.nt.qq.com.cn/download?synthetic=1');
  for(const value of ['//127.0.0.1/a','//u@multimedia.nt.qq.com.cn/a','//multimedia.nt.qq.com.cn:8094/a','//multimedia.nt.qq.com.cn.evil.test/a','//multimedia.nt.qq.com.cn/a#fragment'])expect(()=>mediaUrl(value)).toThrow();
 });
+test('observed QQ C2C file transport trusts its exact HTTPS host only',()=>{
+ expect(mediaUrl('https://grouptalk.c2c.qq.com/synthetic-file')).toBe('https://grouptalk.c2c.qq.com/synthetic-file');
+ for(const value of ['http://grouptalk.c2c.qq.com/a','https://grouptalk.c2c.qq.com.evil.test/a','https://other.grouptalk.c2c.qq.com/a','https://u@grouptalk.c2c.qq.com/a'])expect(()=>mediaUrl(value)).toThrow();
+});
 test('only bound C2C content is persisted; stranger/group/other dispatch only advances processed seq',async()=>{
  await inbox.ready(binding,'synthetic-session',1);
  await commit(message());await commit(message(3,{id:'other',author:{user_openid:'stranger'}}));await commit({...message(4),t:'GROUP_AT_MESSAGE_CREATE'});
