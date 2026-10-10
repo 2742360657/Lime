@@ -15,6 +15,7 @@ import { BackupError } from '../backup/model';
 import {RecordRecovery} from '../assistant/RecordRecovery';
 import { useHabits } from '../state/HabitStore';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
+import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
 
 export function SettingsScreen() {
   const { appData, archivedHabits, theme } = useHabits();
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const [profileVisible, setProfileVisible] = useState(false);
   const [archivedVisible, setArchivedVisible] = useState(false);
   const [assistantVisible, setAssistantVisible] = useState(false);
+  const [weixinVisible, setWeixinVisible] = useState(false);
   const [remindersVisible, setRemindersVisible] = useState(false);
   const route = useRoute();
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
@@ -95,6 +97,7 @@ export function SettingsScreen() {
             onPress={() => setArchivedVisible(true)}
           />
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
+          <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
 
@@ -129,6 +132,7 @@ export function SettingsScreen() {
       <ProfileEditorModal visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <ArchivedHabitsModal visible={archivedVisible} onClose={() => setArchivedVisible(false)} />
       <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
+      <WeixinIntakeModal visible={weixinVisible} onClose={() => setWeixinVisible(false)} />
       <ReminderSettingsModal visible={remindersVisible} onClose={() => setRemindersVisible(false)} />
     </ScreenScaffold>
   );

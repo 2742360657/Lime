@@ -1,4 +1,5 @@
 import { MaterialPicker } from '../materials/MaterialPicker';
+import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
 import { MaterialViewer } from '../materials/MaterialViewer';
 import { materialStore } from '../materials/service';
 import { useEffect, useRef, useState } from 'react';
@@ -25,6 +26,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   const [filePicker, setFilePicker] = useState(false), [materialPreview, setMaterialPreview] = useState<{ id: string; body: string; revision: number } | null>(null), [draftSession, setDraftSession] = useState('');
   const [sourcePreview, setSourcePreview] = useState<Source | null>(null), [sources, setSources] = useState<Record<string, Source[]>>({});
   const [settingsVisible, setSettingsVisible] = useState(false), [legacy, setLegacy] = useState(false), [error, setError] = useState('');
+  const [weixinVisible, setWeixinVisible] = useState(false);
   const scroll = useRef<ScrollView>(null), initializing = useRef(false);
   useEffect(() => {
     let active = true;
@@ -93,6 +95,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   const panels = [
     { id: 'new', label: '新对话', onPress: () => { void store.newSession().then(id => { setSession(id); setLegacy(false); }).catch(() => setError('新建对话失败。')); } },
     { id: 'config', label: '助手配置', onPress: () => setSettingsVisible(true) },
+    { id: 'weixin', label: '微信收件', onPress: () => setWeixinVisible(true) },
     ...sessions.map(s => ({ id: s.id, label: s.title, selected: s.id === session && !legacy, onPress: () => { setSession(s.id); setLegacy(false); } })),
     { id: 'legacy', label: '旧版历史缓存', selected: legacy, onPress: () => setLegacy(true) },
   ];
@@ -132,6 +135,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     <MaterialPicker visible={filePicker} remaining={4 - quoted.length} onClose={() => setFilePicker(false)} onPick={m => setQuoted(previous => previous.some(s => s.id === m.id) ? previous.map(s => s.id === m.id ? { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' } : s) : [...previous, { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
     <MaterialViewer id={materialPreview?.id ?? null} snapshot={materialPreview ?? undefined} onClose={() => setMaterialPreview(null)} />
     <AssistantSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
+    <WeixinIntakeModal visible={weixinVisible} remaining={4 - quoted.length} onClose={() => setWeixinVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => s.id !== m.id), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
     <Modal visible={picker || Boolean(sourcePreview)} animationType="slide" onRequestClose={() => { setPicker(false); setSourcePreview(null); }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>{button('关闭', () => { setPicker(false); setSourcePreview(null); })}<Text style={{ fontSize: 14, color: c.textPrimary }}>{sourcePreview ? '本轮原文快照' : '选择记录'}</Text></View>
