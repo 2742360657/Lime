@@ -28,6 +28,10 @@ test('official QQ multimedia .com.cn host is accepted exactly, without sibling o
  expect(mediaUrl('https://multimedia.nt.qq.com.cn/download?synthetic=1')).toBe('https://multimedia.nt.qq.com.cn/download?synthetic=1');
  for(const value of ['https://other.multimedia.nt.qq.com.cn/a','https://multimedia.nt.qq.com.cn.evil.test/a','http://multimedia.nt.qq.com.cn/a','https://u@multimedia.nt.qq.com.cn/a'])expect(()=>mediaUrl(value)).toThrow();
 });
+test('protocol-relative QQ attachments become HTTPS while all host and credential checks remain enforced',()=>{
+ expect(mediaUrl('//multimedia.nt.qq.com.cn/download?synthetic=1')).toBe('https://multimedia.nt.qq.com.cn/download?synthetic=1');
+ for(const value of ['//127.0.0.1/a','//u@multimedia.nt.qq.com.cn/a','//multimedia.nt.qq.com.cn:8094/a','//multimedia.nt.qq.com.cn.evil.test/a','//multimedia.nt.qq.com.cn/a#fragment'])expect(()=>mediaUrl(value)).toThrow();
+});
 test('only bound C2C content is persisted; stranger/group/other dispatch only advances processed seq',async()=>{
  await inbox.ready(binding,'synthetic-session',1);
  await commit(message());await commit(message(3,{id:'other',author:{user_openid:'stranger'}}));await commit({...message(4),t:'GROUP_AT_MESSAGE_CREATE'});
