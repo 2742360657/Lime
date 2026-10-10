@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import { PixelRatio, Text, View, useWindowDimensions } from 'react-native';
-import qrcode from 'qrcode-generator';
+import { encodeWeixinQr } from './qr';
 
 // Matrix generation stays in the mature encoder; only black runs are drawn here.
 export function QrCode({ value }: { value: string }) {
   const { width } = useWindowDimensions();
   const matrix = useMemo(() => {
     try {
-      qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
-      const qr = qrcode(0, 'M'); qr.addData(value); qr.make();
+      const qr = encodeWeixinQr(value);
       const size = qr.getModuleCount();
       const rows = Array.from({ length: size }, (_, row) => {
         const runs: { start: number; length: number }[] = [];
