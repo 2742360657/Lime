@@ -17,6 +17,10 @@ export async function exportRecordBackup() {
 export async function readRecordBackup(uri:string) {
  const info=await FileSystem.getInfoAsync(uri);if(!info.exists||('size' in info&&info.size>MAX_BYTES))throw new Error('备份不存在或超过25MB。');
  const content=await FileSystem.readAsStringAsync(uri);if(content.length*2>MAX_BYTES)throw new Error('备份超过支持大小。');
+ return parseRecordBackup(content);
+}
+export async function parseRecordBackup(content:string) {
+ if(content.length*2>MAX_BYTES)throw new Error('备份超过支持大小。');
  const parsed=JSON.parse(content);let backup:RecordBackup;
  if(parsed.format)backup=validateBackup(parsed);
  else {

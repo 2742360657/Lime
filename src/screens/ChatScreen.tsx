@@ -113,6 +113,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
             {message.role === 'user' ? sources[message.request_id]?.map(source => <View key={source.id}>{button(`原文 · ${source.title || source.date || '记录'}`, () => source.kind === 'attachment' ? setMaterialPreview({ id: source.id, body: source.body ?? '', revision: source.revision }) : setSourcePreview(source))}</View>) : null}
             {message.role === 'assistant' ? <>
               {results[message.request_id]?.map((result, i) => <ActionCard key={result.proposalId || result.receipt?.operationId || i} result={result} />)}
+              {request?.status === 'restored' ? <Text style={{ fontSize: 11, color: c.textMuted }}>恢复的聊天历史；本轮不会重试或重放。</Text> : null}
               {request?.error ? <Text style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{request.error}</Text> : null}
               {request && ['error', 'stopped', 'interrupted'].includes(request.status) ? button('重试本次请求', () => void send(request.id), state.busy) : null}
             </> : null}

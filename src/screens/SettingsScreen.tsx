@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRoute } from '@react-navigation/native';
 import { ReminderSettingsModal } from '../reminders/ReminderSettingsModal';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -9,8 +9,9 @@ import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { ThemeSelectionModal } from '../components/ThemeSelectionModal';
-import {pickBackupFile} from '../storage/habitStorage';
-import {exportRecordBackup,readRecordBackup,restoreRecordBackup} from '../storage/recordBackup';
+import { exportFullBackup, pickFullBackup, restorePrepared, discardPrepared, type PreparedBackup } from '../backup/service';
+import { BackupArchives } from '../backup/BackupArchives';
+import { BackupError } from '../backup/model';
 import {RecordRecovery} from '../assistant/RecordRecovery';
 import { useHabits } from '../state/HabitStore';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
@@ -18,6 +19,8 @@ import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 export function SettingsScreen() {
   const { appData, archivedHabits, theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const prepared = useRef<PreparedBackup | null>(null);
+  useEffect(() => () => { if (prepared.current) void discardPrepared(prepared.current); }, []);
   const [busyAction, setBusyAction] = useState<'backup' | 'restore' | null>(null);
   const [themeVisible, setThemeVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
@@ -28,50 +31,41 @@ export function SettingsScreen() {
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
   useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
 
+  const failure = (error: unknown) => error instanceof BackupError ? error.message : '操作未完成，请保留原文件并检查空间、权限或格式。';
   const handleBackup = async () => {
-    try {
-      setBusyAction('backup');
-      if(await exportRecordBackup())Alert.alert('导出完成','记录文件已写入所选目录。');
-    } catch (error) {
-      Alert.alert('导出失败', error instanceof Error ? error.message : '导出备份失败，请稍后重试。');
-    } finally {
-      setBusyAction(null);
-    }
+    setBusyAction('backup');
+    try { if (await exportFullBackup()) Alert.alert('导出完成', '完整数据包已写入所选目录。请妥善保存这份私密文件。'); }
+    catch (error) { Alert.alert('导出失败', failure(error)); }
+    finally { setBusyAction(null); }
   };
-
+  async function cancelPrepared() {
+    const input = prepared.current; prepared.current = null;
+    if (input) await discardPrepared(input);
+  }
   const handleRestore = async () => {
+    setBusyAction('restore');
     try {
-      setBusyAction('restore');
-      const fileAsset = await pickBackupFile();
-      if (!fileAsset) {
-        setBusyAction(null);
-        return;
-      }
-
-      const imported = await readRecordBackup(fileAsset.uri);
-      setBusyAction(null);
-
-      Alert.alert(
-        '合并恢复确认',
-        `包含 ${imported.count} 条基础记录、${imported.backup.drafts.length} 份草稿和 ${imported.backup.recovery.length} 份恢复副本。相同记录跳过，不同内容另存为副本；保留现有记录和设置。历史来源、聊天和附件不在此备份中。`,
-        [
-          { text: '取消', style: 'cancel' },
-          {
-            text: '合并恢复',
-            onPress: async () => {
-              setBusyAction('restore');
-              try {const result=await restoreRecordBackup(imported);
-                Alert.alert('本机恢复完成',result.repeated?'这份备份已导入，未重复写入。':`新增 ${result.added} 条，跳过 ${result.skipped} 条；草稿和恢复副本仍保留。${result.detached?'部分缺失分类或历史来源已解除关联。':''}`);
-              } catch(e) {Alert.alert('恢复失败',e instanceof Error?e.message:'原有内容仍保留。');}
-              finally {setBusyAction(null);}
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      setBusyAction(null);
-      Alert.alert('恢复失败', error instanceof Error ? error.message : '恢复数据失败，请检查备份文件。');
-    }
+      await cancelPrepared();
+      const input = await pickFullBackup(); if (!input) return;
+      prepared.current = input;
+      const scope = input.kind === 'full'
+        ? `包含 ${input.count} 条记录及历史对象、${input.manifest.blobs.length} 份原件/图片或恢复包。相同内容跳过；冲突及关联对象保留在可导出的恢复副本，不覆盖现有记录。聊天和未接受建议只恢复为历史；新增人格及提醒停用。`
+        : `这是旧基础 JSON，包含 ${input.count} 条基础记录。相同记录跳过，不同内容另存副本；不包含新聊天、附件等对象。`;
+      Alert.alert('恢复范围确认', scope, [
+        { text: '取消', style: 'cancel', onPress: () => { void cancelPrepared(); } },
+        { text: '恢复到本机', onPress: async () => {
+          // Alert dismissal must not dispose the stage while the confirmed restore runs.
+          prepared.current = null; setBusyAction('restore');
+          try {
+            const result = await restorePrepared(input);
+            const conflicts = 'conflicts' in result ? result.conflicts : result.copies;
+            Alert.alert('本机恢复完成', result.repeated ? '这份数据包已恢复，未重复写入。' : `新增 ${result.added} 条，跳过 ${result.skipped} 条。${conflicts ? `另有 ${conflicts} 条冲突或关联对象已保留为恢复副本。` : ''}恢复不会重放助手操作。`);
+          } catch (error) { Alert.alert('恢复失败', failure(error)); }
+          finally { await discardPrepared(input); setBusyAction(null); }
+        } },
+      ], { cancelable: true, onDismiss: () => { void cancelPrepared(); } });
+    } catch (error) { await cancelPrepared(); Alert.alert('恢复失败', failure(error)); }
+    finally { setBusyAction(null); }
   };
 
   return (
@@ -105,8 +99,8 @@ export function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>本机记录备份与恢复</Text>
-          <Text style={styles.description}>包含日记、备忘录、待办、习惯、打卡、草稿与恢复副本。不包含聊天、附件、个人记忆和提醒规则。</Text>
+          <Text style={styles.sectionTitle}>本机完整备份与恢复</Text>
+          <Text style={styles.description}>包含记录、聊天、人格、记忆、活动、来源、附件及提醒规则。ZIP 为明文私密文件，不包含 API Key、渠道凭据或外观设置；请妥善保存。</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity
               disabled={busyAction !== null}
@@ -128,7 +122,7 @@ export function SettingsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.sectionCard}><Text style={styles.sectionTitle}>恢复副本与草稿</Text><RecordRecovery/></View>
+        <View style={styles.sectionCard}><Text style={styles.sectionTitle}>恢复副本与草稿</Text><RecordRecovery/><BackupArchives disabled={busyAction !== null}/></View>
       </ScrollView>
 
       <ThemeSelectionModal visible={themeVisible} onClose={() => setThemeVisible(false)} />
