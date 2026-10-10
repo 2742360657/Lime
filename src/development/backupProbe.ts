@@ -27,6 +27,12 @@ export async function runBackupProbe() {
   try {
     await source.init();await target.init();
     const store=createMaterialStore(source,deps),agent=createAgentStore(source,deps),domain=createDomain(source,deps);
+    const diary=deps.id(),habit=deps.id(),now=Date.now(),stamp=new Date(now).toISOString();
+    await source.execute('INSERT INTO documents(id,kind,title,body,date,group_id,sort_order,created_at,edited_at,deleted_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,NULL,0,?,?,NULL,1,0,?)',[diary,'diary','合成日记','合成日记原文','2026-10-10',now,now,stamp]);
+    await source.execute('INSERT INTO local_drafts(id,kind,title,body,date,group_id,document_id,base_revision,base_content) VALUES(?,?,?,?,?,NULL,?,1,?)',[deps.id(),'diary','合成草稿','尚未保存的草稿','2026-10-10',diary,JSON.stringify({title:'合成日记',body:'合成日记原文',date:'2026-10-10',group_id:null})]);
+    await source.execute('INSERT INTO habits(id,name,group_id,cadence,target_count,sort_order,created_at,archived_at,revision,deleted,updated_at) VALUES(?,?,NULL,?,1,0,?,NULL,1,0,?)',[habit,'合成习惯','daily',now,stamp]);
+    const activity=await domain.execute({type:'activity.start',kind:'training',title:'合成训练',habitId:habit},{actor:'ui',operationId:deps.id()});
+    await domain.execute({type:'activity.complete',id:activity.entity.id,expectedRevision:1,note:'合成训练已结束'},{actor:'ui',operationId:deps.id()});
     const materials=[];
     for(const filename of ['synthetic-text.txt','synthetic-image.png','synthetic-scan.pdf']) {
       const copy=await materialNative.copy(`content://app.lime.personalassistant.dev.fixtures/${filename}`,filename);
@@ -44,7 +50,8 @@ export async function runBackupProbe() {
     await agent.finish(request.id,'合成聊天历史','complete',null);
     await agent.saveSettings('deepseek-flash',{filename:'synthetic.md',body:'合成人格，不含私人设定。',enabled:1});
     await domain.execute({type:'memory.remember',kind:'preference',key:'合成偏好',content:'合成内容'},{actor:'ui',operationId:deps.id()});
-    const reminder=await domain.execute({type:'reminder.create',title:'合成公历提醒',mode:'annual',monthDay:'11-03',advanceDays:7},{actor:'ui',operationId:deps.id()});
+    phase='reminder-fixture';
+    const reminder=await domain.execute({type:'reminder.create',title:'合成公历提醒',mode:'annual',monthDay:'11-03',time:'09:00',advanceDays:7},{actor:'ui',operationId:deps.id()});
     await source.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['synthetic-private-setting','SYNTHETIC_PRIVATE_MARKER']);
     await source.execute('INSERT INTO local_agent_grants(id,request_id,command_type) VALUES(?,?,?)',[deps.id(),request.id,'task.create']);
     phase='snapshot';
@@ -60,6 +67,8 @@ export async function runBackupProbe() {
     const restored=await restoreBackup(target,manifest,options);ensure(restored.added>0&&restored.conflicts===0);
     let targetAgent=createAgentStore(target,deps),targetDomain=createDomain(target,deps);
     ensure((await targetAgent.settings()).persona?.enabled===0);
+    ensure((await target.getOptional<{body:string}>('SELECT body FROM documents WHERE id=?',[diary]))?.body==='合成日记原文'&&(await target.getAll('SELECT id FROM local_drafts')).length===1);
+    ensure((await targetDomain.listActivities({status:'completed'})).length===1&&(await target.getAll('SELECT id FROM checkins')).length===1);
     ensure((await targetDomain.listReminders()).find(r=>r.id===reminder.entity.id)?.enabled===0);
     ensure((await targetAgent.requests(session))[0].status==='restored'&&(await targetAgent.grants(request.id)).length===0);
     let denied=false;try { await targetAgent.restart(request.id); } catch { denied=true; }ensure(denied);

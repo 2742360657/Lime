@@ -1,5 +1,6 @@
 import { tableColumns } from '../storage/databaseSchema';
-import { portableRow, recordFields, type RecordTable } from '../assistant/recordBackup';
+import { portableRow, recordFields, validateBackup, emptyRows, type RecordTable } from '../assistant/recordBackup';
+import { validatePersona, validateModel } from '../agent/store';
 import { canonicalJson, commandSchema } from '../domain/commands';
 import type { SqlValue } from '../domain/types';
 
@@ -40,12 +41,22 @@ export function json(value: SqlValue): any {
   try { return JSON.parse(String(value)); } catch { throw new BackupError('FORMAT'); }
 }
 export function projectRow(table: BackupTable, value: unknown): Row {
-  const source = object(value), result: Row = { id: String(source.id ?? '') };
+  const source = object(value); if (typeof source.id !== 'string') throw new BackupError('FORMAT');
+  const result: Row = { id: source.id };
   if (!result.id || result.id.length > 512 || /[\x00-\x1f]/.test(result.id)) throw new BackupError('FORMAT');
   for (const [field, column] of Object.entries(tableColumns[table])) {
     const v = source[field] ?? null;
     if (v !== null && (column.type === 'INTEGER' ? !Number.isSafeInteger(v) : typeof v !== 'string' || v.length > MAX_MANIFEST)) throw new BackupError('FORMAT');
     result[field] = v as SqlValue;
+  }
+  if (table === 'local_meta' && result.id.startsWith('task-sources-')) {
+    const cached = object(json(result.value));
+    if (!Array.isArray(cached.sources) || !Array.isArray(cached.proposals)) throw new BackupError('FORMAT');
+    const fields = ['id','filename','status','parser','source_kind','revision','text','truncated','material_id'];
+    result.value = JSON.stringify({
+      proposals: cached.proposals.map(v => { const p = object(v); return { id:p.id,summary:p.summary }; }),
+      sources: cached.sources.map(v => { const r = object(v); return Object.fromEntries(fields.filter(f => f in r).map(f => [f,r[f]])); }),
+    });
   }
   return result;
 }
@@ -132,6 +143,19 @@ export function validateManifest(value: unknown): Manifest {
         if (Object.keys(r).sort().join(',') !== Object.keys(projected).sort().join(',')) throw new BackupError('FORMAT');
         if (table === 'local_meta' && !safeMeta(projected.id)) throw new BackupError('FORMAT');
         if (Object.hasOwn(recordFields, table)) portableRow(table as RecordTable, projected);
+        if (table === 'local_drafts') validateBackup({format:'angelime-records',version:1,rows:emptyRows(),drafts:[projected],recovery:[]});
+        if (table === 'local_personas') validatePersona(String(projected.filename),String(projected.body));
+        if (table === 'local_meta' && projected.id === 'agent-model') validateModel(String(projected.value));
+        if (table === 'local_meta' && projected.id === 'agent-context-boundary' && (!Number.isFinite(Number(projected.value)) || Number(projected.value)<0)) throw new BackupError('FORMAT');
+        const requiredText: Partial<Record<BackupTable,string[]>> = {
+          local_memories:['kind','key','content'],local_activities:['kind','title','note'],local_personas:['filename','body'],
+          local_agent_sessions:['title'],local_agent_messages:['role','body','session_id','request_id'],
+          local_agent_requests:['session_id','text','source_refs','status'],local_agent_sources:['request_id','document_id','kind','body','title','date'],
+          local_proposals:['request_id','status','source_refs','fingerprint'],local_operations:['fingerprint','receipt'],
+          local_material_imports:['outcome'],local_materials:['filename','uri','hash','mime','kind','body','images','status','note'],
+          local_agent_results:['request_id','result'],local_backup_archives:['uri','hash','summary'],local_meta:['value'],
+        };
+        for(const field of requiredText[table] ?? [])if(typeof projected[field]!=='string')throw new BackupError('FORMAT');
         for (const flag of ['deleted','forgotten','enabled','day_of']) if (flag in projected && projected[flag] !== null && ![0,1].includes(Number(projected[flag]))) throw new BackupError('FORMAT');
         if ('revision' in projected && (!Number.isSafeInteger(projected.revision) || Number(projected.revision) < 0)) throw new BackupError('FORMAT');
         if (table === 'local_reminder_rules' && !commandSchema.safeParse({ type: 'reminder.create', title: projected.title, note: projected.note, mode: projected.mode, dateKey: projected.date_key, monthDay: projected.month_day, time: projected.time, advanceDays: projected.advance_days, dayOf: !!projected.day_of, enabled: !!projected.enabled }).success) throw new BackupError('FORMAT');

@@ -12,7 +12,7 @@ export async function captureBackup(db: DomainDatabase): Promise<Manifest> {
   });
 }
 export async function restoreBackup(db: DomainDatabase, manifest: Manifest, input: { digest: string; archiveUri: string; archiveSize: number; fileUri: (hash: string) => string; now: number }): Promise<RestoreResult> {
-  validateManifest(manifest);
+  manifest = validateManifest(manifest);
   if (!/^[a-f0-9]{64}$/.test(input.digest) || !input.archiveUri.startsWith('file:')) throw new BackupError('FORMAT');
   return db.writeTransaction(async tx => {
     const previous = await tx.getOptional<{ receipt: string }>('SELECT receipt FROM local_backup_imports WHERE id=?', [input.digest]);

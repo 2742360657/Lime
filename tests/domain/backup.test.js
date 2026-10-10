@@ -92,3 +92,15 @@ test('a conflicting source prevents activation of its imported receipt/history a
   expect((await restoreBackup(target,await packet(),args)).conflicts).toBe(4);
   expect(await target.getAll('SELECT * FROM tasks')).toHaveLength(0);expect(await target.getAll('SELECT * FROM local_proposals')).toHaveLength(0);
 });
+
+test('restorable records reject nullable UI text and malformed drafts before activation',async()=>{
+  const m=await captureBackup(source);
+  m.rows.local_memories=[projectRow('local_memories',{id:'memory',kind:'fact',key:'合成',content:null,forgotten:0,revision:1,created_at:100,updated_at:'2026-10-10T00:00:00Z'})];
+  expect(()=>validateManifest(m)).toThrow();
+  m.rows.local_memories=[];m.rows.local_drafts=[projectRow('local_drafts',{id:'draft',document_id:'document',kind:'diary',title:'',body:null,date:'2026-10-10'})];
+  expect(()=>validateManifest(m)).toThrow();
+});
+test('historical source excerpt projection retains content but strips transport credentials and URLs',async()=>{
+  await seed(source,'local_meta',{id:'task-sources-owner-task',value:JSON.stringify({proposals:[],sources:[{id:'source',filename:'合成通知',status:'saved',text:'原文',truncated:false,transport_token:'SYNTHETIC_PRIVATE_MARKER',download_url:'https://example.invalid/private'}]})});
+  const m=await captureBackup(source);expect(JSON.stringify(m)).toContain('原文');expect(JSON.stringify(m)).not.toContain('SYNTHETIC_PRIVATE_MARKER');expect(JSON.stringify(m)).not.toContain('download_url');validateManifest(m);
+});
