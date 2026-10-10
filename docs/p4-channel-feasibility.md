@@ -16,6 +16,12 @@
 
 QQ新WebSocket会话能否获取应用关闭期间的消息，不能从连接成功推断；Resume的短期恢复也不是无限历史查询。若显式读取不能补收则如实降级实时前台收件，不引入隐藏服务器或读取QQ私有数据库。微信/QQ各自验证后单独交付，不阻塞本地提醒。
 
+### 2026-10-10补充核查
+
+[官方事件协议](https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html)明确将Resume描述为短时间断线重连后的事件补发，需保存session_id及处理完毕的seq；收到Invalid Session仍须重新鉴权。因此后续QQ探针必须区分新会话、有效Resume、失效会话与强停后重开，不将连接成功记成离线补收成功。当前没有QQ真机账号或补收证据。
+
+[官方插件扫码入口](https://github.com/tencent-connect/openclaw-qqbot/blob/main/src/setup/login.ts)采用@tencent-connect/qqbot-connector的绑定任务。已只读核查1.2.0分发包：扫码通过create_bind_task/poll_bind_result取得加密机器人凭据，使用AES-256-GCM；运行时依赖node:crypto、node:https及终端二维码，并非RN可直接安装的SDK。该包package.json声明UNLICENSED，不能仅凭上层插件MIT许可把分发代码搬入产品。手机方案应独立按接口适配、复用系统加密并保留凭据隔离，本批未加入该依赖、未运行插件、未创建QQ绑定任务。
+
 ## 集成前门槛
 
 绑定本人/拒绝其它发送者；手机前台网络、取消及凭据隔离；文本和实际附件流入P3；重复消息/中断游标不丢失；关闭后晚些读取与媒体过期；错误可解释且日志不含token/原文。渠道原型与真实凭据先在忽略的.local目录验证，再接产品入口。直接分享、打开文件与聊天附件始终保留。
