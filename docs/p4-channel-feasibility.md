@@ -1,6 +1,6 @@
 # P4-B 手机显式收件核查
 
-日期：2026-10-09。协议调研已推进到微信独立手机验证：扫码绑定、短时关闭后补收与图片/文本文件下载/类型识别通过；正式收件入口、长时补收/链接过期和QQ未交付。准确结果见[本批报告](p4-weixin-validation.md)。
+更新：2026-10-10。微信正式前台收件已接入；QQ独立验证取得真实绑定、短期Resume/ACK及TXT/PNG下载/原件一致证据，正式QQ入口未接入。长时补收/媒体过期仍未测，拒绝后的QQ附件曾未获平台重投。准确范围见[微信接入报告](p4-weixin-intake-validation.md)与[QQ报告](p4-qq-validation.md)；以下保留协议研究及早期验证语境。
 
 ## 微信
 
@@ -18,9 +18,15 @@ QQ新WebSocket会话能否获取应用关闭期间的消息，不能从连接成
 
 ### 2026-10-10补充核查
 
-[官方事件协议](https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html)明确将Resume描述为短时间断线重连后的事件补发，需保存session_id及处理完毕的seq；收到Invalid Session仍须重新鉴权。因此后续QQ探针必须区分新会话、有效Resume、失效会话与强停后重开，不将连接成功记成离线补收成功。当前没有QQ真机账号或补收证据。
+[官方事件协议](https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/interface-framework/event-emit.html)明确将Resume描述为短时间断线重连后的事件补发，需保存session_id及处理完毕的seq；收到Invalid Session仍须重新鉴权。因此QQ探针必须区分新会话、有效Resume、失效会话与强停后重开，不将连接成功记成离线补收成功。该次只读核查时尚无QQ真机账号或补收证据；后续实测如下。
 
-[官方插件扫码入口](https://github.com/tencent-connect/openclaw-qqbot/blob/main/src/setup/login.ts)采用@tencent-connect/qqbot-connector的绑定任务。已只读核查1.2.0分发包：扫码通过create_bind_task/poll_bind_result取得加密机器人凭据，使用AES-256-GCM；运行时依赖node:crypto、node:https及终端二维码，并非RN可直接安装的SDK。该包package.json声明UNLICENSED，不能仅凭上层插件MIT许可把分发代码搬入产品。手机方案应独立按接口适配、复用系统加密并保留凭据隔离，本批未加入该依赖、未运行插件、未创建QQ绑定任务。
+[官方插件扫码入口](https://github.com/tencent-connect/openclaw-qqbot/blob/main/src/setup/login.ts)采用@tencent-connect/qqbot-connector的绑定任务。已只读核查1.2.0分发包：扫码通过create_bind_task/poll_bind_result取得加密机器人凭据，使用AES-256-GCM；运行时依赖node:crypto、node:https及终端二维码，并非RN可直接安装的SDK。该包package.json声明UNLICENSED，不能仅凭上层插件MIT许可把分发代码搬入产品。手机方案应独立按接口适配、复用系统加密并保留凭据隔离；该次只读核查未运行绑定任务，后续独立适配也没有安装此依赖或运行插件。
+
+### QQ手机实测结论
+
+fc0a762在小米14通过扫码及绑定重开、完整60秒Resume/心跳、文字取回、TXT/PNG下载/原件校验；再读新增0、下载跳过2。自动化和原生合成探针覆盖本人过滤、事务/防重、Invalid Session退新鉴权与取消，实际强停期间文字取回。正式业务入口/备份未接，长时/过期/合并转发未测，结论为受限可用。
+
+早期附件因地址兼容被拒绝后没有在后续Resume中重投。修正官方媒体主机/协议相对地址及实际grouptalk.c2c.qq.com精确白名单后，用户重发两份附件才完成下载；本地seq保留不能保证平台再次提供。普通接入须先保存可见失败/未支持回执再推进seq，提示必要重发，不以后台服务器补洞。详细失败与修正见[QQ报告](p4-qq-validation.md)。
 
 ## 集成前门槛
 
@@ -28,4 +34,4 @@ QQ新WebSocket会话能否获取应用关闭期间的消息，不能从连接成
 
 ## 本批采用与下一步
 
-微信手机平台边界已实现，依赖/版本及集中证据见[P4-B报告](p4-weixin-validation.md)。可审查协议与隔离探针提交源码；私人捕获/凭据/二维码留在忽略目录或手机SecureStore。先完成完整手动导出恢复，再接普通渠道UI及P3授权来源；不将debug验证菜单视为正式日用功能。
+微信正式收件与v2完整备份已接入，证据见[接入报告](p4-weixin-intake-validation.md)。QQ协议/隔离探针可审查，私人捕获/凭据/二维码不进入Git。下一步冻结QQ普通收件的失败回执、材料/备份映射、媒体索引释放与原生生命周期；不将debug验证菜单视为正式日用功能。

@@ -58,6 +58,8 @@ Office/复杂表格移动端解析尚未定型，不在本轮承诺全格式支�
 
 官方源码：[腾讯微信协议](https://github.com/Tencent/openclaw-weixin/blob/main/docs/protocol_zh_CN.md)、[微信插件依赖](https://github.com/Tencent/openclaw-weixin/blob/main/package.json)、[QQ插件](https://github.com/tencent-connect/openclaw-qqbot)、[Android应用沙箱](https://source.android.com/docs/security/app-sandbox)。
 
+2026-10-10阶段结论：微信已正式接入，QQ独立手机适配采用Android系统GCM、专用受限WebSocket、有界下载及现有SecureStore/P3，没有新增Node插件依赖。实际绑定、短期Resume/心跳及TXT/PNG原件一致通过；曾被拒绝的附件没有再次补发。QQ普通接入先补可见失败回执、媒体能力释放与生命周期，再接业务材料/完整备份；不能承诺任意历史，详见[QQ报告](p4-qq-validation.md)。
+
 ## ADR-008 本地通知（P4-A已接入，送达待验）
 
 选Expo Notifications预排确定时间提醒；到点不用唤醒模型。手机后台不能保证常驻Agent，Doze/WorkManager/特定前台服务都有约束；本项目已无需实时后台收件，不加入长期轮询服务。

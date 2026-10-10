@@ -103,3 +103,9 @@ Node重点验证白名单、引用、惰性历史、防重、冲突依赖及事�
 ## 正式微信入口验收补充
 
 正式产品使用独立lime-wx-product-v1 SecureStore命名空间，不搬运验证沙箱账号。P5隔离备份探针新增生产收件投影/回执与v2惰性历史回环，报告中的weixinHistory=true证明这一合成范围；原始验证沙箱与真实账号端到端分别记录。实际收件入口在设置与助手页面栏，网络仅显式操作，窗口关闭/后台取消；详情见[正式接入报告](p4-weixin-intake-validation.md)。
+
+## QQ独立验收与恢复入口
+
+本仓库debug/Metro就绪后，启动`python3 scripts/qq-fixture-server.py`（仅回环8094合成HTTP/WS/媒体），临时映射8094，执行`python3 scripts/p4-qq-device-check.py --serial <device>`。随机隔离库/测试SecureStore和原件只由探针清理，不清普通数据、调用模型或请求通知许可。
+
+真实账号在debug菜单“打开QQ账号验证”中手动扫码/查询/读取/下载，用户只在手机确认；账号/二维码/正文/URL不打印或提交。真实结果、合成结果和原生/Metro提交分开记录；不因本地seq保留就认定平台必然重投失败消息。结束在debug期间核对普通记录摘要，恢复当前独立preview及APK摘要、脱离Metro冷启动；停止本任务Metro/8094夹具、移除自己的8081/8094映射及Download测试文件，不删除用户截图或真实绑定。详见[QQ报告](p4-qq-validation.md)。
