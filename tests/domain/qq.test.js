@@ -24,6 +24,10 @@ test('message identifiers stay strings and oversized/unsafe numeric sequences ar
 });
 test.each(['ws://api.sgroup.qq.com/websocket/','wss://api.sgroup.qq.com.evil.test/websocket/','wss://u@api.sgroup.qq.com/websocket/','wss://api.sgroup.qq.com:8443/websocket/','wss://api.sgroup.qq.com/elsewhere'])('gateway rejects %s',u=>expect(()=>gatewayUrl(u)).toThrow());
 test.each(['http://gchat.qpic.cn/a','https://gchat.qpic.cn.evil.test/a','https://127.0.0.1/a','https://u@gchat.qpic.cn/a','https://gchat.qpic.cn/a#x'])('media boundary rejects %s',u=>expect(()=>mediaUrl(u)).toThrow());
+test('official QQ multimedia .com.cn host is accepted exactly, without sibling or suffix trust',()=>{
+ expect(mediaUrl('https://multimedia.nt.qq.com.cn/download?synthetic=1')).toBe('https://multimedia.nt.qq.com.cn/download?synthetic=1');
+ for(const value of ['https://other.multimedia.nt.qq.com.cn/a','https://multimedia.nt.qq.com.cn.evil.test/a','http://multimedia.nt.qq.com.cn/a','https://u@multimedia.nt.qq.com.cn/a'])expect(()=>mediaUrl(value)).toThrow();
+});
 test('only bound C2C content is persisted; stranger/group/other dispatch only advances processed seq',async()=>{
  await inbox.ready(binding,'synthetic-session',1);
  await commit(message());await commit(message(3,{id:'other',author:{user_openid:'stranger'}}));await commit({...message(4),t:'GROUP_AT_MESSAGE_CREATE'});

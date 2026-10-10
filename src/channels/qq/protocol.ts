@@ -10,7 +10,7 @@ export type QqMedia = { url: string; name: string; mime: string; size: number };
 export const MAX_PACKET = 1024 * 1024;
 export function mediaUrl(value: string) {
   let u: URL; try { u = new URL(value); } catch { throw new QqError('HOST'); }
-  if (value.length > 16384 || u.protocol !== 'https:' || !['multimedia.nt.qq.com', 'gchat.qpic.cn', 'c2cpicdw.qpic.cn'].includes(u.hostname) || u.port && u.port !== '443' || u.username || u.password || u.hash) throw new QqError('HOST');
+  if (value.length > 16384 || u.protocol !== 'https:' || !['multimedia.nt.qq.com.cn', 'multimedia.nt.qq.com', 'gchat.qpic.cn', 'c2cpicdw.qpic.cn'].includes(u.hostname) || u.port && u.port !== '443' || u.username || u.password || u.hash) throw new QqError('HOST');
   return u.toString();
 }
 export function gatewayUrl(value: string) {

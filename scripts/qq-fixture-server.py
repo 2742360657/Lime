@@ -67,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
                 if value['op']==2:
                     send({'op':0,'s':1,'t':'READY','d':{'session_id':'fixture-'+mode}});send(msg(2,'18446744073709551615'))
                     if mode=='invalid':continue
-                    send(msg(3,'fixture-text',attachments=[{'url':'https://multimedia.nt.qq.com/fixture-text','filename':'合成QQ.txt','content_type':'text/plain','size':len(TEXT)}]))
+                    send(msg(3,'fixture-text',attachments=[{'url':'https://multimedia.nt.qq.com.cn/fixture-text','filename':'合成QQ.txt','content_type':'text/plain','size':len(TEXT)}]))
                     send(msg(4,'fixture-image',attachments=[{'url':'https://gchat.qpic.cn/fixture-image','filename':'合成QQ.png','content_type':'image/png','size':len(IMAGE)}]))
                     send(msg(5,'stranger','other-owner'));send(msg(6,'group',event='GROUP_AT_MESSAGE_CREATE'))
         except (OSError,ValueError,json.JSONDecodeError):pass

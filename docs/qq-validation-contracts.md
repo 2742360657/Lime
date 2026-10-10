@@ -6,6 +6,7 @@
 
 - 绑定任务key与AppSecret只进独立SecureStore；扫码结果必须有本人user_openid。缺本人标识则拒绝收件，不用第一条消息推断本人。AES-256-GCM用Android系统provider，错误不包含密文/Key/响应。
 - HTTPS接口固定官方host；响应有大小/超时/重定向限制，网关仅接受已列官方WSS地址。前台显式操作，后台/取消/关闭终止。会话和序号落本地SQLite，凭据/临时token/媒体URL不进SQL。
+- 附件允许精确匹配的腾讯媒体域名，包括[官方插件列出的multimedia.nt.qq.com.cn](https://github.com/tencent-connect/openclaw-qqbot/blob/b9ba494f068959ffc1bd8a790822c613810d9f40/src/utils/ssrf-guard.ts)；JS和Android白名单一致，不因此信任其任意子域名或重定向。
 - 仅本人C2C_MESSAGE_CREATE；文本及附件描述单独保存，群聊/陌生人只推进已处理序号不留正文。message ID保持字符串。消息/媒体引用/seq同事务，SQL失败不推进seq。附件URL作为SecureStore能力，原件下载独立重试。
 - 明确区分Identify、新READY、Resume、RESUMED及Invalid Session。失效会话只退回一次新鉴权，不声称补收成功。60秒窗口、心跳ACK和有界队列；临时断开/强停重开需真实账号验证。
 - 本批不承诺任意历史、附件有效期、合并转发或发送能力。界面普通接入须等实际扫码、文本/图片/文件、取消和离线行为证据，再决定范围。
