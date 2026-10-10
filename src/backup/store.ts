@@ -29,13 +29,22 @@ export async function restoreBackup(db: DomainDatabase, manifest: Manifest, inpu
         if (old) (equalRow(table,old,row) ? equal : blocked).add(k);
       }
     }
+    // Task/operation source history is part of its graph, even though the old schema
+    // stores source links through accepted proposals rather than a SQL foreign key.
+    const reverse = new Map<string,string[]>();
+    for (const row of incoming.local_proposals.filter(row => row.status === 'accepted' && row.receipt)) {
+      const receipt = JSON.parse(String(row.receipt));
+      if (receipt.entity?.kind === 'task') {
+        const k = key('tasks',receipt.entity.id); reverse.set(k,[...(reverse.get(k) ?? []),key('local_proposals',row.id)]);
+      }
+    }
     // A conflicting parent cannot silently attach incoming children to the wrong version.
     let changed = true;
     while (changed) {
       changed = false;
       for (const table of exportTables) for (const row of incoming[table]) {
         const k = key(table,row.id);
-        if (!blocked.has(k) && dependencies(table,row).some(ref => blocked.has(key(ref.table,ref.id)))) { blocked.add(k); equal.delete(k); changed = true; }
+        if (!blocked.has(k) && (dependencies(table,row).some(ref => blocked.has(key(ref.table,ref.id))) || reverse.get(k)?.some(parent => blocked.has(parent)))) { blocked.add(k); equal.delete(k); changed = true; }
       }
     }
     const result: RestoreResult = { added: 0, skipped: 0, conflicts: blocked.size, repeated: false };

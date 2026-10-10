@@ -135,6 +135,22 @@ class LimeBackupModule(private val context: ReactApplicationContext) : ReactCont
     context.contentResolver.openOutputStream(u,"wt")?.use { out -> source.inputStream().use { copy(it,out,packageLimit) } } ?: error("IO")
     null
   }
+  @ReactMethod fun fixture(kind: String, promise: Promise) = work(promise) {
+    require(BuildConfig.DEBUG && kind in listOf("traversal","unknown","badHash","large")) { "FORMAT" }
+    val id=UUID.randomUUID().toString();val dir=File(cache(),id).apply { mkdirs() };val target=File(dir,"package.zip")
+    try {
+      ZipOutputStream(target.outputStream()).use { zip ->
+        zip.putNextEntry(ZipEntry("manifest.json"))
+        if(kind=="large") { val zeros=ByteArray(4096);repeat(8192) { zip.write(zeros) } } else zip.write("{}".toByteArray())
+        zip.closeEntry()
+        if(kind!="large") {
+          val name=when(kind) { "traversal" -> "../outside.txt"; "unknown" -> "unexpected.txt"; else -> "blobs/${"a".repeat(64)}.bin" }
+          zip.putNextEntry(ZipEntry(name));zip.write("synthetic".toByteArray());zip.closeEntry()
+        }
+      }
+      JSONObject().put("id",id).put("uri",uri(target)).toString()
+    } catch(e:Exception) { dir.deleteRecursively();throw e }
+  }
   @ReactMethod fun copyOut(value: String, target: String, promise: Promise) = work(promise) {
     val source=safePrivate(value);require(source.isFile && source.length()<=packageLimit) { "MISSING_FILE" }
     val u=Uri.parse(target);require(u.scheme=="content" && u.authority?.startsWith(context.packageName+".")!=true) { "FORMAT" }

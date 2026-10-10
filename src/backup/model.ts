@@ -22,7 +22,7 @@ export class BackupError extends Error {
     this.name = 'BackupError';
   }
 }
-export const emptyBackupRows = () => Object.fromEntries(exportTables.map(t => [t, []])) as Manifest['rows'];
+export const emptyBackupRows = () => Object.fromEntries(exportTables.map(t => [t, [] as Row[]])) as Manifest['rows'];
 export const hashPattern = /^[a-f0-9]{64}$/;
 export const blobUri = (hash: string) => 'blob:' + hash;
 export function blobHash(value: unknown) {
@@ -80,7 +80,7 @@ export function equalRow(table: BackupTable, a: Row, b: Row) {
   };
   return normalize(a) === normalize(b);
 }
-type Ref = { table: BackupTable; id: string };
+type Ref = { table: BackupTable; id: string; historical?: boolean };
 const entityTables: Record<string, BackupTable> = { task: 'tasks', habit: 'habits', checkin: 'checkins', memory: 'local_memories', activity: 'local_activities', reminder: 'local_reminder_rules' };
 export function dependencies(table: BackupTable, row: Row): Ref[] {
   const refs: Ref[] = [], add = (parent: BackupTable, id: unknown) => { if (id !== null && id !== undefined && id !== '') { if (typeof id !== 'string') throw new BackupError('REFERENCE'); refs.push({ table: parent, id }); } };
@@ -92,6 +92,15 @@ export function dependencies(table: BackupTable, row: Row): Ref[] {
   if (['local_agent_messages', 'local_agent_results', 'local_agent_sources', 'local_proposals'].includes(table)) add('local_agent_requests', row.request_id);
   if (table === 'local_agent_messages') add('local_agent_sessions', row.session_id);
   if (table === 'suggestions') add('documents', row.document_id);
+  if (['local_agent_requests','local_proposals','local_material_imports'].includes(table)) {
+    const sources = table === 'local_material_imports' ? json(row.outcome).refs : json(row.source_refs);
+    if (!Array.isArray(sources)) throw new BackupError('REFERENCE');
+    for (const ref of sources) {
+      if (!ref || typeof ref.id !== 'string') throw new BackupError('REFERENCE');
+      refs.push({ table: table === 'local_material_imports' || ref.kind === 'attachment' ? 'local_materials' : 'documents', id: ref.id, historical: table !== 'local_material_imports' });
+    }
+  }
+  if (table === 'local_agent_sources') refs.push({ table: row.kind === 'attachment' ? 'local_materials' : 'documents', id: String(row.document_id), historical: true });
   const receipt = (v: unknown) => {
     if (!v || typeof v !== 'object') throw new BackupError('REFERENCE');
     const r = v as Record<string, any>;
@@ -156,7 +165,7 @@ export function validateManifest(value: unknown): Manifest {
     const used = new Set<string>();
     const ids = Object.fromEntries(exportTables.map(t => [t,new Map(rows[t].map(r => [r.id,r]))])) as Record<BackupTable, Map<string, Row>>;
     for (const table of exportTables) for (const row of rows[table]) {
-      for (const ref of dependencies(table, row)) if (!ids[ref.table].has(ref.id)) throw new BackupError('REFERENCE');
+      for (const ref of dependencies(table, row)) if (!ref.historical && !ids[ref.table].has(ref.id)) throw new BackupError('REFERENCE');
       if (table === 'local_agent_messages' && ids.local_agent_requests.get(String(row.request_id))?.session_id !== row.session_id) throw new BackupError('REFERENCE');
       if (table === 'documents' && row.group_id && ids.document_groups.get(String(row.group_id))?.kind !== row.kind) throw new BackupError('REFERENCE');
       for (const slot of fileSlots(table,row)) {

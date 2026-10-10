@@ -4,6 +4,10 @@ import { Alert, DevSettings } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证完整备份组件', async () => {
+    try { const { runBackupProbe } = await import('./backupProbe'); await runBackupProbe(); Alert.alert('完整备份验证通过', '隔离合成库的完整ZIP、原件、冲突副本、回滚、只读历史和重开通过，未读取普通记录或调用模型。'); }
+    catch { Alert.alert('完整备份验证失败', '请检查当前原生包及私密阶段诊断；普通内容仍保留。'); }
+  });
   DevSettings.addMenuItem('验证微信手机组件', async () => {
     try { const { runWeixinProbe } = await import('./weixinProbe'); await runWeixinProbe(); Alert.alert('微信组件验证通过', '隔离合成消息：前台网络、无损ID、本人过滤、游标重开、安全存储、取消、系统AES/下载及材料解析通过；未接实际账号或模型。'); }
     catch { Alert.alert('微信组件验证失败', '请检查当前原生包、Metro与8093合成响应；没有读取实际记录或Key。'); }

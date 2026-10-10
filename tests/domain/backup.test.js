@@ -80,3 +80,15 @@ test('pending proposals become inert restored history; accepted results preserve
   await restoreBackup(target,await packet(),args);
   const domain=createDomain(target,{id:()=> 'unused',now:()=>100,digest});await expect(domain.acceptProposal('proposal',1,{actor:'ui',operationId:'unused'})).rejects.toMatchObject({code:'PROPOSAL_CLOSED'});
 });
+
+test('a conflicting source prevents activation of its imported receipt/history and dependent task',async()=>{
+  const doc=projectRow('documents',{id:'document',kind:'diary',title:'合成日记',body:'原文',date:'2026-10-10',group_id:null,sort_order:0,created_at:100,edited_at:100,deleted_at:null,revision:1,deleted:0,updated_at:'2026-10-10T00:00:00Z'});
+  await seed(source,'documents',doc);await seed(target,'documents',{...doc,body:'现有原文'});await seed(source,'tasks',task());
+  await seed(source,'local_agent_sessions',{id:'session',title:'测试',created_at:100,updated_at:100});
+  const refs=JSON.stringify([{id:'document',revision:1}]);
+  await seed(source,'local_agent_requests',{id:'request',session_id:'session',text:'总结',source_refs:refs,status:'complete',created_at:100,updated_at:100});
+  const receipt={operationId:'op',disposition:'committed',entity:{kind:'task',id:'task',revision:1}};
+  await seed(source,'local_proposals',{id:'proposal',request_id:'request',command:'',source_refs:refs,fingerprint:'synthetic',status:'accepted',receipt:JSON.stringify(receipt),revision:1,created_at:100,updated_at:'2026-10-10T00:00:00Z'});
+  expect((await restoreBackup(target,await packet(),args)).conflicts).toBe(4);
+  expect(await target.getAll('SELECT * FROM tasks')).toHaveLength(0);expect(await target.getAll('SELECT * FROM local_proposals')).toHaveLength(0);
+});
