@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Loopback-only synthetic QQ HTTP/WS/media fixture; never forwards messages."""
-import base64, hashlib, json, struct, time
+import base64, hashlib, json, struct, time, zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 TEXT = '合成QQ附件：不是真实任务。'.encode()
-IMAGE = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=')
+def png_chunk(kind, raw):
+    return struct.pack('!I',len(raw))+kind+raw+struct.pack('!I',zlib.crc32(kind+raw)&0xffffffff)
+IMAGE = b'\x89PNG\r\n\x1a\n'+png_chunk(b'IHDR',struct.pack('!2I5B',1,1,8,2,0,0,0))+png_chunk(b'IDAT',zlib.compress(b'\x00\x32\x96\x32'))+png_chunk(b'IEND',b'')
 CIPHER = 'MTExMTExMTExMTExNsQzCA2jvSxNqwCwIiD6j8EPcAiapKgdBkIvEl8ttRckxPU='
 
 class Handler(BaseHTTPRequestHandler):

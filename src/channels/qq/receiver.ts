@@ -22,7 +22,7 @@ export function createQqReceiver(client: Pick<ReturnType<typeof createQqClient>,
         const send=(data:unknown)=>{ if (!controller.signal.aborted) ws.send(JSON.stringify(data)); else throw new QqError('CANCELLED'); };
         const identify=()=>send({op:2,d:{token:'QQBot '+token,intents:1<<25,shard:[0,1],properties:{$os:'android',$browser:'Lime',$device:'Lime'}}});
         const beat=()=>{ if (awaitingAck) { finish(new QqError('NETWORK')); return; } awaitingAck=true; send({op:1,d:session?.seq??null}); };
-        ws.onopen=()=>{}; ws.onerror=()=>finish(new QqError('NETWORK')); ws.onclose=event=>finish(event.code===1000?undefined:new QqError('NETWORK'));
+        ws.onopen=()=>{}; ws.onerror=()=>finish(new QqError('NETWORK')); ws.onclose=()=>finish(new QqError('NETWORK'));
         ws.onmessage=event=>{
           if (ending || controller.signal.aborted) return;
           if (++pending>128 || ++total>256) { finish(new QqError('TOO_LARGE')); return; }

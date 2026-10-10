@@ -33,6 +33,13 @@ test('message and sequence roll back together; retry and replay are idempotent',
  await expect(commit(message())).rejects.toThrow('Synthetic');expect(await inbox.list(binding)).toHaveLength(0);expect((await inbox.session(binding)).seq).toBe(1);
  db.failOn(null);await commit(message());expect(await commit(message(3))).toMatchObject({saved:0,duplicates:1});expect(await inbox.list(binding)).toHaveLength(1);
 });
+test('native-safe tuple hashes keep distinct messages and attachment capabilities separate',async()=>{
+ const nativeStringDigest=async v=>digest(v.split('\0')[0]);
+ const nativeInbox=createQqInbox(db,{digest:nativeStringDigest,stage});
+ await nativeInbox.ready(binding,'s',1);
+ for(const [s,id]of [[2,'one'],[3,'two']])await nativeInbox.commit(binding,await nativeInbox.session(binding),message(s,{id,attachments:[0,1].map(n=>({url:'https://gchat.qpic.cn/'+n,filename:'a.png',content_type:'image/png'}))}));
+ const rows=await nativeInbox.list(binding);expect(rows).toHaveLength(2);expect(new Set(rows.flatMap(row=>JSON.parse(row.parts).map(part=>part.capabilityId))).size).toBe(4);
+});
 test('media staging failure cannot advance seq; URL/secret are absent from durable SQL messages',async()=>{
  await inbox.ready(binding,'synthetic-session',1);const f=message(2,{attachments:[{url:'https://gchat.qpic.cn/a?private=capability',filename:'../测试.png',content_type:'image/png',size:12}]});
  stage.mockRejectedValueOnce(new Error('Synthetic SecureStore failure'));await expect(commit(f)).rejects.toThrow();expect((await inbox.session(binding)).seq).toBe(1);
@@ -77,4 +84,7 @@ test('DB failure blocks subsequent queued frames from advancing past the failed 
 test('missing heartbeat ACK ends a live connection; handshake silence expires',async()=>{
  const t=transport(1200),p=t.receiver.read(binding);await tick();t.emit(hello);t.emit({op:0,s:1,t:'READY',d:{session_id:'s'}});await expect(p).rejects.toMatchObject({code:'NETWORK'});
  const silent=transport(20);await expect(silent.receiver.read(binding)).rejects.toMatchObject({code:'TIMEOUT'});
+});
+test('server close before the foreground window expires is reported as interrupted',async()=>{
+ const t=transport(),p=t.receiver.read(binding);await tick();t.emit(hello);t.emit({op:11});t.emit({op:0,s:1,t:'READY',d:{session_id:'s'}});await tick();t.ws().onclose({code:1000});await expect(p).rejects.toMatchObject({code:'NETWORK'});
 });

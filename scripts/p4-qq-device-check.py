@@ -23,7 +23,13 @@ def wait(label,timeout=45):
     raise RuntimeError('Expected static control missing: '+label)
 def tap(label):
     n=wait(label);x1,y1,x2,y2=map(int,re.findall(r'\d+',n.get('bounds','')));adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
-adb('shell','am','start','-n',PACKAGE+'/app.lime.personalassistant.MainActivity');wait('日记');adb('shell','input','keyevent','82');tap('验证QQ手机组件');wait('QQ组件验证通过')
+adb('shell','am','start','-n',PACKAGE+'/app.lime.personalassistant.MainActivity')
+# Android may return from am start before the app owns its first window.
+launch_deadline=time.monotonic()+10
+while not re.search(r'mCurrentFocus=.*'+re.escape(PACKAGE),adb('shell','dumpsys','window')):
+    if time.monotonic()>launch_deadline:raise RuntimeError('Lime did not reach foreground after launch.')
+    time.sleep(.2)
+wait('日记');adb('shell','input','keyevent','82');tap('验证QQ手机组件');wait('QQ组件验证通过')
 result=json.loads(adb('shell','run-as',PACKAGE,'cat','files/lime-p4-qq-probe.json'))
 assert result['status']=='passed' and result['syntheticOnly'] is True and result['accountTested'] is False and result['modelCalls']==0 and result['localQueue']==0
 assert all(result[name] for name in ['nativeGcm','badTag','secureStore','ownerFilter','wsNew','wsResume','invalidSession','wsRedirect','wsCancellation','dedup','reopen','nativeMedia','p3Parse','mediaRejection','mediaCancellation'])

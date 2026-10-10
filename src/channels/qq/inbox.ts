@@ -3,7 +3,8 @@ import { incoming, QqError, type Frame, type QqBinding, type QqMedia } from './p
 export type QqSession = { session_id: string; seq: number };
 export type QqMessage = { id: string; account_id: string; message_key: string; body: string; parts: string; created_at: number };
 export function createQqInbox(db: DomainDatabase, deps: { digest(value: string): Promise<string>; stage(id: string, media: QqMedia): Promise<void> }) {
-  const account = (binding: QqBinding) => deps.digest(binding.appId+'\0'+binding.userOpenid);
+  // JSON tuples stay unambiguous through native string bridges, including NULs.
+  const account = (binding: QqBinding) => deps.digest(JSON.stringify([binding.appId,binding.userOpenid]));
   return {
     async session(binding: QqBinding): Promise<QqSession | null> { const key=await account(binding); return db.readTransaction(tx => tx.getOptional<QqSession>('SELECT session_id,seq FROM qq_sessions WHERE id=?',[key])); },
     async reset(binding: QqBinding) { const key=await account(binding); await db.writeTransaction(tx => tx.execute('DELETE FROM qq_sessions WHERE id=?',[key])); },
@@ -13,10 +14,10 @@ export function createQqInbox(db: DomainDatabase, deps: { digest(value: string):
     },
     async commit(binding: QqBinding, session: QqSession, f: Frame, signal?: AbortSignal) {
       if (f.s === undefined || !Number.isSafeInteger(f.s) || f.s < 0) throw new QqError('PROTOCOL');
-      const key=await account(binding), msg=incoming(f,binding), messageId=msg ? await deps.digest(key+'\0'+msg.key) : '';
+      const key=await account(binding), msg=incoming(f,binding), messageId=msg ? await deps.digest(JSON.stringify([key,msg.key])) : '';
       const existing = msg ? await db.readTransaction(tx => tx.getOptional('SELECT id FROM qq_messages WHERE id=?',[messageId])) : null;
       const parts: { kind: string; capabilityId: string; name: string }[] = [];
-      if (msg && !existing) for (let n=0;n<msg.media.length;n++) { const id=await deps.digest(messageId+'\0'+n); if (signal?.aborted) throw new QqError('CANCELLED'); await deps.stage(id,msg.media[n]); parts.push({kind:'media',capabilityId:id,name:msg.media[n].name}); }
+      if (msg && !existing) for (let n=0;n<msg.media.length;n++) { const id=await deps.digest(JSON.stringify([messageId,n])); if (signal?.aborted) throw new QqError('CANCELLED'); await deps.stage(id,msg.media[n]); parts.push({kind:'media',capabilityId:id,name:msg.media[n].name}); }
       return db.writeTransaction(async tx => {
         const current=await tx.getOptional<QqSession>('SELECT session_id,seq FROM qq_sessions WHERE id=?',[key]);
         if (!current || current.session_id !== session.session_id || current.seq !== session.seq) throw new QqError('BUSY');
