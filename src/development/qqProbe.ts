@@ -7,7 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { AppState, NativeModules } from 'react-native';
 import { createQqClient } from '../channels/qq/client';
 import { createQqInbox } from '../channels/qq/inbox';
-import { createQqReceiver } from '../channels/qq/receiver';
+import { createQqReceiver, type QqReceivePhase } from '../channels/qq/receiver';
 import { createQqVault } from '../channels/qq/vault';
 import { createQqSchema } from '../channels/qq/schema';
 import { decryptQqSecret, downloadQqMedia, discardQqMedia, qqSocket } from '../channels/qq/native';
@@ -32,7 +32,8 @@ export async function confirmQqValidationQr(){
 export async function qqValidationBound(){return __DEV__ && !!await vault().load();}
 export async function readQqValidation(){
   if(!__DEV__)throw new QqError('PROTOCOL');return foreground(async signal=>{const binding=await vault().load();if(!binding)throw new QqError('SESSION');const db=new PowerSyncDatabase({schema:createQqSchema(),database:{dbFilename:'lime-qq-validation.sqlite'}});
-    try{await db.init();const inbox=createQqInbox(db,{digest,stage:vault().stage}),result=await createQqReceiver(client(),inbox,qqSocket).read(binding,signal);new File(Paths.document,'lime-qq-validation-read.json').write(JSON.stringify({...result,modelCalls:0}));return result;}finally{await db.close();}
+    const phases:QqReceivePhase[]=[],trace=new File(Paths.document,'lime-qq-validation-trace.json');
+    try{await db.init();const inbox=createQqInbox(db,{digest,stage:vault().stage}),result=await createQqReceiver(client(),inbox,qqSocket,60000,phase=>{if(!phases.includes(phase)){phases.push(phase);trace.write(JSON.stringify({status:'reading',phases}));}}).read(binding,signal);new File(Paths.document,'lime-qq-validation-read.json').write(JSON.stringify({...result,modelCalls:0}));trace.write(JSON.stringify({status:'passed',phases}));return result;}catch(error){trace.write(JSON.stringify({status:'failed',phases,code:error instanceof QqError?error.code:'CHECK'}));throw error;}finally{await db.close();}
   });
 }
 export async function downloadQqValidation(){

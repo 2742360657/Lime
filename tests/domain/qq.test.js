@@ -6,6 +6,7 @@ const {createQqClient}=require('../../src/channels/qq/client');
 const {createQqVault}=require('../../src/channels/qq/vault');
 const {createQqInbox}=require('../../src/channels/qq/inbox');
 const {createQqReceiver}=require('../../src/channels/qq/receiver');
+const {AbortController:PonyfillAbortController,AbortSignal:PonyfillAbortSignal}=require('abortcontroller-polyfill/dist/cjs-ponyfill');
 const binding={appId:'123456',appSecret:'SYNTHETIC_QQ_SECRET',userOpenid:'synthetic-owner'};
 const digest=async v=>createHash('sha256').update(v).digest('hex');
 const message=(s=2,overrides={})=>({op:0,s,t:'C2C_MESSAGE_CREATE',d:{id:'18446744073709551615',content:'合成QQ通知',timestamp:'2026-10-10T08:00:00Z',author:{user_openid:binding.userOpenid},...overrides}});
@@ -72,11 +73,38 @@ test('persisted session uses Resume and repeated message does not insert another
  await inbox.ready(binding,'old-session',1);await commit(message());const t=transport();const p=t.receiver.read(binding);await tick();t.emit(hello);t.emit({op:11});t.emit({...message(),s:3});t.emit({op:0,s:4,t:'RESUMED',d:null});
  expect(await p).toMatchObject({mode:'resumed',duplicates:1,saved:0});expect(t.sent.find(f=>f.op===6).d).toMatchObject({session_id:'old-session',seq:2});expect(await inbox.list(binding)).toHaveLength(1);
 });
+test('new session starts heartbeat only after READY is durably committed',async()=>{
+ const t=transport(200),p=t.receiver.read(binding);await tick();t.emit(hello);await tick();
+ expect(t.sent.find(f=>f.op===2)).toBeDefined();expect(t.sent.filter(f=>f.op===1)).toEqual([]);
+ t.emit({op:0,s:17,t:'READY',d:{session_id:'ready-before-heartbeat'}});await tick();
+ expect((await inbox.session(binding)).seq).toBe(17);expect(t.sent.filter(f=>f.op===1)).toEqual([{op:1,d:17}]);
+ t.emit({op:11});expect(await p).toMatchObject({mode:'new',saved:0});
+});
+test('resumed session waits for replay and committed RESUMED seq before its first heartbeat',async()=>{
+ await inbox.ready(binding,'resume-before-heartbeat',100);await commit(message(101));
+ const t=transport(200),p=t.receiver.read(binding);await tick();t.emit(hello);await tick();
+ expect(t.sent.find(f=>f.op===6).d.seq).toBe(101);expect(t.sent.filter(f=>f.op===1)).toEqual([]);
+ t.emit(message(102));await tick();expect((await inbox.session(binding)).seq).toBe(102);expect(t.sent.filter(f=>f.op===1)).toEqual([]);
+ t.emit({op:0,s:103,t:'RESUMED',d:null});await tick();
+ expect((await inbox.session(binding)).seq).toBe(103);expect(t.sent.filter(f=>f.op===1)).toEqual([{op:1,d:103}]);
+ t.emit({op:11});expect(await p).toMatchObject({mode:'resumed',saved:0,duplicates:1});expect(await inbox.list(binding)).toHaveLength(1);
+});
 test('Invalid Session discards stale cursor then identifies once; new READY is not reported as resumed',async()=>{
  await inbox.ready(binding,'stale',100);const t=transport();const p=t.receiver.read(binding);await tick();t.emit(hello);t.emit({op:11});t.emit({op:9,d:false});t.emit({op:0,s:1,t:'READY',d:{session_id:'fresh'}});t.emit(message());expect(await p).toMatchObject({mode:'new',invalidSession:true,saved:1});expect(t.sent.filter(f=>f.op===2)).toHaveLength(1);
 });
 test('cancel closes socket, prevents queued late data, and releases operation mutex',async()=>{
  const t=transport(),abort=new AbortController();const p=t.receiver.read(binding,abort.signal);await tick();await expect(t.receiver.read(binding)).rejects.toMatchObject({code:'BUSY'});abort.abort();t.emit(hello);await expect(p).rejects.toMatchObject({code:'CANCELLED'});expect(await inbox.list(binding)).toHaveLength(0);expect(t.ws().close).toHaveBeenCalled();
+});
+test.each([['external cancellation','CANCELLED'],['socket error','NETWORK']])('actual abort ponyfill handles %s without recursive abort or replacing the original error',async(trigger,code)=>{
+ const originalController=global.AbortController,originalSignal=global.AbortSignal;
+ global.AbortController=PonyfillAbortController;global.AbortSignal=PonyfillAbortSignal;
+ try{
+  const t=transport(),abort=new AbortController(),result=t.receiver.read(binding,abort.signal).catch(error=>error);
+  await tick();
+  expect(()=>{if(trigger==='external cancellation')abort.abort();else t.ws().onerror();}).not.toThrow();
+  expect(await result).toMatchObject({name:'QqError',code});
+  expect(t.ws().close).toHaveBeenCalledTimes(1);expect(await inbox.list(binding)).toHaveLength(0);
+ }finally{global.AbortController=originalController;global.AbortSignal=originalSignal;}
 });
 test('DB failure blocks subsequent queued frames from advancing past the failed seq',async()=>{
  const t=transport();const p=t.receiver.read(binding);await tick();t.emit(hello);t.emit({op:11});t.emit({op:0,s:1,t:'READY',d:{session_id:'s'}});db.failOn('UPDATE qq_sessions');t.emit(message());t.emit(message(3,{id:'must-not-skip-failed-frame'}));await expect(p).rejects.toMatchObject({code:'PROTOCOL'});expect((await inbox.session(binding)).seq).toBe(1);expect(await inbox.list(binding)).toHaveLength(0);
