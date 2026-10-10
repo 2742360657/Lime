@@ -8,7 +8,7 @@ export async function captureBackup(db: DomainDatabase): Promise<Manifest> {
     for (const table of exportTables) {
       rows[table] = (await tx.getAll<Row>(`SELECT * FROM ${table} ORDER BY id`)).filter(r => table !== 'local_meta' || safeMeta(r.id)).map(row => projectRow(table,row));
     }
-    return { format: 'lime-local-backup', version: 1, exportedAt: new Date().toISOString(), rows, blobs: [] };
+    return { format: 'lime-local-backup', version: 2, exportedAt: new Date().toISOString(), rows, blobs: [] };
   });
 }
 export async function restoreBackup(db: DomainDatabase, manifest: Manifest, input: { digest: string; archiveUri: string; archiveSize: number; fileUri: (hash: string) => string; now: number }): Promise<RestoreResult> {

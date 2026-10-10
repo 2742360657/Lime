@@ -1,6 +1,6 @@
 import { Schema, Table, column } from '@powersync/react-native';
 
-// Separate validation database only. Ordinary app schema is deliberately unchanged.
+// Shared local-only transport tables; credentials and media capabilities are excluded.
 export const weixinTables = {
   weixin_accounts: { bot_id: column.text, user_id: column.text, cursor: column.text, updated_at: column.integer },
   weixin_downloads: { message_id: column.text, status: column.text, uri: column.text, hash: column.text, kind: column.text },

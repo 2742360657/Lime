@@ -9,3 +9,5 @@
 P4本地通知使用 `expo-notifications` 55.0.27（MIT），通过npm安装并保留依赖许可，未复制或改写其实现。当时腾讯微信/QQ协议和插件仅作为研究引用；后续独立验证适配范围见下段，尚无正式渠道运行入口。
 
 P4-B微信验证适配器依据腾讯openclaw-weixin提交24de5c9e（2.4.9/MIT）的公开协议自行编写手机平台边界，未复制Node插件实现，也未安装OpenClaw。当前仅独立验证入口，不等于正式渠道已接通。采用lossless-json 4.3.1（MIT、无传递依赖）避免uint64消息ID失真，npm依赖保留其许可；不自行编写JSON解析器。媒体AES采用Android javax.crypto，验证私密账号/生成物不进入本仓库。
+
+正式微信收件沿用上述独立适配器，新增qrcode-generator 2.0.4（MIT、无传递依赖）作本机二维码编码；未复制其实现，npm包保留许可。显示使用现有React Native View，不安装OpenClaw或新增原生二维码组件。

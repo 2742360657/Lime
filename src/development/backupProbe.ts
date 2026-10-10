@@ -5,6 +5,7 @@ import * as Crypto from 'expo-crypto';
 import { NativeModules } from 'react-native';
 import { createDatabaseSchema } from '../storage/databaseSchema';
 import { createMaterialStore } from '../materials/store';
+import type { Material } from '../materials/store';
 import { materialNative } from '../materials/native';
 import { createAgentStore } from '../agent/store';
 import { createDomain } from '../domain/service';
@@ -12,6 +13,9 @@ import { backupNative } from '../backup/native';
 import { portableSnapshot } from '../backup/portable';
 import { captureBackup, restoreBackup } from '../backup/store';
 import { validateManifest } from '../backup/model';
+import { createWeixinInbox } from '../channels/weixin/inbox';
+import { createWeixinIntake, projectWeixinMessage } from '../channels/weixin/intake';
+import { API_BASE } from '../channels/weixin/protocol';
 import type { DomainDatabase, DomainTransaction } from '../domain/types';
 
 export async function runBackupProbe() {
@@ -33,7 +37,7 @@ export async function runBackupProbe() {
     await source.execute('INSERT INTO habits(id,name,group_id,cadence,target_count,sort_order,created_at,archived_at,revision,deleted,updated_at) VALUES(?,?,NULL,?,1,0,?,NULL,1,0,?)',[habit,'合成习惯','daily',now,stamp]);
     const activity=await domain.execute({type:'activity.start',kind:'training',title:'合成训练',habitId:habit},{actor:'ui',operationId:deps.id()});
     await domain.execute({type:'activity.complete',id:activity.entity.id,expectedRevision:1,note:'合成训练已结束'},{actor:'ui',operationId:deps.id()});
-    const materials=[];
+    const materials: Material[]=[];
     for(const filename of ['synthetic-text.txt','synthetic-image.png','synthetic-scan.pdf']) {
       const copy=await materialNative.copy(`content://app.lime.personalassistant.dev.fixtures/${filename}`,filename);
       track(copy.uri);
@@ -54,9 +58,20 @@ export async function runBackupProbe() {
     const reminder=await domain.execute({type:'reminder.create',title:'合成公历提醒',mode:'annual',monthDay:'11-03',time:'09:00',advanceDays:7},{actor:'ui',operationId:deps.id()});
     await source.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['synthetic-private-setting','SYNTHETIC_PRIVATE_MARKER']);
     await source.execute('INSERT INTO local_agent_grants(id,request_id,command_type) VALUES(?,?,?)',[deps.id(),request.id,'task.create']);
+    phase='weixin-product';
+    const binding={token:'SYNTHETIC_CREDENTIAL',botId:'synthetic-bot',userId:'synthetic-owner',baseUrl:API_BASE};
+    const inbox=createWeixinInbox(source,{...deps,stageMedia:async()=>{},project:projectWeixinMessage});
+    const packet={msgs:[{message_id:'18446744073709551615',from_user_id:binding.userId,message_type:1,message_state:2,create_time_ms:now,item_list:[{type:1,text_item:{text:'合成微信文本'}},{type:4,file_item:{file_name:'合成微信附件.txt',len:'4',media:{encrypt_query_param:'SYNTHETIC_DOWNLOAD_CAPABILITY',aes_key:btoa('0'.repeat(16))}}}]}],get_updates_buf:'synthetic-cursor'};
+    await inbox.commit(binding,'',packet);
+    const intake=createWeixinIntake(source,store,{media:async()=>null,releaseMedia:async()=>{},saveText:async()=>materials[0],saveMedia:async()=>materials[0]});
+    const items=await intake.list();ensure(items.length===2);
+    await intake.save(items.find(i=>i.kind==='text')!.id,new AbortController().signal);
+    ensure((await inbox.commit(binding,'synthetic-cursor',packet)).saved===0);
+    ensure((await intake.list()).length===2);
     phase='snapshot';
     const portable=await portableSnapshot(await captureBackup(source),backupNative.inspect);
-    ensure(!portable.text.includes('SYNTHETIC_PRIVATE_MARKER')&&!portable.text.includes('local_agent_grants')&&!portable.text.includes('file://'));
+    ensure(portable.manifest.version===2&&portable.manifest.rows.local_weixin_items.length===2);
+    ensure(!portable.text.includes('SYNTHETIC_PRIVATE_MARKER')&&!portable.text.includes('local_agent_grants')&&!portable.text.includes('file://')&&!portable.text.includes(binding.token)&&!portable.text.includes(binding.userId)&&!portable.text.includes('SYNTHETIC_DOWNLOAD_CAPABILITY'));
     const packed=await backupNative.pack(portable.text,portable.files);stages.push(packed.id);
     const input=await backupNative.unpack(packed.uri);stages.push(input.id);
     const manifest=validateManifest(JSON.parse(input.manifest));
@@ -75,6 +90,10 @@ export async function runBackupProbe() {
     denied=false;try { await targetDomain.acceptProposal(pending.id,1,{actor:'ui',operationId:deps.id()}); } catch { denied=true; }ensure(denied);
     ensure((await restoreBackup(target,manifest,options)).repeated);
     const targetStore=createMaterialStore(target,deps);
+    const targetIntake=createWeixinIntake(target,targetStore,{media:async()=>null,releaseMedia:async()=>{},saveText:async()=>materials[0],saveMedia:async()=>materials[0]});
+    const restoredItems=await targetIntake.list();ensure(restoredItems.length===2&&restoredItems.every(i=>i.capability_id===null));
+    ensure(restoredItems.find(i=>i.kind==='text')?.material_id===materials[0].id&&restoredItems.find(i=>i.kind==='media')?.status==='restored');
+    denied=false;try { await targetIntake.save(restoredItems.find(i=>i.kind==='media')!.id,new AbortController().signal); } catch { denied=true; }ensure(denied);
     for(const m of materials) {
       const imported=await targetStore.get(m.id);ensure(imported&&imported.uri!==m.uri&&imported.body===m.body);
       const original=await backupNative.inspect(imported!.uri,'material');ensure(original.hash===m.hash);
@@ -107,8 +126,9 @@ export async function runBackupProbe() {
     }
     phase='reopen';await target.close();target=new PowerSyncDatabase({schema:createDatabaseSchema(),database:{dbFilename:names[1]}});await target.init();
     ensure((await target.getAll('SELECT id FROM tasks')).length===2&&(await target.getAll('SELECT id FROM local_backup_archives')).length===1);
+    ensure((await target.getAll('SELECT id FROM local_weixin_items')).length===2);
     ensure((await target.getUploadQueueStats()).count===0);
-    new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'passed',syntheticOnly:true,fullObjects:true,zipRoundtrip:true,relocatedFiles:true,integrity:true,repeated:true,conflictPreserved:true,lateRollback:true,archiveRoundtrip:true,zipBoundaries:true,inertHistory:true,reopen:true,localQueue:0,modelCalls:0}));
+    new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'passed',syntheticOnly:true,fullObjects:true,zipRoundtrip:true,relocatedFiles:true,integrity:true,repeated:true,conflictPreserved:true,lateRollback:true,archiveRoundtrip:true,zipBoundaries:true,inertHistory:true,weixinHistory:true,reopen:true,localQueue:0,modelCalls:0}));
   } catch {new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'failed',phase,syntheticOnly:true,modelCalls:0}));throw new Error('Synthetic backup probe failed');}
   finally {
     try {await source.close();}catch{}try {await target.close();}catch{}

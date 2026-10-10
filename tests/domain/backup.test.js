@@ -66,7 +66,7 @@ test('portable material paths are relocated, same content skips, corrupt blobs/e
   const m=await captureBackup(source);m.blobs=[{hash,size:3,role:'material'}];m.rows.local_materials=[projectRow('local_materials',{id:'material',filename:'synthetic.txt',uri:'blob:'+hash,hash,size:3,mime:'text/plain',kind:'text',body:'原文',images:'[]',pages:0,status:'ready',note:'',revision:4,deleted:0,created_at:100})];
   validateManifest(m);await restoreBackup(target,m,args);expect((await target.getOptional('SELECT uri FROM local_materials')).uri).toBe(args.fileUri(hash));
   expect(await restoreBackup(target,m,{...args,digest:'c'.repeat(64)})).toMatchObject({added:0,skipped:1});
-  const variants=[{...m,version:2},{...m,rows:{...m.rows,unexpected:[]}},{...m,blobs:[{hash,size:4,role:'material'}]},{...m,rows:{...m.rows,local_meta:[{id:'secret',value:'x'}]}},{...m,rows:{...m.rows,tasks:[{...task(),evil:'x'}]}}];
+  const variants=[{...m,version:3},{...m,rows:{...m.rows,unexpected:[]}},{...m,blobs:[{hash,size:4,role:'material'}]},{...m,rows:{...m.rows,local_meta:[{id:'secret',value:'x'}]}},{...m,rows:{...m.rows,tasks:[{...task(),evil:'x'}]}}];
   for(const bad of variants)expect(()=>validateManifest(bad)).toThrow();
 });
 test('missing references and malformed requests are rejected before SQL mutation',async()=>{

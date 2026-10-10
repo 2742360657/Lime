@@ -12,11 +12,12 @@ export const exportTables = [
   'local_operations', 'local_proposals', 'local_agent_sessions', 'local_agent_messages',
   'local_agent_requests', 'local_agent_results', 'local_agent_sources', 'local_materials',
   'local_material_imports', 'local_reminder_rules', 'local_backup_archives', 'local_meta',
+  'local_weixin_items',
 ] as const;
 export type BackupTable = typeof exportTables[number];
 export type Row = Record<string, SqlValue> & { id: string };
 export type Blob = { hash: string; size: number; role: 'material' | 'archive' };
-export type Manifest = { format: 'lime-local-backup'; version: 1; exportedAt: string; rows: Record<BackupTable, Row[]>; blobs: Blob[] };
+export type Manifest = { format: 'lime-local-backup'; version: 1 | 2; exportedAt: string; rows: Record<BackupTable, Row[]>; blobs: Blob[] };
 export class BackupError extends Error {
   constructor(readonly code: 'FORMAT' | 'LIMIT' | 'MISSING_FILE' | 'INTEGRITY' | 'REFERENCE' | 'BUSY' | 'IO') {
     super(({ FORMAT: '数据包格式或版本不受支持。', LIMIT: '数据包超出当前支持大小，请保留原文件。', MISSING_FILE: '原件或图片副本缺失，未生成完整数据包。', INTEGRITY: '数据包内容校验失败，尚未恢复。', REFERENCE: '数据包中的关联不完整，尚未恢复。', BUSY: '请先停止助手生成，再恢复。', IO: '文件操作未完成，请检查空间或权限；原有记录仍保留。' })[code]);
@@ -49,6 +50,7 @@ export function projectRow(table: BackupTable, value: unknown): Row {
     if (v !== null && (column.type === 'INTEGER' ? !Number.isSafeInteger(v) : typeof v !== 'string' || v.length > MAX_MANIFEST)) throw new BackupError('FORMAT');
     result[field] = v as SqlValue;
   }
+  if (table === 'local_weixin_items') result.capability_id = null;
   if (table === 'local_meta' && result.id.startsWith('task-sources-')) {
     const cached = object(json(result.value));
     if (!Array.isArray(cached.sources) || !Array.isArray(cached.proposals)) throw new BackupError('FORMAT');
@@ -79,6 +81,10 @@ export function historyRow(table: BackupTable, source: Row): Row {
   if (table === 'local_agent_requests') { row.status = 'restored'; row.error = null; }
   if (table === 'local_proposals' && row.status === 'pending') row.status = 'restored';
   if (table === 'local_personas' || table === 'local_reminder_rules') row.enabled = 0;
+  if (table === 'local_weixin_items') {
+    row.capability_id = null;
+    if (!row.material_id) { row.status = 'restored'; row.note = '恢复的收件历史；未保存的附件请重新转发。'; }
+  }
   return row;
 }
 export function equalRow(table: BackupTable, a: Row, b: Row) {
@@ -99,6 +105,7 @@ export function dependencies(table: BackupTable, row: Row): Ref[] {
   if (table === 'habits') add('habit_groups', row.group_id);
   if (table === 'checkins') add('habits', row.habit_id);
   if (table === 'local_activities') { add('habits', row.habit_id); add('checkins', row.checkin_id); }
+  if (table === 'local_weixin_items') add('local_materials', row.material_id);
   if (table === 'local_agent_requests') add('local_agent_sessions', row.session_id);
   if (['local_agent_messages', 'local_agent_results', 'local_agent_sources', 'local_proposals'].includes(table)) add('local_agent_requests', row.request_id);
   if (table === 'local_agent_messages') add('local_agent_sessions', row.session_id);
@@ -131,16 +138,18 @@ export function dependencies(table: BackupTable, row: Row): Ref[] {
 export function validateManifest(value: unknown): Manifest {
   try {
     const raw = object(value);
-    if (raw.format !== 'lime-local-backup' || raw.version !== 1 || Object.keys(raw).sort().join(',') !== 'blobs,exportedAt,format,rows,version') throw new BackupError('FORMAT');
+    if (raw.format !== 'lime-local-backup' || ![1,2].includes(Number(raw.version)) || typeof raw.version !== 'number' || Object.keys(raw).sort().join(',') !== 'blobs,exportedAt,format,rows,version') throw new BackupError('FORMAT');
     if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 40 || !Number.isFinite(Date.parse(raw.exportedAt))) throw new BackupError('FORMAT');
     const source = object(raw.rows), rows = emptyBackupRows();
-    if (Object.keys(source).sort().join(',') !== [...exportTables].sort().join(',')) throw new BackupError('FORMAT');
+    const expectedTables = raw.version === 1 ? exportTables.filter(t => t !== 'local_weixin_items') : [...exportTables];
+    if (Object.keys(source).sort().join(',') !== expectedTables.sort().join(',')) throw new BackupError('FORMAT');
     let count = 0;
     for (const table of exportTables) {
-      const values = source[table]; if (!Array.isArray(values) || (count += values.length) > 50000) throw new BackupError('LIMIT');
+      const values = raw.version === 1 && table === 'local_weixin_items' ? [] : source[table]; if (!Array.isArray(values) || (count += values.length) > 50000) throw new BackupError('LIMIT');
       rows[table] = values.map(v => {
         const r = object(v), projected = projectRow(table, v);
         if (Object.keys(r).sort().join(',') !== Object.keys(projected).sort().join(',')) throw new BackupError('FORMAT');
+        if (table === 'local_weixin_items' && (r.capability_id !== null || !Number.isSafeInteger(projected.position) || Number(projected.position) < 0 || Number(projected.position) > 99 || typeof projected.body !== 'string' || projected.body.length > 32000 || typeof projected.filename !== 'string' || projected.filename.length > 180 || (projected.status === 'saved' && !projected.material_id))) throw new BackupError('FORMAT');
         if (table === 'local_meta' && !safeMeta(projected.id)) throw new BackupError('FORMAT');
         if (Object.hasOwn(recordFields, table)) portableRow(table as RecordTable, projected);
         if (table === 'local_drafts') validateBackup({format:'angelime-records',version:1,rows:emptyRows(),drafts:[projected],recovery:[]});
@@ -154,6 +163,7 @@ export function validateManifest(value: unknown): Manifest {
           local_proposals:['request_id','status','source_refs','fingerprint'],local_operations:['fingerprint','receipt'],
           local_material_imports:['outcome'],local_materials:['filename','uri','hash','mime','kind','body','images','status','note'],
           local_agent_results:['request_id','result'],local_backup_archives:['uri','hash','summary'],local_meta:['value'],
+          local_weixin_items:['message_id','account_key','fingerprint','kind','filename','body','status','note','state'],
         };
         for(const field of requiredText[table] ?? [])if(typeof projected[field]!=='string')throw new BackupError('FORMAT');
         for (const flag of ['deleted','forgotten','enabled','day_of']) if (flag in projected && projected[flag] !== null && ![0,1].includes(Number(projected[flag]))) throw new BackupError('FORMAT');
@@ -171,6 +181,7 @@ export function validateManifest(value: unknown): Manifest {
           local_agent_requests: { status: ['running','complete','error','stopped','interrupted','restored'] },
           local_materials: { kind: ['text','image','pdf','unsupported'], status: ['ready','unsupported'] },
           local_reminder_rules: { mode: ['once','annual'] },
+          local_weixin_items: { kind: ['text','media','unsupported'], status: ['pending','saved','error','restored'], state: ['complete','pending','deleted','unsupported','superseded'] },
         };
         for (const [field,allowed] of Object.entries(enums[table] ?? {})) if (!allowed.includes(String(projected[field]))) throw new BackupError('FORMAT');
         return projected;
@@ -199,6 +210,6 @@ export function validateManifest(value: unknown): Manifest {
       }
     }
     if (used.size !== blobs.length) throw new BackupError('INTEGRITY');
-    return { format: 'lime-local-backup', version: 1, exportedAt: raw.exportedAt, rows, blobs };
+    return { format: 'lime-local-backup', version: 2, exportedAt: raw.exportedAt, rows, blobs };
   } catch (error) { if (error instanceof BackupError) throw error; throw new BackupError('FORMAT'); }
 }

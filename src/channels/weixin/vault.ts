@@ -30,6 +30,11 @@ export function createWeixinVault(storage: SecretStorage, prefix: string) {
       const value = await storage.getItemAsync(prefix + '-media-' + id);
       return value ? JSON.parse(value) : null;
     },
+    async releaseMedia(id: string) {
+      if (!/^[a-f0-9]{64}$/.test(id)) throw new WeixinError('PROTOCOL');
+      await storage.deleteItemAsync(prefix + '-media-' + id);
+      await storage.setItemAsync(index, JSON.stringify((await keys()).filter(key => key !== id)));
+    },
     async remove() {
       for (const id of await keys()) await storage.deleteItemAsync(prefix + '-media-' + id);
       await storage.deleteItemAsync(index); await storage.deleteItemAsync(account);

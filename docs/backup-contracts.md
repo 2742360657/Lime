@@ -4,7 +4,7 @@
 
 ## 格式与范围
 
-ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/java/util/zip/ZipInputStream)，不自写归档/压缩算法。固定manifest.json（lime-local-backup/version 1）及blobs/<SHA256>.bin，目录名不直接用作目标路径。结合[官方路径穿越建议](https://developer.android.com/privacy-and-security/risks/zip-path-traversal)拒绝未知/重复条目、路径穿越、非法UTF-8、超限及hash不符。
+ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/java/util/zip/ZipInputStream)，不自写归档/压缩算法。固定manifest.json（lime-local-backup/version 2；兼容历史version 1）及blobs/<SHA256>.bin，目录名不直接用作目标路径。结合[官方路径穿越建议](https://developer.android.com/privacy-and-security/risks/zip-path-traversal)拒绝未知/重复条目、路径穿越、非法UTF-8、超限及hash不符。
 
 覆盖普通SQLite数据：分类、日记/备忘录、待办、习惯/打卡、编辑草稿/冲突原文、显式记忆、活动、人格原文、聊天/请求、来源快照、建议/结果、操作回执、材料正文/原件/分析图片、提醒规则；历史来源摘录/恢复快照和模型名称使用明确local_meta白名单。以前完整恢复的冲突包作为不自动解压的原始ZIP一并携带，保持恢复副本可再导出。
 
@@ -25,3 +25,5 @@ ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/ja
 ## 模块和集中验证
 
 先实现固定schema/投影/安全恢复计划与事务，再实现系统ZIP边界、设置入口与隔离原生探针。开发中登记案例，阶段结束集中检查：全对象回环/跨目录路径改写、hash与引用拒绝、缺件/损坏/路径攻击/超限、重复/版本冲突及依赖隔离、事务失败、恢复历史不能执行、规则/人格停用、旧JSON兼容、手机原生ZIP/SQLite重开/零队列与普通记录摘要。人工系统保存/选择/取消另记结果。
+
+正式微信接入时扩展为25类普通对象（新增local_weixin_items）。媒体能力字段导出为null，账号/游标/协议缓冲不导出；恢复未保存项为只读历史，保存项关联原件。详见[正式微信契约](weixin-intake-contracts.md)。

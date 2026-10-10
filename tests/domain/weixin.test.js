@@ -13,7 +13,7 @@ const message = (id = '18446744073709551615') => ({ message_id: id, from_user_id
 let db, inbox, stageMedia;
 beforeEach(() => {
   db = sqliteHarness();
-  for (const [name, fields] of Object.entries(weixinTables)) db.sql.exec(`CREATE TABLE ${name}(id TEXT PRIMARY KEY,${Object.entries(fields).map(([n, c]) => `${n} ${c.type}`).join(',')})`);
+  for (const [name, fields] of Object.entries(weixinTables)) db.sql.exec(`CREATE TABLE IF NOT EXISTS ${name}(id TEXT PRIMARY KEY,${Object.entries(fields).map(([n, c]) => `${n} ${c.type}`).join(',')})`);
   stageMedia = jest.fn(async () => {});
   inbox = createWeixinInbox(db, { digest, now: () => 100, stageMedia });
 });

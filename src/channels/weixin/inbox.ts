@@ -1,8 +1,8 @@
-import type { DomainDatabase } from '../../domain/types';
+import type { DomainDatabase, DomainTransaction } from '../../domain/types';
 import { WeixinError, incoming, type Binding, type MediaDescriptor, type Updates } from './protocol';
 export type InboxMessage = { id: string; account_id: string; message_key: string; fingerprint: string; state: string; body: string; parts: string; created_at: number; revision: number };
-type PreparedMessage = { id: string; key: string; state: string; fingerprint: string; createdAt: number; body: string; parts: string };
-export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; digest(value: string): Promise<string>; stageMedia(id: string, descriptor: MediaDescriptor): Promise<void> }) {
+type PreparedMessage = { id: string; key: string; state: string; fingerprint: string; createdAt: number; body: string; parts: string; duplicate?: true };
+export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; digest(value: string): Promise<string>; stageMedia(id: string, descriptor: MediaDescriptor): Promise<void>; project?(tx: DomainTransaction, message: InboxMessage): Promise<void> }) {
   const accountId = (binding: Binding) => deps.digest(JSON.stringify([binding.botId, binding.userId]));
   return {
     async cursor(binding: Binding) {
@@ -17,6 +17,12 @@ export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; dig
         const msg = incoming(raw, binding); if (!msg) { ignored++; continue; }
         const id = await deps.digest(JSON.stringify([account, msg.key]));
         const fingerprint = await deps.digest(JSON.stringify(msg)), parts = [];
+        const old = await db.readTransaction(tx => tx.getOptional<InboxMessage>('SELECT * FROM weixin_messages WHERE id=?', [id]));
+        // Redelivery must not recreate released capabilities or fill SecureStore indefinitely.
+        if (old && (old.fingerprint === fingerprint || old.state === 'deleted' || (old.state === 'complete' && msg.state === 'pending'))) {
+          messages.push({ id, key: msg.key, state: msg.state, fingerprint, createdAt: msg.createdAt, body: '', parts: '[]', duplicate: true });
+          continue;
+        }
         for (let n = 0; n < msg.parts.length; n++) {
           const part = msg.parts[n];
           if (part.kind !== 'media') { parts.push(part); continue; }
@@ -35,8 +41,10 @@ export function createWeixinInbox(db: DomainDatabase, deps: { now(): number; dig
         for (const msg of messages) {
           const old = await tx.getOptional<InboxMessage>('SELECT * FROM weixin_messages WHERE id=?', [msg.id]);
           if (old && (old.fingerprint === msg.fingerprint || old.state === 'deleted' || (old.state === 'complete' && msg.state === 'pending'))) { duplicates++; continue; }
+          if (msg.duplicate) throw new WeixinError('BUSY');
           await tx.execute('INSERT OR REPLACE INTO weixin_messages(id,account_id,message_key,fingerprint,state,body,parts,created_at,revision) VALUES(?,?,?,?,?,?,?,?,?)',
             [msg.id, account, msg.key, msg.fingerprint, msg.state, msg.body, msg.parts, msg.createdAt, (old?.revision ?? 0) + 1]);
+          await deps.project?.(tx, { id: msg.id, account_id: account, message_key: msg.key, fingerprint: msg.fingerprint, state: msg.state, body: msg.body, parts: msg.parts, created_at: msg.createdAt, revision: (old?.revision ?? 0) + 1 });
           saved++;
         }
         const cursor = packet.get_updates_buf || expectedCursor;
