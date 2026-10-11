@@ -16,6 +16,7 @@ import type { AppData, Memo } from '../types/habit';
 import { clampToMinute, getTodayKey } from '../utils/date';
 import { createId } from '../utils/id';
 import { domain, type Command } from '../domain';
+import { assertMemoUpdate } from '../memos/editGuard';
 
 import { habitReducer } from './habitReducer';
 import { HabitContext, initialState, type HabitInput, type TodoInput, type HabitAction } from './storeTypes';
@@ -35,11 +36,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
   const commitAction = useCallback((action: HabitAction) => {
     const operation=mutationQueue.current.then(async()=>{
       const next=await database.writeTransaction(async tx=>{
-        if(action.type==='memo-update'&&action.expectedRevision!==undefined) {
-          const doc=await tx.getOptional<{revision:number;deleted:number;title:string;body:string;date:string;group_id:string|null}>('SELECT * FROM documents WHERE id=?',[action.id]);
-          const base=action.expectedContent;if(doc&&base&&(doc.title!==base.title||doc.body!==base.body||doc.group_id!==base.group_id))throw new Error('SOURCE_CHANGED');
-          if(!doc||doc.deleted||doc.revision!==action.expectedRevision)throw new Error('SOURCE_CHANGED');
-        }
+        if (action.type === 'memo-update') await assertMemoUpdate(tx, action.id, action.patch, action.expectedRevision, action.expectedContent);
         const fresh={...current.current,appData:await readBusiness(tx,current.current.appData)};
         if ((action.type === 'add-checkin-now' || action.type === 'add-checkin') && !fresh.appData.habits.some(h => h.id === action.habitId && h.archivedAt === null)) throw new Error('HABIT_CHANGED');
         const updated=habitReducer(fresh,action);

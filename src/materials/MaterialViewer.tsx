@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Sharing from 'expo-sharing';
@@ -9,17 +9,28 @@ import type { Material } from './store';
 export function MaterialViewer({ id, snapshot, onClose }: { id: string | null; snapshot?: { body: string; revision: number }; onClose: () => void }) {
   const { theme } = useHabits(), c = theme.colors;
   const [material, setMaterial] = useState<Material | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [editing, setEditing] = useState(false), [body, setBody] = useState('');
-  useEffect(() => { setMaterial(null); setError(''); setEditing(false); if (id) void materialStore.get(id).then(setMaterial).catch(() => setError('材料暂时无法读取。')); }, [id]);
+  const generation = useRef(0), currentId = useRef(id), running = useRef(false), alive = useRef(false);
+  currentId.current = id;
+  useEffect(() => {
+    alive.current = true; const current = ++generation.current;
+    const active = () => alive.current && current === generation.current && currentId.current === id;
+    setMaterial(null); setError(''); setEditing(false); setBody(''); setBusy(running.current);
+    if (id) void materialStore.get(id).then(value => { if (active()) setMaterial(value); }).catch(() => { if (active()) setError('材料暂时无法读取。'); });
+    return () => { alive.current = false; generation.current++; };
+  }, [id]);
   const button = (text: string, fn: () => void) => <Pressable accessibilityRole="button" accessibilityLabel={text} disabled={busy} onPress={fn} style={{ padding: 9 }}><Text style={{ color: c.primary, fontSize: 12 }}>{text}</Text></Pressable>;
-  async function run(fn: (m: Material) => Promise<void>) {
-    if (!material || busy) return; setBusy(true); setError('');
-    try { await fn(material); setMaterial(await materialStore.get(material.id)); }
-    catch { setError('操作未完成，原件仍保留。'); } finally { setBusy(false); }
+  async function run(fn: (m: Material, active: () => boolean) => Promise<void>) {
+    if (!material || material.id !== id || running.current) return;
+    const current = generation.current, target = material;
+    const active = () => alive.current && generation.current === current && currentId.current === target.id;
+    running.current = true; setBusy(true); setError('');
+    try { await fn(target, active); const latest = await materialStore.get(target.id); if (active()) setMaterial(latest); }
+    catch { if (active()) setError('操作未完成，原件仍保留。'); } finally { running.current = false; if (alive.current) setBusy(false); }
   }
   return <Modal visible={Boolean(id)} animationType="slide" onRequestClose={onClose}><SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>{button('关闭材料', onClose)}<Text style={{ fontSize: 14, color: c.textPrimary }}>材料原件</Text></View>
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 14, gap: 10 }}>
-      {material ? <>
+      {material && material.id === id ? <>
         <Text selectable style={{ color: c.textPrimary, fontSize: 14, fontWeight: '600' }}>{material.filename}</Text>
         <Text style={{ color: c.textMuted, fontSize: 12 }}>{Math.ceil(material.size / 1024)}KiB · v{material.revision}{material.deleted ? ' · 已归档' : ''}</Text>
         <Text style={{ color: c.textSecondary, fontSize: 12, lineHeight: 19 }}>{material.note}</Text>
@@ -31,10 +42,10 @@ export function MaterialViewer({ id, snapshot, onClose }: { id: string | null; s
           {!snapshot && !material.deleted ? <>
             {button('重新解析', () => void run(async m => { await materialStore.revise(m.id, m.revision, await materialNative.parse(m.uri, m.filename)); }))}
             {material.kind === 'text' || material.kind === 'pdf' ? editing ? <>
-              {button('保存更正', () => void run(async m => { await materialStore.revise(m.id, m.revision, { kind: m.kind, body, images: JSON.parse(m.images), pages: m.pages, status: 'ready', note: '正文经手动更正；原件保留。' }); setEditing(false); }))}
+              {button('保存更正', () => void run(async (m, active) => { await materialStore.revise(m.id, m.revision, { kind: m.kind, body, images: JSON.parse(m.images), pages: m.pages, status: 'ready', note: '正文经手动更正；原件保留。' }); if (active()) setEditing(false); }))}
               {button('取消更正', () => setEditing(false))}
             </> : button('更正正文', () => { setBody(material.body); setEditing(true); }) : null}
-            {button('归档材料', () => void run(async m => { await materialStore.archive(m.id, m.revision); onClose(); }))}
+            {button('归档材料', () => void run(async (m, active) => { await materialStore.archive(m.id, m.revision); if (active()) onClose(); }))}
           </> : null}
         </View>
       </> : <><Text style={{ color: c.textSecondary, fontSize: 13 }}>材料暂未读取；以下为发送时的正文快照。</Text>{snapshot ? <Text selectable style={{ color: c.textPrimary, fontSize: 14, lineHeight: 22 }}>{snapshot.body}</Text> : null}</>}

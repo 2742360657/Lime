@@ -1,5 +1,5 @@
 import { MaterialViewer } from '../materials/MaterialViewer';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Text,TouchableOpacity,View} from 'react-native';
 import {database} from './database';
 import {useHabits} from '../state/HabitStore';
@@ -8,35 +8,39 @@ type Sources={proposals:{id:string;summary:string}[];sources:{id:string;filename
 
 // On-demand details keep the ordinary task editor small. Cached sources can be
 // read offline; no parse/model call is made by viewing the original evidence.
-export function TaskSources({taskId}:{taskId:string}) {
+export function TaskSources({taskId}:{taskId:string}) { return <RecordSources id={taskId} kind="task"/>; }
+export function RecordSources({id:recordId,kind}:{id:string;kind:'task'|'memo'|'grade'}) {
  const {theme}=useHabits();
  const [preview,setPreview]=useState<{id:string;body:string;revision:number}|null>(null);
  const [data,setData]=useState<Sources|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[expanded,setExpanded]=useState(false);
- useEffect(()=>{setData(null);setMessage('');setExpanded(false);setBusy(false);},[taskId]);
+ const generation=useRef(0);
+ useEffect(()=>{generation.current++;setData(null);setPreview(null);setMessage('');setExpanded(false);setBusy(false);return()=>{generation.current++;};},[recordId,kind]);
  async function load() {
   setExpanded(true);setBusy(true);setMessage('');
+  const current=generation.current;
   try {
-   const task=await database.getOptional<{owner_id:string|null}>('SELECT owner_id FROM tasks WHERE id=?',[taskId]);
-   const key='task-sources-'+(task?.owner_id??'undefined')+'-'+taskId;
-   const row=await database.getOptional<{value:string}>('SELECT value FROM local_meta WHERE id=?',[key]);
+   const task=kind==='task'?await database.getOptional<{owner_id:string|null}>('SELECT owner_id FROM tasks WHERE id=?',[recordId]):null;
+   const key='task-sources-'+(task?.owner_id??'undefined')+'-'+recordId;
+   const row=kind==='task'?await database.getOptional<{value:string}>('SELECT value FROM local_meta WHERE id=?',[key]):null;
+   if(current!==generation.current)return;
    if(row){setData(JSON.parse(row.value) as Sources);setMessage('本机保留的历史来源摘录。');}
    else {
-    const proposals=await database.getAll<{id:string;request_id:string;receipt:string}>("SELECT id,request_id,receipt FROM local_proposals WHERE status='accepted' AND receipt IS NOT NULL ORDER BY created_at DESC");
-    const matching=proposals.filter(p=>{const receipt=JSON.parse(p.receipt);return receipt.entity?.kind==='task'&&receipt.entity.id===taskId;});
+    const matching=await database.getAll<{id:string;request_id:string;receipt:string}>("SELECT id,request_id,receipt FROM local_proposals p WHERE status='accepted' AND receipt IS NOT NULL AND json_extract(receipt,'$.entity.kind')=? AND json_extract(receipt,'$.entity.id')=? AND EXISTS(SELECT 1 FROM local_agent_sources s WHERE s.request_id=p.request_id) ORDER BY created_at DESC LIMIT 10",[kind,recordId]);
     const sources:Sources['sources']=[];
     for(const p of matching) {
      const snapshots=await database.getAll<{id:string;title:string;body:string;revision:number;date:string;kind:string;document_id:string}>('SELECT * FROM local_agent_sources WHERE request_id=?',[p.request_id]);
      for(const s of snapshots)if(!sources.some(old=>old.id===s.id))sources.push({id:s.id,filename:s.title||s.date||'引用记录',status:'saved',parser:null,source_kind:s.kind==='attachment'?'attachment':'document',revision:s.revision,text:s.body,truncated:false,material_id:s.kind==='attachment'?s.document_id:undefined});
     }
-    if(sources.length){setData({proposals:[],sources});setMessage('本机保存的引用原文快照。');}
-    else setMessage('本机没有保存这条待办的历史来源。');
+    if(current!==generation.current)return;
+    if(sources.length){setData({proposals:[],sources});setMessage('本机保存的最近10次引用原文快照。');}
+    else setMessage('本机没有保存这条记录的历史来源。');
    }
-  } catch {setMessage('暂时无法读取本机来源，原始缓存仍保留。');}
-  finally {setBusy(false);}
+  } catch {if(current===generation.current)setMessage('暂时无法读取本机来源，原始缓存仍保留。');}
+  finally {if(current===generation.current)setBusy(false);}
  }
  return <View style={{gap:8}}>
   <MaterialViewer id={preview?.id??null} snapshot={preview??undefined} onClose={()=>setPreview(null)}/>
-  <TouchableOpacity accessibilityLabel="查看待办来源" disabled={busy} onPress={()=>expanded?setExpanded(false):void load()}>
+  <TouchableOpacity accessibilityLabel={kind==='task'?'查看待办来源':kind==='memo'?'查看备忘录来源':'查看成绩来源'} disabled={busy} onPress={()=>expanded?setExpanded(false):void load()}>
    <Text style={{fontSize:13,color:theme.colors.primary}}>{busy?'正在读取来源…':expanded?'收起来源':'查看来源'}</Text>
   </TouchableOpacity>
   {expanded?<View style={{gap:8}}>
@@ -47,7 +51,7 @@ export function TaskSources({taskId}:{taskId:string}) {
     {s.material_id?<TouchableOpacity accessibilityLabel="查看来源原件" onPress={()=>setPreview({id:s.material_id!,body:s.text,revision:s.revision!})}><Text style={{fontSize:12,color:theme.colors.primary}}>查看原件</Text></TouchableOpacity>:null}
     {s.text?<Text selectable style={{fontSize:13,lineHeight:20,color:theme.colors.textSecondary}}>{s.text}</Text>:null}
    </View>)}
-   {data&&!data.sources.length?<Text style={{fontSize:13,color:theme.colors.textMuted}}>这条待办没有资料来源。</Text>:null}
+   {data&&!data.sources.length?<Text style={{fontSize:13,color:theme.colors.textMuted}}>这条记录没有资料来源。</Text>:null}
    {message?<Text style={{fontSize:12,color:theme.colors.textMuted}}>{message}</Text>:null}
   </View>:null}
  </View>;

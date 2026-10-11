@@ -16,6 +16,9 @@ import {RecordRecovery} from '../assistant/RecordRecovery';
 import { useHabits } from '../state/HabitStore';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
+import { QqIntakeModal } from '../channels/qq/QqIntakeModal';
+import { GradeRecordsModal } from '../grades/GradeRecordsModal';
+import { DailyToolsModal } from '../daily/DailyToolsModal';
 
 export function SettingsScreen() {
   const { appData, archivedHabits, theme } = useHabits();
@@ -28,10 +31,13 @@ export function SettingsScreen() {
   const [archivedVisible, setArchivedVisible] = useState(false);
   const [assistantVisible, setAssistantVisible] = useState(false);
   const [weixinVisible, setWeixinVisible] = useState(false);
+  const [qqVisible, setQqVisible] = useState(false), [gradesVisible, setGradesVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
   const [remindersVisible, setRemindersVisible] = useState(false);
   const route = useRoute();
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
+  const gradeNonce = (route.params as { gradeNonce?: string } | undefined)?.gradeNonce;
   useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
+  useEffect(() => { if (gradeNonce) setGradesVisible(true); }, [gradeNonce]);
 
   const failure = (error: unknown) => error instanceof BackupError ? error.message : '操作未完成，请保留原文件并检查空间、权限或格式。';
   const handleBackup = async () => {
@@ -98,6 +104,9 @@ export function SettingsScreen() {
           />
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
           <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
+          <SettingRow label="QQ收件" value="扫码绑定 · 前台读取 · 附件重试" onPress={() => setQqVisible(true)} />
+          <SettingRow label="成绩记录" value="课程 · 学期 · 平均与加权计算" onPress={() => setGradesVisible(true)} />
+          <SettingRow label="日用记录与整理" value="活动依据 · 选择整理 · 可撤销历史" onPress={() => setDailyVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
 
@@ -133,6 +142,9 @@ export function SettingsScreen() {
       <ArchivedHabitsModal visible={archivedVisible} onClose={() => setArchivedVisible(false)} />
       <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
       <WeixinIntakeModal visible={weixinVisible} onClose={() => setWeixinVisible(false)} />
+      <QqIntakeModal visible={qqVisible} onClose={() => setQqVisible(false)} />
+      <GradeRecordsModal visible={gradesVisible} onClose={() => setGradesVisible(false)} />
+      <DailyToolsModal visible={dailyVisible} onClose={() => setDailyVisible(false)} />
       <ReminderSettingsModal visible={remindersVisible} onClose={() => setRemindersVisible(false)} />
     </ScreenScaffold>
   );

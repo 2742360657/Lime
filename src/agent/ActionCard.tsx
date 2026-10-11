@@ -9,8 +9,8 @@ import type { ProposalRow } from '../domain/service';
 import { useHabits } from '../state/HabitStore';
 import type { ActionResult } from './store';
 
-const labels: Record<string, string> = { title: '标题', note: '备注 / 感受', content: '记忆内容', key: '记忆名称', kind: '类型', dueDateKey: '日期 YYYY-MM-DD', dueTime: '时间 HH:mm', mode: '模式 once / annual', dateKey: '单次日期 YYYY-MM-DD', monthDay: '年度公历月日 MM-DD', time: '上海时间 HH:mm', advanceDays: '提前天数 0到30', dayOf: '当天提醒', enabled: '启用规则' };
-const names: Record<Command['type'], string> = { 'task.create': '新增待办', 'task.update': '修改待办', 'task.complete': '待办完成状态', 'task.trash': '移入回收站', 'habit.checkin': '习惯打卡', 'memory.remember': '记住事实 / 偏好', 'memory.correct': '更正记忆', 'memory.forget': '忘记记忆', 'activity.start': '记录活动计划', 'activity.complete': '完成活动', 'activity.cancel': '取消活动', 'reminder.create': '新增提醒规则', 'reminder.update': '修改提醒规则', 'reminder.cancel': '停用提醒规则' };
+const labels: Record<string, string> = { title: '标题', body: '备忘录正文', groupId: '备忘录分类', course: '课程名称', term: '学期', score: '分数', credits: '学分', note: '备注 / 感受', content: '记忆内容', key: '记忆名称', kind: '类型', dueDateKey: '日期 YYYY-MM-DD', dueTime: '时间 HH:mm', mode: '模式 once / annual', dateKey: '单次日期 YYYY-MM-DD', monthDay: '年度公历月日 MM-DD', time: '上海时间 HH:mm', advanceDays: '提前天数 0到30', dayOf: '当天提醒', enabled: '启用规则' };
+const names: Record<Command['type'], string> = { 'memo.create': '新增备忘录', 'memo.update': '修改备忘录', 'memo.trash': '备忘录移入回收站', 'memo.restore': '恢复备忘录', 'grade.create': '新增成绩', 'grade.update': '修改成绩', 'grade.trash': '删除成绩', 'grade.restore': '恢复成绩', 'task.create': '新增待办', 'task.update': '修改待办', 'task.complete': '待办完成状态', 'task.trash': '移入回收站', 'habit.checkin': '习惯打卡', 'memory.remember': '记住事实 / 偏好', 'memory.correct': '更正记忆', 'memory.forget': '忘记记忆', 'activity.start': '记录活动计划', 'activity.complete': '完成活动', 'activity.cancel': '取消活动', 'reminder.create': '新增提醒规则', 'reminder.update': '修改提醒规则', 'reminder.cancel': '停用提醒规则' };
 export function ActionCard({ result }: { result: ActionResult }) {
   const { theme } = useHabits(), c = theme.colors;
   const navigation = useNavigation<any>();
@@ -30,7 +30,7 @@ export function ActionCard({ result }: { result: ActionResult }) {
   return <View style={{ padding: 10, gap: 5, backgroundColor: c.surfaceMuted, borderColor: c.border, borderWidth: 1, borderRadius: 8 }}>
     <Text style={{ fontSize: 13, fontWeight: '600', color: c.textPrimary }}>{names[command.type]} · {receipt ? '已保存' : pending ? '待确认' : proposal?.status === 'restored' ? '已恢复历史' : proposal?.status === 'rejected' ? '已拒绝' : result.status === 'error' ? '未保存' : '读取中'}</Text>
     {!receipt ? Object.entries(command).filter(([key]) => labels[key]).map(([key, value]) => <View key={key} style={{ gap: 3 }}>
-      {editing ? <><Text style={{ fontSize: 11, color: c.textMuted }}>{labels[key]}</Text>{typeof value === 'boolean' ? <Switch accessibilityLabel={labels[key]} value={Boolean(draft[key])} onValueChange={checked => setDraft({ ...draft, [key]: checked })} /> : <TextInput accessibilityLabel={labels[key]} multiline={key === 'content' || key === 'note'} value={String(draft[key] ?? '')} onChangeText={text => setDraft({ ...draft, [key]: key === 'advanceDays' ? (/^\d{1,2}$/.test(text) ? Number(text) : text) : text || (['dueDateKey', 'dueTime', 'dateKey', 'monthDay'].includes(key) ? null : '') })} style={{ fontSize: 13, color: c.textPrimary, padding: 7, backgroundColor: c.surface, borderRadius: 6 }} />}</> : value !== null && value !== '' ? <Text selectable style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{labels[key]}：{typeof value === 'boolean' ? value ? '是' : '否' : String(value)}</Text> : null}
+      {key === 'groupId' ? <MemoGroupField editing={editing} value={(editing ? draft[key] : value) as string | null} onChange={groupId => setDraft({ ...draft, groupId })} /> : editing ? <><Text style={{ fontSize: 11, color: c.textMuted }}>{labels[key]}</Text>{typeof value === 'boolean' ? <Switch accessibilityLabel={labels[key]} value={Boolean(draft[key])} onValueChange={checked => setDraft({ ...draft, [key]: checked })} /> : <TextInput accessibilityLabel={labels[key]} multiline={key === 'body' || key === 'content' || key === 'note'} value={String(draft[key] ?? '')} onChangeText={text => setDraft({ ...draft, [key]: key === 'advanceDays' ? (/^\d{1,2}$/.test(text) ? Number(text) : text) : text || (['credits', 'dueDateKey', 'dueTime', 'dateKey', 'monthDay'].includes(key) ? null : '') })} style={{ fontSize: 13, color: c.textPrimary, padding: 7, backgroundColor: c.surface, borderRadius: 6 }} />}</> : value !== null && value !== '' ? <Text selectable style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{labels[key]}：{typeof value === 'boolean' ? value ? '是' : '否' : String(value)}</Text> : null}
     </View>) : null}
     {receipt && receipt.entity.kind !== 'checkin' ? <TargetLabel id={receipt.entity.id} type={`${receipt.entity.kind}.read`} /> : 'id' in command ? <TargetLabel id={command.id} type={command.type} /> : null}
     {command.type === 'task.complete' ? <Text style={{ fontSize: 12, color: c.textSecondary }}>{command.completed ? '标记完成' : '恢复未完成'}</Text> : null}
@@ -42,7 +42,7 @@ export function ActionCard({ result }: { result: ActionResult }) {
       {!editing ? button('拒绝', () => void act(async () => { await domain.rejectProposal(proposal.id, proposal.revision, { actor: 'ui' }); })) : null}
     </View> : null}
     {receipt?.entity.kind === 'reminder' ? <Text style={{ fontSize: 11, lineHeight: 18, color: c.textMuted }}>规则已保存，系统排程和权限请在本地提醒中查看。</Text> : null}
-    {receipt ? button(receipt.entity.kind === 'memory' ? '在助手配置查看记忆' : '查看记录', () => receipt.entity.kind === 'reminder' ? navigation.navigate('settings', { reminderNonce: String(Date.now()) }) : navigation.navigate(receipt.entity.kind === 'task' ? 'tasks' : receipt.entity.kind === 'memory' ? 'settings' : 'habits')) : null}
+    {receipt ? button(receipt.entity.kind === 'memory' ? '在助手配置查看记忆' : '查看记录', () => receipt.entity.kind === 'reminder' ? navigation.navigate('settings', { reminderNonce: String(Date.now()) }) : receipt.entity.kind === 'grade' ? navigation.navigate('settings', { gradeNonce: String(Date.now()) }) : navigation.navigate(receipt.entity.kind === 'memo' ? 'memos' : receipt.entity.kind === 'task' ? 'tasks' : receipt.entity.kind === 'memory' ? 'settings' : 'habits')) : null}
     {error || result.message ? <Text style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{error || result.message}</Text> : null}
   </View>;
 }
@@ -50,9 +50,14 @@ function TargetLabel({ id, type }: { id: string; type: string }) {
   const { theme } = useHabits(); const [name, setName] = useState('正在读取目标…');
   useEffect(() => {
     let active = true;
-    const table = type.startsWith('task.') ? 'tasks' : type.startsWith('memory.') ? 'local_memories' : type.startsWith('activity.') ? 'local_activities' : type.startsWith('reminder.') ? 'local_reminder_rules' : 'habits';
-    void database.getOptional<Record<string, string>>(`SELECT * FROM ${table} WHERE id=?`, [id]).then(row => { if (active) setName(row ? row.title || row.name || row.key || '记录' : '目标已不存在'); }).catch(() => { if (active) setName('目标暂时无法读取'); });
+    const table = type.startsWith('memo.') ? 'documents' : type.startsWith('grade.') ? 'local_grades' : type.startsWith('task.') ? 'tasks' : type.startsWith('memory.') ? 'local_memories' : type.startsWith('activity.') ? 'local_activities' : type.startsWith('reminder.') ? 'local_reminder_rules' : 'habits';
+    void database.getOptional<Record<string, string>>(`SELECT * FROM ${table} WHERE id=?`, [id]).then(row => { if (active) setName(row ? row.course || row.title || row.name || row.key || '记录' : '目标已不存在'); }).catch(() => { if (active) setName('目标暂时无法读取'); });
     return () => { active = false; };
   }, [id, type]);
   return <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>目标：{name}</Text>;
+}
+function MemoGroupField({ editing, value, onChange }: { editing: boolean; value: string | null; onChange(id: string | null): void }) {
+  const { theme } = useHabits(); const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { let active = true; void domain.listMemoGroups().then(rows => { if (active) setGroups(rows); }).catch(() => {}); return () => { active = false; }; }, []);
+  return <View style={{ gap: 5 }}><Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>分类：{value === null ? '未分类' : groups.find(g => g.id === value)?.name ?? '分类暂时无法读取'}</Text>{editing ? <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>{[{ id: null, name: '未分类' }, ...groups].map(group => <Pressable key={group.id ?? 'none'} accessibilityLabel={'选择分类 ' + group.name} onPress={() => onChange(group.id)} style={{ padding: 7 }}><Text style={{ fontSize: 12, color: theme.colors.primary }}>{group.id === value ? '✓ ' : ''}{group.name}</Text></Pressable>)}</View> : null}</View>;
 }

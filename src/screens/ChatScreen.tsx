@@ -1,5 +1,8 @@
 import { MaterialPicker } from '../materials/MaterialPicker';
 import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
+import { QqIntakeModal } from '../channels/qq/QqIntakeModal';
+import { GradeRecordsModal } from '../grades/GradeRecordsModal';
+import { DailyToolsModal } from '../daily/DailyToolsModal';
 import { MaterialViewer } from '../materials/MaterialViewer';
 import { materialStore } from '../materials/service';
 import { useEffect, useRef, useState } from 'react';
@@ -27,6 +30,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   const [sourcePreview, setSourcePreview] = useState<Source | null>(null), [sources, setSources] = useState<Record<string, Source[]>>({});
   const [settingsVisible, setSettingsVisible] = useState(false), [legacy, setLegacy] = useState(false), [error, setError] = useState('');
   const [weixinVisible, setWeixinVisible] = useState(false);
+  const [qqVisible, setQqVisible] = useState(false), [gradesVisible, setGradesVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
   const scroll = useRef<ScrollView>(null), initializing = useRef(false);
   useEffect(() => {
     let active = true;
@@ -96,6 +100,9 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     { id: 'new', label: '新对话', onPress: () => { void store.newSession().then(id => { setSession(id); setLegacy(false); }).catch(() => setError('新建对话失败。')); } },
     { id: 'config', label: '助手配置', onPress: () => setSettingsVisible(true) },
     { id: 'weixin', label: '微信收件', onPress: () => setWeixinVisible(true) },
+    { id: 'qq', label: 'QQ收件', onPress: () => setQqVisible(true) },
+    { id: 'grades', label: '成绩记录', onPress: () => setGradesVisible(true) },
+    { id: 'daily', label: '日用记录与整理', onPress: () => setDailyVisible(true) },
     ...sessions.map(s => ({ id: s.id, label: s.title, selected: s.id === session && !legacy, onPress: () => { setSession(s.id); setLegacy(false); } })),
     { id: 'legacy', label: '旧版历史缓存', selected: legacy, onPress: () => setLegacy(true) },
   ];
@@ -106,7 +113,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
         {button('配置', () => setSettingsVisible(true))}
       </View>
       <ScrollView ref={scroll} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、习惯和显式记忆。日记需选中后才供本轮分析。</Text> : null}
+        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、备忘录、成绩、习惯和显式记忆。日记与备忘录正文需选中后才供本轮分析。</Text> : null}
         {messages.map(message => {
           const request = requests.find(r => r.id === message.request_id);
           const generating = state.busy && state.requestId === message.request_id && message.role === 'assistant';
@@ -136,6 +143,9 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     <MaterialViewer id={materialPreview?.id ?? null} snapshot={materialPreview ?? undefined} onClose={() => setMaterialPreview(null)} />
     <AssistantSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     <WeixinIntakeModal visible={weixinVisible} remaining={4 - quoted.length} onClose={() => setWeixinVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => s.id !== m.id), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    <QqIntakeModal visible={qqVisible} remaining={4 - quoted.length} onClose={() => setQqVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => s.id !== m.id), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    <GradeRecordsModal visible={gradesVisible} onClose={() => setGradesVisible(false)} />
+    <DailyToolsModal visible={dailyVisible} onClose={() => setDailyVisible(false)} />
     <Modal visible={picker || Boolean(sourcePreview)} animationType="slide" onRequestClose={() => { setPicker(false); setSourcePreview(null); }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>{button('关闭', () => { setPicker(false); setSourcePreview(null); })}<Text style={{ fontSize: 14, color: c.textPrimary }}>{sourcePreview ? '本轮原文快照' : '选择记录'}</Text></View>
