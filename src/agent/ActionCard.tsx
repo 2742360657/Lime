@@ -42,7 +42,7 @@ export function ActionCard({ result }: { result: ActionResult }) {
       {!editing ? button('拒绝', () => void act(async () => { await domain.rejectProposal(proposal.id, proposal.revision, { actor: 'ui' }); })) : null}
     </View> : null}
     {receipt?.entity.kind === 'reminder' ? <Text style={{ fontSize: 11, lineHeight: 18, color: c.textMuted }}>规则已保存，系统排程和权限请在本地提醒中查看。</Text> : null}
-    {receipt ? button(receipt.entity.kind === 'memory' ? '在助手配置查看记忆' : '查看记录', () => receipt.entity.kind === 'reminder' ? navigation.navigate('settings', { reminderNonce: String(Date.now()) }) : receipt.entity.kind === 'grade' ? navigation.navigate('settings', { gradeNonce: String(Date.now()) }) : navigation.navigate(receipt.entity.kind === 'memo' ? 'memos' : receipt.entity.kind === 'task' ? 'tasks' : receipt.entity.kind === 'memory' ? 'settings' : 'habits')) : null}
+    {receipt ? button(receipt.entity.kind === 'memory' ? '在助手配置查看记忆' : receipt.entity.kind === 'activity' ? '查看活动计划' : '查看记录', () => receipt.entity.kind === 'reminder' ? navigation.navigate('settings', { reminderNonce: String(Date.now()) }) : receipt.entity.kind === 'memory' ? navigation.navigate('settings', { assistantNonce: String(Date.now()) }) : receipt.entity.kind === 'activity' ? navigation.navigate('settings', { dailyNonce: String(Date.now()) }) : receipt.entity.kind === 'grade' ? navigation.navigate('settings', { gradeNonce: String(Date.now()) }) : navigation.navigate(receipt.entity.kind === 'memo' ? 'memos' : receipt.entity.kind === 'task' ? 'tasks' : 'habits')) : null}
     {error || result.message ? <Text style={{ fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{error || result.message}</Text> : null}
   </View>;
 }

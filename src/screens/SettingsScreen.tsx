@@ -35,6 +35,10 @@ export function SettingsScreen() {
   const [remindersVisible, setRemindersVisible] = useState(false);
   const route = useRoute();
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
+  const assistantNonce = (route.params as { assistantNonce?: string } | undefined)?.assistantNonce;
+  const dailyNonce = (route.params as { dailyNonce?: string } | undefined)?.dailyNonce;
+  useEffect(() => { if (assistantNonce) setAssistantVisible(true); }, [assistantNonce]);
+  useEffect(() => { if (dailyNonce) setDailyVisible(true); }, [dailyNonce]);
   const gradeNonce = (route.params as { gradeNonce?: string } | undefined)?.gradeNonce;
   useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
   useEffect(() => { if (gradeNonce) setGradesVisible(true); }, [gradeNonce]);
@@ -106,7 +110,7 @@ export function SettingsScreen() {
           <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
           <SettingRow label="QQ收件" value="扫码绑定 · 前台读取 · 附件重试" onPress={() => setQqVisible(true)} />
           <SettingRow label="成绩记录" value="课程 · 学期 · 平均与加权计算" onPress={() => setGradesVisible(true)} />
-          <SettingRow label="日用记录与整理" value="活动依据 · 选择整理 · 可撤销历史" onPress={() => setDailyVisible(true)} />
+          <SettingRow label="日用记录与整理" value="活动计划 · 完成打卡 · 选择与撤销" onPress={() => setDailyVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
 

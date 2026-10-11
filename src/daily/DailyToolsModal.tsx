@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 import { useHabits } from '../state/HabitStore';
 import { shanghaiDate, DAY } from '../reminders/planner';
+import { ActivityManager } from './ActivityManager';
 import { dailyService } from './index';
 import { type TrainingHistory } from './service';
 
@@ -11,7 +12,8 @@ type Candidate = { id: string; title: string; revision: number; group_id: string
 type BatchView = Awaited<ReturnType<typeof dailyService.getOrganizationBatch>>;
 export function DailyToolsModal({ visible, onClose }: { visible: boolean; onClose(): void }) {
   const { theme } = useHabits(), c = theme.colors;
-  const [tab,setTab] = useState<'training' | 'organize'>('training'), [busy,setBusy] = useState(false);
+  const [activityBusy,setActivityBusy] = useState(false);
+  const [tab,setTab] = useState<'activities' | 'training' | 'organize'>('activities'), [busy,setBusy] = useState(false);
   const [from,setFrom] = useState(shanghaiDate(Date.now() - 29 * DAY)), [through,setThrough] = useState(shanghaiDate(Date.now()));
   const [kind,setKind] = useState(''), [history,setHistory] = useState<TrainingHistory | null>(null);
   const [entity,setEntity] = useState<'memo' | 'task'>('memo'), [candidates,setCandidates] = useState<Candidate[]>([]);
@@ -28,6 +30,7 @@ export function DailyToolsModal({ visible, onClose }: { visible: boolean; onClos
       .catch(() => { if (active) Alert.alert('读取未完成','记录仍保留，请关闭后重试。'); });
     return () => { active = false; alive.current = false; generation.current++; };
   },[visible,entity]);
+  useEffect(() => { if (visible) setTab('activities'); }, [visible]);
   async function refresh() {
     const current = generation.current;
     const [rows,b] = await Promise.all([dailyService.listOrganizationCandidates(entity),dailyService.listOrganizationBatches()]);
@@ -44,20 +47,21 @@ export function DailyToolsModal({ visible, onClose }: { visible: boolean; onClos
     else if (selected.length < 20) setSelected(items => [...items,row]);
     else Alert.alert('已选20条','请减少选择后继续。');
   }
-  const button = (label:string,action:()=>void,disabled=false) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} disabled={busy || disabled} style={{ padding:10,opacity:busy || disabled ? 0.4 : 1 }}><Text style={{ fontSize:13,color:c.primary }}>{label}</Text></Pressable>;
+  const button = (label:string,action:()=>void,disabled=false) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} disabled={busy || activityBusy || disabled} style={{ padding:10,opacity:busy || activityBusy || disabled ? 0.4 : 1 }}><Text style={{ fontSize:13,color:c.primary }}>{label}</Text></Pressable>;
   const muted = { color:c.textSecondary,fontSize:12,lineHeight:19 };
   const input = { borderColor:c.border,borderWidth:1,borderRadius:6,padding:9,color:c.textPrimary,fontSize:14,backgroundColor:c.surface };
   const statusLabel = { active:'计划中',completed:'已完成',cancelled:'已取消' };
   const groupName = (id:string | null) => id ? groups.find(row => row.id === id)?.name ?? '原分类' : '未分类';
-  return <Modal visible={visible} animationType="slide" onRequestClose={() => { if (!busy) preview ? setPreview(null) : onClose(); }}>
+  return <Modal visible={visible} animationType="slide" onRequestClose={() => { if (!busy && !activityBusy) preview ? setPreview(null) : onClose(); }}>
     <SafeAreaView style={{ flex:1,backgroundColor:c.background }}>
       <View style={{ flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderBottomWidth:1,borderBottomColor:c.border,paddingHorizontal:8 }}>
         {button(preview ? '返回整理' : '关闭日用记录',()=>preview ? setPreview(null) : onClose())}
         <Text style={{ fontSize:14,fontWeight:'600',color:c.textPrimary }}>日用记录与整理</Text><View style={{ width:30 }} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding:16,gap:12 }}>
-        <View style={{ flexDirection:'row' }}>{button(tab === 'training' ? '训练依据 ✓' : '训练依据',()=>{ setTab('training'); setPreview(null); })}{button(tab === 'organize' ? '可恢复整理 ✓' : '可恢复整理',()=>setTab('organize'))}</View>
-        {tab === 'training' ? <>
+        <View style={{ flexDirection:'row',flexWrap:'wrap' }}>{button(tab === 'activities' ? '活动计划 ✓' : '活动计划',()=>{ setTab('activities'); setPreview(null); setHistory(null); })}{button(tab === 'training' ? '训练依据 ✓' : '训练依据',()=>{ setTab('training'); setPreview(null); })}{button(tab === 'organize' ? '可恢复整理 ✓' : '可恢复整理',()=>setTab('organize'))}</View>
+        <View style={{ display:tab === 'activities' ? 'flex' : 'none' }}><ActivityManager visible={visible && tab === 'activities'} onBusyChange={setActivityBusy} /></View>
+        {tab === 'activities' ? null : tab === 'training' ? <>
           <Text style={muted}>查询活动及习惯打卡。留空类型时显示通用活动；填写保存活动时使用的类型，例如 training 或训练。</Text>
           <Text style={muted}>起止日期（上海时间，最多366天）</Text>
           <View style={{ flexDirection:'row',gap:8 }}><TextInput accessibilityLabel="训练起始日期" value={from} onChangeText={value=>{ setFrom(value); setHistory(null); }} editable={!busy} maxLength={10} style={[input,{ flex:1 }]} /><TextInput accessibilityLabel="训练结束日期" value={through} onChangeText={value=>{ setThrough(value); setHistory(null); }} editable={!busy} maxLength={10} style={[input,{ flex:1 }]} /></View>
