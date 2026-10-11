@@ -1,9 +1,11 @@
+import { createMemoryQueries } from '../memories/queries';
+import { createActivityQueries } from '../daily/activities';
 import { mutateMemo, listMemoMetadata, listMemoGroups } from '../memos/domain';
 import type { MemoCommand } from '../memos/commands';
 import { mutateGrade, createGradeQueries } from '../grades/store';
 import type { GradeCommand } from '../grades/commands';
 import { createDailyService } from '../daily/service';
-import { shanghaiTimestamp, type ReminderRow } from '../reminders/planner';
+import { shanghaiDate, shanghaiTimestamp, type ReminderRow } from '../reminders/planner';
 import { canonicalJson, commandSchema, dateKeyAt, documentRefsSchema, identifier, isDateKey, revision, type Command } from './commands';
 import { DomainError, type DocumentRef, type DomainDatabase, type DomainTransaction, type EntityRef, type ReadContext, type Receipt, type UiContext } from './types';
 
@@ -18,6 +20,7 @@ type Deps = { id: () => string; now: () => number; digest: (text: string) => Pro
 
 export function createDomain(db: DomainDatabase, deps: Deps) {
   const grades = createGradeQueries(db), daily = createDailyService(db, deps);
+  const queryMemories = createMemoryQueries(db), queryActivities = createActivityQueries(db);
   function parse(value: unknown): Command {
     const result = commandSchema.safeParse(value);
     if (!result.success) throw new DomainError('INVALID_ARGUMENT');
@@ -134,11 +137,13 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       case 'memory.correct': {
         const row = await target<MemoryRow>(tx, 'local_memories', cmd.id, cmd.expectedRevision);
         if (row.content === cmd.content) return changed('memory', row.id, row.revision, true);
+        if (row.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
         await tx.execute('UPDATE local_memories SET content=?,revision=revision+1,updated_at=? WHERE id=?', [cmd.content, updated, row.id]);
         return changed('memory', row.id, row.revision + 1);
       }
       case 'memory.forget': {
         const row = await target<MemoryRow>(tx, 'local_memories', cmd.id, cmd.expectedRevision);
+        if (row.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
         await tx.execute("UPDATE local_memories SET content='',forgotten=1,revision=revision+1,updated_at=? WHERE id=?", [updated, row.id]);
         await tx.execute("INSERT OR REPLACE INTO local_meta(id,value) VALUES('agent-context-boundary',?)", [String(now)]);
         // Pending corrections must not resurrect a forgotten fact or retain its text.
@@ -164,10 +169,11 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         const row = await target<ActivityRow>(tx, 'local_activities', cmd.id);
         if (row.status !== 'active') throw new DomainError('ACTIVITY_CLOSED');
         if (row.revision !== cmd.expectedRevision) throw new DomainError('VERSION_CONFLICT');
+        if (row.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
         let checkin: EntityRef | undefined;
         if (cmd.type === 'activity.complete' && row.habit_id) {
           await activeHabit(tx, row.habit_id);
-          checkin = await addCheckin(tx, row.habit_id, Math.floor(now / 60000) * 60000, dateKeyAt(now), cmd.note);
+          checkin = await addCheckin(tx, row.habit_id, Math.floor(now / 60000) * 60000, shanghaiDate(now), cmd.note);
         }
         await tx.execute('UPDATE local_activities SET status=?,completion_note=?,checkin_id=?,completed_at=?,revision=revision+1,updated_at=? WHERE id=?',
           [cmd.type === 'activity.complete' ? 'completed' : 'cancelled', cmd.type === 'activity.complete' ? cmd.note : null, checkin?.id ?? null, now, updated, row.id]);
@@ -236,6 +242,8 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         return tx.getAll<{ id: string; habit_id: string; date_key: string; timestamp: number; note: string; revision: number }>('SELECT id,habit_id,date_key,timestamp,note,revision FROM checkins WHERE habit_id=? AND deleted=0 AND date_key>=? AND date_key<=? ORDER BY timestamp DESC,id LIMIT ?', [options.habitId, options.from, options.through, limit(options.limit)]);
       });
     },
+    queryMemories,
+    queryActivities,
     async listMemories(options: { limit?: number } = {}): Promise<MemoryRow[]> {
       return db.readTransaction(tx => tx.getAll<MemoryRow>('SELECT * FROM local_memories WHERE forgotten=0 ORDER BY updated_at DESC,id LIMIT ?', [limit(options.limit)]));
     },
