@@ -32,11 +32,13 @@ export async function mutateGrade(tx: DomainTransaction, command: GradeCommand, 
     const score = decimalUnits(cmd.score, 10000), credit = cmd.credits === null ? null : decimalUnits(cmd.credits, 10000);
     const sourceRefs = refs.length ? JSON.stringify(refs) : existing?.source_refs ?? '[]';
     unchanged = !!existing && existing.course === cmd.course && existing.term === cmd.term && existing.score_units === score && existing.credit_units === credit && existing.note === cmd.note && existing.source_refs === sourceRefs;
+    if (existing && !unchanged && existing.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
     if (existing && !unchanged) await tx.execute('UPDATE local_grades SET course=?,term=?,score_units=?,credit_units=?,note=?,source_refs=?,revision=revision+1,updated_at=? WHERE id=?', [cmd.course, cmd.term, score, credit, cmd.note, sourceRefs, updated, id]);
     if (!existing) await tx.execute('INSERT INTO local_grades(id,course,term,score_units,credit_units,note,source_refs,deleted,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,0,1,?,?)', [id, cmd.course, cmd.term, score, credit, cmd.note, sourceRefs, now, updated]);
   } else {
     const deleted = cmd.type === 'grade.trash' ? 1 : 0;
     unchanged = existing!.deleted === deleted;
+    if (!unchanged && existing!.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
     if (!unchanged) await tx.execute('UPDATE local_grades SET deleted=?,revision=revision+1,updated_at=? WHERE id=?', [deleted, updated, id]);
   }
   return { disposition: unchanged ? 'unchanged' as const : 'committed' as const, entity: { kind: 'grade' as const, id, revision: (existing?.revision ?? 0) + (unchanged ? 0 : 1) } };

@@ -50,18 +50,22 @@ export async function mutateMemo(tx: DomainTransaction, value: MemoCommand, deps
   const row = await tx.getOptional<MemoRow>("SELECT * FROM documents WHERE id=? AND kind='memo'", [command.id]);
   if (!row || (command.type === 'memo.update' && row.deleted)) throw new DomainError('NOT_FOUND');
   if (row.revision !== command.expectedRevision) throw new DomainError('VERSION_CONFLICT');
+  const requireNextRevision = () => { if (row.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT'); };
   if (command.type === 'memo.update') {
     await checkGroup(tx, command.groupId);
     if (row.title === command.title && row.body === command.body && row.group_id === command.groupId)
       return result(row.id, row.revision, true);
+    requireNextRevision();
     const order = row.group_id === command.groupId ? row.sort_order : await nextOrder(tx, command.groupId, row.id);
     await tx.execute('UPDATE documents SET title=?,body=?,group_id=?,sort_order=?,edited_at=?,revision=revision+1,updated_at=? WHERE id=?',
       [command.title, command.body, command.groupId, order, now, updated, row.id]);
   } else if (command.type === 'memo.trash') {
     if (row.deleted) return result(row.id, row.revision, true);
+    requireNextRevision();
     await tx.execute('UPDATE documents SET deleted=1,deleted_at=?,revision=revision+1,updated_at=? WHERE id=?', [now, updated, row.id]);
   } else {
     if (!row.deleted) return result(row.id, row.revision, true);
+    requireNextRevision();
     const group = row.group_id && await tx.getOptional("SELECT id FROM document_groups WHERE id=? AND kind='memo' AND deleted=0", [row.group_id]);
     const groupId = group ? row.group_id : null;
     const order = await nextOrder(tx, groupId, row.id);

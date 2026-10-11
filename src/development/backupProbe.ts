@@ -16,6 +16,10 @@ import { validateManifest } from '../backup/model';
 import { createWeixinInbox } from '../channels/weixin/inbox';
 import { createWeixinIntake, projectWeixinMessage } from '../channels/weixin/intake';
 import { API_BASE } from '../channels/weixin/protocol';
+import { createQqProductInbox } from '../channels/qq/productInbox';
+import { createQqIntake } from '../channels/qq/intake';
+import type { QqMedia } from '../channels/qq/protocol';
+import { createDailyService } from '../daily/service';
 import type { DomainDatabase, DomainTransaction } from '../domain/types';
 
 export async function runBackupProbe() {
@@ -30,7 +34,7 @@ export async function runBackupProbe() {
   const ensure=(v:unknown)=>{if(!v)throw new Error('Synthetic backup check failed');};let phase='source';
   try {
     await source.init();await target.init();
-    const store=createMaterialStore(source,deps),agent=createAgentStore(source,deps),domain=createDomain(source,deps);
+    const store=createMaterialStore(source,deps),agent=createAgentStore(source,deps),domain=createDomain(source,deps),daily=createDailyService(source,deps);
     const diary=deps.id(),habit=deps.id(),now=Date.now(),stamp=new Date(now).toISOString();
     await source.execute('INSERT INTO documents(id,kind,title,body,date,group_id,sort_order,created_at,edited_at,deleted_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,NULL,0,?,?,NULL,1,0,?)',[diary,'diary','合成日记','合成日记原文','2026-10-10',now,now,stamp]);
     await source.execute('INSERT INTO local_drafts(id,kind,title,body,date,group_id,document_id,base_revision,base_content) VALUES(?,?,?,?,?,NULL,?,1,?)',[deps.id(),'diary','合成草稿','尚未保存的草稿','2026-10-10',diary,JSON.stringify({title:'合成日记',body:'合成日记原文',date:'2026-10-10',group_id:null})]);
@@ -49,6 +53,19 @@ export async function runBackupProbe() {
     const command={type:'task.create' as const,title:'合成恢复待办',note:'',dueDateKey:null,dueTime:null};
     const proposal=await domain.propose(command,{proposalId:deps.id(),requestId:request.id,documentRefs:refs});
     const receipt=await domain.acceptProposal(proposal.id,1,{actor:'ui',operationId:deps.id()});
+    phase='memo-organization-fixture';
+    const memoCommand={type:'memo.create' as const,title:'合成引用备忘录',body:'备忘录合成原文，整理后应保留。',groupId:null};
+    const memoProposal=await domain.propose(memoCommand,{proposalId:deps.id(),requestId:request.id,documentRefs:refs});
+    const memoReceipt=await domain.acceptProposal(memoProposal.id,1,{actor:'ui',operationId:deps.id()});
+    await agent.putResult(deps.id(),request.id,{command:memoCommand,status:'saved',receipt:memoReceipt,proposalId:memoProposal.id});
+    const memoGroup=deps.id(),organizationBatch=deps.id(),organizationPreview=deps.id();
+    await source.execute("INSERT INTO document_groups(id,kind,name,sort_order,created_at,revision,deleted,updated_at) VALUES(?,'memo','合成整理分类',0,?,1,0,?)",[memoGroup,now,stamp]);
+    await daily.previewOrganization({type:'memo.move',targets:[{id:memoReceipt.entity.id,expectedRevision:1}],groupId:memoGroup},{actor:'ui',batchId:organizationBatch});
+    await daily.confirmOrganization(organizationBatch,1,{actor:'ui'});
+    await daily.previewOrganization({type:'memo.move',targets:[{id:memoReceipt.entity.id,expectedRevision:2}],groupId:null},{actor:'ui',batchId:organizationPreview});
+    phase='grade-fixture';
+    const gradeTerm='合成原生学期';
+    const gradeReceipt=await domain.execute({type:'grade.create',course:'  合成备份成绩甲  ',term:gradeTerm,score:'88.33',credits:'1.25',note:'合成成绩'},{actor:'ui',operationId:deps.id()});
     const pending=await domain.propose({type:'task.create',title:'不应自动执行'},{proposalId:deps.id(),requestId:request.id,documentRefs:refs});
     await agent.putResult(deps.id(),request.id,{command,status:'saved',receipt,proposalId:proposal.id});
     await agent.finish(request.id,'合成聊天历史','complete',null);
@@ -68,10 +85,29 @@ export async function runBackupProbe() {
     await intake.save(items.find(i=>i.kind==='text')!.id,new AbortController().signal);
     ensure((await inbox.commit(binding,'synthetic-cursor',packet)).saved===0);
     ensure((await intake.list()).length===2);
+    phase='qq-product';
+    // All descriptors stay in memory. This exercises the product projection without an account,
+    // SecureStore namespace, socket, URL fetch or model call.
+    const qqBinding={appId:'100000',appSecret:'SYNTHETIC_QQ_CREDENTIAL',userOpenid:'synthetic-qq-owner'},qqSession={session_id:'SYNTHETIC_QQ_SESSION',seq:0};
+    const qqMedia=new Map<string,QqMedia>();
+    const qqInbox=createQqProductInbox(source,{...deps,stage:async(id,descriptor)=>{qqMedia.set(id,descriptor);},release:async id=>{qqMedia.delete(id);}});
+    await qqInbox.ready(qqBinding,qqSession.session_id,qqSession.seq);
+    const qqFrame={op:0,s:1,t:'C2C_MESSAGE_CREATE',d:{id:'synthetic-qq-message',author:{user_openid:qqBinding.userOpenid},timestamp:stamp,content:'合成QQ文本',attachments:[
+      {url:'https://grouptalk.c2c.qq.com/synthetic-text?token=SYNTHETIC_QQ_MEDIA_CAPABILITY',filename:'合成QQ附件.txt',content_type:'text/plain',size:4},
+      {url:'https://grouptalk.c2c.qq.com/synthetic-image?token=SYNTHETIC_QQ_MEDIA_CAPABILITY',filename:'合成QQ图片.png',content_type:'image/png',size:4},
+    ]}};
+    ensure((await qqInbox.commit(qqBinding,qqSession,qqFrame)).saved===1);
+    const qqIntake=createQqIntake(source,store,{media:async id=>qqMedia.get(id)??null,releaseMedia:async id=>{qqMedia.delete(id);},saveText:async()=>materials[0],saveMedia:async()=>materials[0]});
+    const qqItems=await qqIntake.list();ensure(qqItems.length===3);
+    const qqSavedId=qqItems.find(item=>item.filename==='合成QQ附件.txt')!.id,qqPendingId=qqItems.find(item=>item.filename==='合成QQ图片.png')!.id;
+    await qqIntake.save(qqSavedId,new AbortController().signal);
+    ensure((await qqIntake.get(qqSavedId))?.material_id===materials[0].id&&qqMedia.size===1);
     phase='snapshot';
     const portable=await portableSnapshot(await captureBackup(source),backupNative.inspect);
-    ensure(portable.manifest.version===2&&portable.manifest.rows.local_weixin_items.length===2);
+    ensure(portable.manifest.version===3&&portable.manifest.rows.local_weixin_items.length===2&&portable.manifest.rows.local_qq_items.length===3);
+    ensure(portable.manifest.rows.local_grades.length===1&&portable.manifest.rows.local_organization_batches.length===2);
     ensure(!portable.text.includes('SYNTHETIC_PRIVATE_MARKER')&&!portable.text.includes('local_agent_grants')&&!portable.text.includes('file://')&&!portable.text.includes(binding.token)&&!portable.text.includes(binding.userId)&&!portable.text.includes('SYNTHETIC_DOWNLOAD_CAPABILITY'));
+    ensure(portable.manifest.rows.local_qq_items.every(item=>item.capability_id===null)&&!portable.text.includes(qqBinding.appSecret)&&!portable.text.includes(qqBinding.userOpenid)&&!portable.text.includes('SYNTHETIC_QQ_MEDIA_CAPABILITY')&&!portable.text.includes(qqSession.session_id)&&!portable.text.includes('qq_product_sessions')&&!portable.text.includes('qq_product_messages'));
     const packed=await backupNative.pack(portable.text,portable.files);stages.push(packed.id);
     const input=await backupNative.unpack(packed.uri);stages.push(input.id);
     const manifest=validateManifest(JSON.parse(input.manifest));
@@ -83,6 +119,20 @@ export async function runBackupProbe() {
     let targetAgent=createAgentStore(target,deps),targetDomain=createDomain(target,deps);
     ensure((await targetAgent.settings()).persona?.enabled===0);
     ensure((await target.getOptional<{body:string}>('SELECT body FROM documents WHERE id=?',[diary]))?.body==='合成日记原文'&&(await target.getAll('SELECT id FROM local_drafts')).length===1);
+    phase='v3-inert-history';
+    const targetDaily=createDailyService(target,deps);
+    ensure((await target.getOptional<{body:string;group_id:string;revision:number}>('SELECT body,group_id,revision FROM documents WHERE id=?',[memoReceipt.entity.id]))?.body===memoCommand.body);
+    ensure((await target.getOptional<{group_id:string;revision:number}>('SELECT group_id,revision FROM documents WHERE id=?',[memoReceipt.entity.id]))?.group_id===memoGroup);
+    ensure((await target.getOptional<{receipt:string}>('SELECT receipt FROM local_proposals WHERE id=?',[memoProposal.id]))?.receipt===JSON.stringify(memoReceipt));
+    ensure((await target.getAll('SELECT id FROM local_agent_sources WHERE request_id=?',[request.id])).length===materials.length);
+    for(const [id,version] of [[organizationBatch,2],[organizationPreview,1]] as const) {
+      ensure((await targetDaily.getOrganizationBatch(id)).status==='restored');
+      for(const action of ['confirm','undo'] as const) { let blocked=false;try { if(action==='confirm')await targetDaily.confirmOrganization(id,version,{actor:'ui'});else await targetDaily.undoOrganization(id,version,{actor:'ui'}); } catch(error) { blocked=!!error&&typeof error==='object'&&'code' in error&&error.code==='BATCH_CLOSED'; }ensure(blocked); }
+    }
+    ensure((await target.getOptional<{group_id:string;revision:number}>('SELECT group_id,revision FROM documents WHERE id=?',[memoReceipt.entity.id]))?.revision===2);
+    const initialGrade=await target.getOptional<{course:string;score_units:number;credit_units:number}>('SELECT course,score_units,credit_units FROM local_grades WHERE id=?',[gradeReceipt.entity.id]);
+    ensure(initialGrade?.course==='合成备份成绩甲'&&initialGrade.score_units===8833&&initialGrade.credit_units===125);
+    const initialSummary=await targetDomain.summarizeGrades({term:gradeTerm});ensure(initialSummary.complete&&initialSummary.matched===1&&initialSummary.average==='88.33'&&initialSummary.weightedAverage==='88.33');
     ensure((await targetDomain.listActivities({status:'completed'})).length===1&&(await target.getAll('SELECT id FROM checkins')).length===1);
     ensure((await targetDomain.listReminders()).find(r=>r.id===reminder.entity.id)?.enabled===0);
     ensure((await targetAgent.requests(session))[0].status==='restored'&&(await targetAgent.grants(request.id)).length===0);
@@ -94,6 +144,12 @@ export async function runBackupProbe() {
     const restoredItems=await targetIntake.list();ensure(restoredItems.length===2&&restoredItems.every(i=>i.capability_id===null));
     ensure(restoredItems.find(i=>i.kind==='text')?.material_id===materials[0].id&&restoredItems.find(i=>i.kind==='media')?.status==='restored');
     denied=false;try { await targetIntake.save(restoredItems.find(i=>i.kind==='media')!.id,new AbortController().signal); } catch { denied=true; }ensure(denied);
+    const targetQq=createQqIntake(target,targetStore,{media:async()=>null,releaseMedia:async()=>{},saveText:async()=>{throw new Error('Synthetic restored text must be inert');},saveMedia:async()=>{throw new Error('Synthetic restored media must be inert');}});
+    const restoredQq=await targetQq.list();ensure(restoredQq.length===3&&restoredQq.every(item=>item.capability_id===null));
+    ensure(restoredQq.find(item=>item.id===qqSavedId)?.material_id===materials[0].id&&restoredQq.find(item=>item.id===qqPendingId)?.status==='restored');
+    ensure((await targetQq.save(qqSavedId,new AbortController().signal)).id===materials[0].id);
+    denied=false;try {await targetQq.save(qqPendingId,new AbortController().signal);}catch {denied=true;}ensure(denied);
+    ensure((await target.getAll('SELECT id FROM qq_product_sessions')).length===0&&(await target.getAll('SELECT id FROM qq_product_messages')).length===0);
     for(const m of materials) {
       const imported=await targetStore.get(m.id);ensure(imported&&imported.uri!==m.uri&&imported.body===m.body);
       const original=await backupNative.inspect(imported!.uri,'material');ensure(original.hash===m.hash);
@@ -101,6 +157,9 @@ export async function runBackupProbe() {
     }
     phase='conflict-rollback';
     await target.execute('UPDATE tasks SET title=?,revision=revision+1 WHERE id=?',['现有修改保留',receipt.entity.id]);
+    const retainedGrade=await targetDomain.execute({type:'grade.create',course:'合成身份冲突',term:gradeTerm,score:'99.01',credits:'2.75',note:'本机成绩应保留'},{actor:'ui',operationId:deps.id()});
+    const conflictingGrade=await domain.execute({type:'grade.create',course:'合成身份冲突',term:gradeTerm,score:'10.00',credits:'1.00',note:'不同ID同身份，不能重复计入'},{actor:'ui',operationId:deps.id()});
+    ensure(retainedGrade.entity.id!==conflictingGrade.entity.id);
     const independent=await domain.execute({type:'task.create',title:'独立合成待办'},{actor:'ui',operationId:deps.id()});
     const next=await portableSnapshot(await captureBackup(source),backupNative.inspect);
     const nextPack=await backupNative.pack(next.text,next.files);stages.push(nextPack.id);
@@ -113,8 +172,13 @@ export async function runBackupProbe() {
     })};
     denied=false;try {await restoreBackup(failed,nextManifest,nextOptions);}catch {denied=true;}ensure(denied);
     ensure(!await target.getOptional('SELECT id FROM tasks WHERE id=?',[independent.entity.id])&&!await target.getOptional('SELECT id FROM local_backup_archives'));
+    ensure(!await target.getOptional('SELECT id FROM local_grades WHERE id=?',[conflictingGrade.entity.id]));
     const merged=await restoreBackup(target,nextManifest,nextOptions);ensure(merged.conflicts>0&&merged.added>0);
     ensure((await target.getOptional<{title:string}>('SELECT title FROM tasks WHERE id=?',[receipt.entity.id]))?.title==='现有修改保留');
+    phase='grade-identity-conflict';
+    ensure(!await target.getOptional('SELECT id FROM local_grades WHERE id=?',[conflictingGrade.entity.id]));
+    ensure((await target.getOptional<{score_units:number;credit_units:number}>('SELECT score_units,credit_units FROM local_grades WHERE id=?',[retainedGrade.entity.id]))?.score_units===9901);
+    const retainedSummary=await targetDomain.summarizeGrades({term:gradeTerm});ensure(retainedSummary.complete&&retainedSummary.matched===2&&retainedSummary.average==='93.67'&&retainedSummary.weightedAverage==='95.67');
     phase='archive-roundtrip';
     const archived=await portableSnapshot(await captureBackup(target),backupNative.inspect);ensure(archived.manifest.blobs.some(b=>b.role==='archive'));
     const archivePack=await backupNative.pack(archived.text,archived.files);stages.push(archivePack.id);
@@ -127,8 +191,10 @@ export async function runBackupProbe() {
     phase='reopen';await target.close();target=new PowerSyncDatabase({schema:createDatabaseSchema(),database:{dbFilename:names[1]}});await target.init();
     ensure((await target.getAll('SELECT id FROM tasks')).length===2&&(await target.getAll('SELECT id FROM local_backup_archives')).length===1);
     ensure((await target.getAll('SELECT id FROM local_weixin_items')).length===2);
+    ensure((await target.getAll('SELECT id FROM local_qq_items')).length===3&&(await target.getAll('SELECT id FROM local_grades')).length===2&&(await target.getAll("SELECT id FROM local_organization_batches WHERE status='restored'")).length===2);
+    ensure((await createDailyService(target,deps).getOrganizationBatch(organizationBatch)).status==='restored');
     ensure((await target.getUploadQueueStats()).count===0);
-    new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'passed',syntheticOnly:true,fullObjects:true,zipRoundtrip:true,relocatedFiles:true,integrity:true,repeated:true,conflictPreserved:true,lateRollback:true,archiveRoundtrip:true,zipBoundaries:true,inertHistory:true,weixinHistory:true,reopen:true,localQueue:0,modelCalls:0}));
+    new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'passed',syntheticOnly:true,fullObjects:true,zipRoundtrip:true,relocatedFiles:true,integrity:true,repeated:true,conflictPreserved:true,lateRollback:true,archiveRoundtrip:true,zipBoundaries:true,inertHistory:true,weixinHistory:true,grades:true,gradeIdentityConflict:true,memoHistory:true,qqHistory:true,organizationHistory:true,credentialsExcluded:true,reopen:true,localQueue:0,modelCalls:0}));
   } catch {new File(Paths.document,'lime-p5-backup-probe.json').write(JSON.stringify({status:'failed',phase,syntheticOnly:true,modelCalls:0}));throw new Error('Synthetic backup probe failed');}
   finally {
     try {await source.close();}catch{}try {await target.close();}catch{}

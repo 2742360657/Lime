@@ -64,9 +64,9 @@ wait('完整备份验证通过')
 result = json.loads(adb('shell', 'run-as', PACKAGE, 'cat', 'files/lime-p5-backup-probe.json'))
 assert result['status'] == 'passed' and result['localQueue'] == 0
 assert result['syntheticOnly'] is True and result['modelCalls']==0
-assert all(result[field] for field in ('fullObjects','zipRoundtrip','relocatedFiles','integrity','repeated','conflictPreserved','lateRollback','archiveRoundtrip','zipBoundaries','inertHistory','weixinHistory','reopen'))
+assert all(result[field] for field in ('fullObjects','zipRoundtrip','relocatedFiles','integrity','repeated','conflictPreserved','lateRollback','archiveRoundtrip','zipBoundaries','inertHistory','weixinHistory','grades','gradeIdentityConflict','memoHistory','qqHistory','organizationHistory','credentialsExcluded','reopen'))
 path = ROOT / '.local' / 'p5-backup-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)
 # English/Chinese system button labels vary. The result is already persisted.
-print('PASS native complete backup ZIP, relocated originals, immutable history, conflicts, late rollback, archive roundtrip, bounded rejection, SQLite reopen and zero queue; no model')
+print('PASS native complete v3 backup ZIP, exact grades and identity conflicts, memo/QQ/organization history, credential exclusion, relocated originals, late rollback, archive roundtrip, bounded rejection, SQLite reopen and zero queue; no model')

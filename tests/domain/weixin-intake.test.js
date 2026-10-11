@@ -107,7 +107,7 @@ async function packageSnapshot() {
 }
 test('v2 exports saved material references and inert pending history, excludes all transport identity/cursor/capabilities', async () => {
   await receive(); await intake.save((await intake.list()).find(i => i.kind === 'text').id, signal());
-  const m = await packageSnapshot(); expect(m.version).toBe(2); expect(m.rows.local_weixin_items).toHaveLength(2);
+  const m = await packageSnapshot(); expect(m.version).toBe(3); expect(m.rows.local_weixin_items).toHaveLength(2);
   expect(m.rows.weixin_accounts).toBeUndefined(); expect(JSON.stringify(m)).not.toContain(binding.userId); expect(JSON.stringify(m)).not.toContain('SYNTHETIC_DOWNLOAD_CAPABILITY');
   expect(m.rows.local_weixin_items.every(i => i.capability_id === null)).toBe(true);
   expect(await restoreBackup(target,m,restoreArgs)).toMatchObject({ added: 3, conflicts: 0 });
@@ -117,8 +117,9 @@ test('v2 exports saved material references and inert pending history, excludes a
   expect(await restoreBackup(target,m,{...restoreArgs,digest:'c'.repeat(64)})).toMatchObject({added:0,skipped:3,conflicts:0});
 });
 test('old 24-table version 1 ZIP manifests still normalize and restore', async () => {
-  const m = await captureBackup(db); m.version = 1; delete m.rows.local_weixin_items;
-  const normalized = validateManifest(m); expect(normalized.rows.local_weixin_items).toEqual([]); expect(normalized.version).toBe(2);
+  const m = await captureBackup(db); m.version = 1;
+  for (const table of ['local_weixin_items','local_qq_items','local_grades','local_organization_batches']) delete m.rows[table];
+  const normalized = validateManifest(m); expect(normalized.rows.local_weixin_items).toEqual([]); expect(normalized.version).toBe(3);
   expect(await restoreBackup(target,m,restoreArgs)).toMatchObject({added:0,conflicts:0});
 });
 test('incoming capability fields, bad material references and conflicting parents never become executable restored items', async () => {

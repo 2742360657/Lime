@@ -1,10 +1,10 @@
 # P5-04 本机完整数据包与恢复契约
 
-日期：2026-10-10。手机独立模块，无服务器、云备份或新增账户。
+日期：2026-10-11。手机独立模块，无服务器、云备份或新增账户。
 
 ## 格式与范围
 
-ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/java/util/zip/ZipInputStream)，不自写归档/压缩算法。固定manifest.json（lime-local-backup/version 2；兼容历史version 1）及blobs/<SHA256>.bin，目录名不直接用作目标路径。结合[官方路径穿越建议](https://developer.android.com/privacy-and-security/risks/zip-path-traversal)拒绝未知/重复条目、路径穿越、非法UTF-8、超限及hash不符。
+ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/java/util/zip/ZipInputStream)，不自写归档/压缩算法。固定manifest.json（lime-local-backup/version 3；兼容历史version 1/2）及blobs/<SHA256>.bin，目录名不直接用作目标路径。结合[官方路径穿越建议](https://developer.android.com/privacy-and-security/risks/zip-path-traversal)拒绝未知/重复条目、路径穿越、非法UTF-8、超限及hash不符。
 
 覆盖普通SQLite数据：分类、日记/备忘录、待办、习惯/打卡、编辑草稿/冲突原文、显式记忆、活动、人格原文、聊天/请求、来源快照、建议/结果、操作回执、材料正文/原件/分析图片、提醒规则；历史来源摘录/恢复快照和模型名称使用明确local_meta白名单。以前完整恢复的冲突包作为不自动解压的原始ZIP一并携带，保持恢复副本可再导出。
 
@@ -26,4 +26,8 @@ ZIP使用Android系统[java.util.zip](https://developer.android.com/reference/ja
 
 先实现固定schema/投影/安全恢复计划与事务，再实现系统ZIP边界、设置入口与隔离原生探针。开发中登记案例，阶段结束集中检查：全对象回环/跨目录路径改写、hash与引用拒绝、缺件/损坏/路径攻击/超限、重复/版本冲突及依赖隔离、事务失败、恢复历史不能执行、规则/人格停用、旧JSON兼容、手机原生ZIP/SQLite重开/零队列与普通记录摘要。人工系统保存/选择/取消另记结果。
 
-正式微信接入时扩展为25类普通对象（新增local_weixin_items）。媒体能力字段导出为null，账号/游标/协议缓冲不导出；恢复未保存项为只读历史，保存项关联原件。详见[正式微信契约](weixin-intake-contracts.md)。
+v3覆盖28类普通对象：v2的25类加local_qq_items、local_grades及local_organization_batches。v1/v2缺失的新表规范化为空，不凭空补造记录。两渠道媒体能力字段导出为null，真实账号凭据/会话/游标/协议缓冲不导出；恢复未保存项为只读历史，保存项关联原件。QQ验证沙箱不搬运到正式绑定。详见[微信契约](weixin-intake-contracts.md)与[QQ契约](qq-intake-contracts.md)。
+
+成绩来源引用复用最多4个严格id/revision/kind字段，拒绝伪造授权扩展字段；课程/学期须为去首尾空白的NFC存储形式。恢复时不同ID但相同有效课程/学期也算冲突，同包有多个身份相同的有效成绩时全部隔离，关联回执/建议沿原有冲突图隔离，原始包保留；不任选赢家、不重算成多门。已删除成绩历史可保留。统计遇到本机异常重复身份时拒算完整平均并提示核对。
+
+整理批次保留白名单元信息及审计回执，恢复后统一为restored，不能确认或撤销；原文不复制进批次快照。已在本机存在的可信批次不被覆盖，仍须全文摘要/版本守卫才能撤销。日记/备忘录正文、草稿和历史来源快照仍完整保留，历史引用不授权新读取。

@@ -4,6 +4,10 @@ import { Alert, DevSettings, DeviceEventEmitter } from 'react-native';
 // and never reads or migrates the application's existing JSON records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
+  DevSettings.addMenuItem('验证日用记录与整理', async () => {
+    try { const { runDailyProbe } = await import('./dailyProbe'); await runDailyProbe(); Alert.alert('日用记录验证通过', '隔离合成备忘录授权、成绩精确统计、活动打卡、整理守卫与重开撤销通过；没有读取普通库或调用模型。'); }
+    catch { Alert.alert('日用记录验证失败', '请检查当前原生包及私密阶段诊断；普通记录未参与验证。'); }
+  });
   DevSettings.addMenuItem('验证QQ手机组件', async () => {
     try { const {runQqProbe}=await import('./qqProbe');await runQqProbe();Alert.alert('QQ组件验证通过','隔离合成HTTP/WS、系统GCM、本人过滤、序号重开、会话恢复/失效、附件和P3解析通过；未连接QQ账号或模型。'); }
     catch { Alert.alert('QQ组件验证失败','请检查当前原生包、Metro与8094合成服务，普通记录未修改。'); }

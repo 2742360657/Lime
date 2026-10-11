@@ -19,6 +19,7 @@ export async function assertMemoUpdate(tx: DomainTransaction, id: string,
   if (!patchSchema.safeParse(patch).success) throw new DomainError('INVALID_ARGUMENT');
   const doc = await tx.getOptional<{ kind: string; revision: number; deleted: number; title: string; body: string; date: string; group_id: string | null }>('SELECT * FROM documents WHERE id=?', [id]);
   if (!doc || doc.kind !== 'memo' || doc.deleted) throw new DomainError('SOURCE_CHANGED');
+  if (!Number.isSafeInteger(doc.revision) || doc.revision < 1 || doc.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
   const groupId = patch.groupId === undefined ? doc.group_id : patch.groupId;
   if (groupId !== null && !await tx.getOptional("SELECT id FROM document_groups WHERE id=? AND kind='memo' AND deleted=0", [groupId]))
     throw new MemoClassificationError();
