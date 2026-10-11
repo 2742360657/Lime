@@ -1,6 +1,10 @@
-import { z } from 'zod';
+import { mutateMemo, listMemoMetadata, listMemoGroups } from '../memos/domain';
+import type { MemoCommand } from '../memos/commands';
+import { mutateGrade, createGradeQueries } from '../grades/store';
+import type { GradeCommand } from '../grades/commands';
+import { createDailyService } from '../daily/service';
 import { shanghaiTimestamp, type ReminderRow } from '../reminders/planner';
-import { canonicalJson, commandSchema, dateKeyAt, identifier, isDateKey, revision, type Command } from './commands';
+import { canonicalJson, commandSchema, dateKeyAt, documentRefsSchema, identifier, isDateKey, revision, type Command } from './commands';
 import { DomainError, type DocumentRef, type DomainDatabase, type DomainTransaction, type EntityRef, type ReadContext, type Receipt, type UiContext } from './types';
 
 type BaseRow = { id: string; revision: number; deleted?: number };
@@ -11,9 +15,9 @@ export type ActivityRow = BaseRow & { kind: string; title: string; note: string;
 export type ProposalRow = BaseRow & { command: string; source_refs: string; status: string; request_id: string; operation_id: string | null; receipt: string | null };
 type SavedOperation = { fingerprint: string; receipt: string };
 type Deps = { id: () => string; now: () => number; digest: (text: string) => Promise<string> };
-const refsSchema = z.array(z.strictObject({ id: identifier, revision, kind: z.literal('attachment').optional() })).max(4);
 
 export function createDomain(db: DomainDatabase, deps: Deps) {
+  const grades = createGradeQueries(db), daily = createDailyService(db, deps);
   function parse(value: unknown): Command {
     const result = commandSchema.safeParse(value);
     if (!result.success) throw new DomainError('INVALID_ARGUMENT');
@@ -34,7 +38,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     return value;
   }
   function checkedRefs(refs: DocumentRef[] = []) {
-    const parsed = refsSchema.safeParse(refs);
+    const parsed = documentRefsSchema.safeParse(refs);
     if (!parsed.success) throw new DomainError('INVALID_ARGUMENT');
     return parsed.data;
   }
@@ -62,7 +66,13 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       [id, habitId, dateKey, timestamp, note, now, new Date(now).toISOString()]);
     return { kind: 'checkin', id, revision: 1 };
   }
-  async function mutate(tx: DomainTransaction, cmd: Command): Promise<Omit<Receipt, 'operationId'>> {
+  function verifyMemoProposal(cmd: Command, refs: DocumentRef[]) {
+    if (cmd.type === 'memo.restore') throw new DomainError('PERMISSION_DENIED');
+    if ((cmd.type === 'memo.update' || cmd.type === 'memo.trash') && !refs.some(ref => ref.kind !== 'attachment' && ref.id === cmd.id && ref.revision === cmd.expectedRevision)) throw new DomainError('PERMISSION_DENIED');
+  }
+  async function mutate(tx: DomainTransaction, cmd: Command, refs: DocumentRef[]): Promise<Omit<Receipt, 'operationId'>> {
+    if (cmd.type.startsWith('memo.')) return mutateMemo(tx, cmd as MemoCommand, deps);
+    if (cmd.type.startsWith('grade.')) return mutateGrade(tx, cmd as GradeCommand, deps, refs);
     const now = deps.now(), updated = new Date(now).toISOString();
     const changed = (kind: EntityRef['kind'], id: string, revision: number, unchanged = false): Omit<Receipt, 'operationId'> =>
       ({ disposition: unchanged ? 'unchanged' : 'committed', entity: { kind, id, revision } });
@@ -164,6 +174,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         return { ...changed('activity', row.id, row.revision + 1), ...(checkin ? { related: checkin } : {}) };
       }
     }
+    throw new DomainError('INVALID_ARGUMENT');
   }
   async function commit(tx: DomainTransaction, command: Command, operationId: string, fingerprint: string, refs: DocumentRef[] = []): Promise<Receipt> {
     const saved = await tx.getOptional<SavedOperation>('SELECT fingerprint,receipt FROM local_operations WHERE id=?', [operationId]);
@@ -172,7 +183,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       return { ...JSON.parse(saved.receipt) as Receipt, disposition: 'replayed' };
     }
     await verifyRefs(tx, refs);
-    const receipt: Receipt = { ...await mutate(tx, command), operationId };
+    const receipt: Receipt = { ...await mutate(tx, command, refs), operationId };
     await tx.execute('INSERT INTO local_operations(id,fingerprint,receipt,created_at) VALUES(?,?,?,?)', [operationId, fingerprint, JSON.stringify(receipt), deps.now()]);
     return receipt;
   }
@@ -193,7 +204,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         const request = await tx.getOptional<{ status: string; source_refs: string }>('SELECT status,source_refs FROM local_agent_requests WHERE id=?', [requestId]);
         // Destructive/general modifications have no automatic grant even if a forged row appears.
         if (!grant || grant.request_id !== requestId || grant.command_type !== command.type || !request || request.status !== 'running' || request.source_refs !== '[]' ||
-          !['task.create', 'memory.remember', 'activity.start', 'activity.complete'].includes(command.type) ||
+          !['task.create', 'memo.create', 'memory.remember', 'activity.start', 'activity.complete'].includes(command.type) ||
           (command.type === 'activity.complete' && (!grant.target_id || grant.target_id !== command.id))) throw new DomainError('PERMISSION_DENIED');
         if (grant.fingerprint && grant.fingerprint !== fingerprint) throw new DomainError('PERMISSION_DENIED');
         const receipt = await commit(tx, command, grantId, fingerprint);
@@ -206,6 +217,11 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       if (!['open', 'done', 'all'].includes(status)) throw new DomainError('INVALID_ARGUMENT');
       return db.readTransaction(tx => tx.getAll<TaskRow>(`SELECT * FROM tasks WHERE deleted=0${status === 'all' ? '' : ' AND status=?'} ORDER BY sort_order,id LIMIT ?`, status === 'all' ? [limit(options.limit)] : [status, limit(options.limit)]));
     },
+    listMemos(options: Parameters<typeof listMemoMetadata>[1] = {}) { return db.readTransaction(tx => listMemoMetadata(tx, options)); },
+    listMemoGroups() { return db.readTransaction(tx => listMemoGroups(tx)); },
+    listGrades: grades.list,
+    summarizeGrades: grades.summary,
+    trainingHistory: daily.readTrainingHistory,
     async listHabits(options: { limit?: number } = {}): Promise<HabitRow[]> {
       return db.readTransaction(tx => tx.getAll<HabitRow>('SELECT * FROM habits WHERE deleted=0 AND archived_at IS NULL ORDER BY sort_order,id LIMIT ?', [limit(options.limit)]));
     },
@@ -243,6 +259,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     },
     async propose(value: unknown, context: { proposalId: string; requestId: string; documentRefs?: DocumentRef[] }): Promise<ProposalRow> {
       const command = parse(value), id = validId(context.proposalId), requestId = validId(context.requestId), refs = checkedRefs(context.documentRefs);
+      verifyMemoProposal(command, refs);
       const fingerprint = await deps.digest(canonicalJson({ command, refs, requestId }));
       return db.writeTransaction(async tx => {
         const existing = await tx.getOptional<ProposalRow & { fingerprint: string }>('SELECT * FROM local_proposals WHERE id=?', [id]);
@@ -262,7 +279,9 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       return db.writeTransaction(async tx => {
         const proposal = await tx.getOptional<ProposalRow>('SELECT * FROM local_proposals WHERE id=?', [id]);
         if (!proposal || proposal.status !== 'pending' || proposal.revision !== expectedRevision) throw new DomainError('PROPOSAL_CLOSED');
-        await verifyRefs(tx, checkedRefs(JSON.parse(proposal.source_refs)));
+        const refs = checkedRefs(JSON.parse(proposal.source_refs));
+        verifyMemoProposal(command, refs);
+        await verifyRefs(tx, refs);
         await tx.execute('UPDATE local_proposals SET command=?,revision=revision+1,updated_at=? WHERE id=?', [canonicalJson(command), new Date(deps.now()).toISOString(), id]);
         // fingerprint describes the original request, so a retried generation cannot undo a UI edit.
         return (await tx.getOptional<ProposalRow>('SELECT * FROM local_proposals WHERE id=?', [id]))!;
@@ -294,6 +313,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         }
         if (proposal.status !== 'pending' || proposal.revision !== expectedRevision) throw new DomainError('PROPOSAL_CLOSED');
         const command = parse(JSON.parse(proposal.command)), refs = checkedRefs(JSON.parse(proposal.source_refs));
+        verifyMemoProposal(command, refs);
         const fingerprint = await deps.digest(canonicalJson({ command, refs, origin: `proposal:${id}` }));
         const receipt = await commit(tx, command, operationId, fingerprint, refs);
         await tx.execute("UPDATE local_proposals SET status='accepted',revision=revision+1,operation_id=?,receipt=?,command='',updated_at=? WHERE id=?",

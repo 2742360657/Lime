@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { memoCommandSchemas } from '../memos/commands';
+import { gradeCommandSchemas } from '../grades/commands';
 
 export const identifier = z.string().trim().min(1).max(160);
 export const revision = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
+export const documentRefsSchema = z.array(z.strictObject({ id: identifier, revision, kind: z.literal('attachment').optional() })).max(4);
 export function isDateKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-01' || value > '9999-12-31') return false;
   const parsed = new Date(`${value}T12:00:00Z`);
@@ -27,6 +30,8 @@ const taskFields = {
   dueTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().default(null),
 };
 export const commandSchema = z.discriminatedUnion('type', [
+  ...memoCommandSchemas,
+  ...gradeCommandSchemas,
   z.strictObject({ type: z.literal('reminder.create'), ...reminderFields }),
   z.strictObject({ type: z.literal('reminder.update'), id: identifier, expectedRevision: revision, ...reminderFields }),
   z.strictObject({ type: z.literal('reminder.cancel'), id: identifier, expectedRevision: revision }),

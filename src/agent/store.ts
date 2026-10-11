@@ -26,6 +26,7 @@ export function grantedTypes(text: string, refs: DocumentRef[], active: { id: st
   if (refs.length || text.length > 1000 || /[“”「」『』"`？?]|不要|别|不想|是否|能不能|假如|如果|例如|转发|通知|原文|还没|没有|不确定|打算/.test(text)) return [];
   if (/^(?:请|帮我|请帮我)?(?:记住|记下)(?:我|我的)/.test(text)) return [{ commandType: 'memory.remember', targetId: null }];
   if (/^(?:请|帮我|请帮我)?(?:新建|创建|添加|加|记)(?:一个|一条|个|条)?待办/.test(text)) return [{ commandType: 'task.create', targetId: null }];
+  if (/^(?:请|帮我|请帮我)?(?:新建|创建|添加|写)(?:一个|一条|个|条)?备忘录/.test(text)) return [{ commandType: 'memo.create', targetId: null }];
   if (/^(?:我)?(?:今天|现在)?(?:练完了|训练完了|训练完成了|训练完成|完成训练)[，。！!\s]*(?:.*)?$/.test(text) && active.length === 1)
     return [{ commandType: 'activity.complete', targetId: active[0].id }];
   if (/^(?:我)?(?:今天|现在)(?:该|应该|可以)?(?:练什么|训练什么|练点什么)/.test(text)) return [{ commandType: 'activity.start', targetId: null }];

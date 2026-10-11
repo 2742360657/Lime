@@ -1,5 +1,8 @@
 import { Schema, Table, column } from '@powersync/react-native';
 import { weixinTables } from '../channels/weixin/schema';
+import { qqProductTables } from '../channels/qq/productSchema';
+import { gradeTables } from '../grades/schema';
+import { dailyTables } from '../daily/schema';
 
 // Keep the existing columns and IDs: storage isolation does not change record semantics.
 export const legacyTableColumns = {
@@ -19,6 +22,9 @@ export const legacyTableColumns = {
 export const tableColumns = {
   ...legacyTableColumns,
   ...weixinTables,
+  ...qqProductTables,
+  ...gradeTables,
+  ...dailyTables,
   local_weixin_items: { message_id: column.text, account_key: column.text, fingerprint: column.text, position: column.integer, kind: column.text, filename: column.text, body: column.text, capability_id: column.text, material_id: column.text, status: column.text, note: column.text, state: column.text, created_at: column.integer, revision: column.integer },
   local_backup_imports: { receipt: column.text, created_at: column.integer },
   local_backup_archives: { uri: column.text, hash: column.text, size: column.integer, summary: column.text, created_at: column.integer },
