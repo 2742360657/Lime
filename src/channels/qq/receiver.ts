@@ -3,7 +3,8 @@ import type { createQqClient } from './client';
 import type { createQqInbox } from './inbox';
 export type QqSocket = { send(data: string): void; close(): void; onopen: (() => void) | null; onmessage: ((event: { data: unknown }) => void) | null; onerror: (() => void) | null; onclose: ((event: { code: number }) => void) | null };
 export type QqReceivePhase = 'access'|'gateway'|'socket'|'hello'|'identify'|'resume'|'ready'|'resumed'|'invalid-session'|'heartbeat-ack';
-export function createQqReceiver(client: Pick<ReturnType<typeof createQqClient>, 'access' | 'gateway'>, inbox: ReturnType<typeof createQqInbox>, socket: (url: string) => QqSocket, duration = 60000, progress?: (phase:QqReceivePhase)=>void) {
+export type QqTransportInbox = Pick<ReturnType<typeof createQqInbox>, 'session' | 'reset' | 'ready' | 'commit'>;
+export function createQqReceiver(client: Pick<ReturnType<typeof createQqClient>, 'access' | 'gateway'>, inbox: QqTransportInbox, socket: (url: string) => QqSocket, duration = 60000, progress?: (phase:QqReceivePhase)=>void) {
   let busy=false;
   return { async read(binding: QqBinding, external?: AbortSignal) {
     if (busy) throw new QqError('BUSY'); if (duration < 1 || duration > 60000) throw new QqError('PROTOCOL'); busy=true;
