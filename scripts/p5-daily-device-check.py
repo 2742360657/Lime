@@ -64,4 +64,9 @@ assert all(result['flags'][field] for field in flags)
 path = ROOT / '.local' / 'p5-daily-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)
+for node in ui().iter('node'):
+    if node.get('resource-id') == 'android:id/button1':
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds', '')))
+        adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+        break
 print('PASS isolated native memo authorization and drafts, exact grades, activity/checkin history, reversible organization, SQLite reopen and zero queue; no model')

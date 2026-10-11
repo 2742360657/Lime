@@ -109,3 +109,12 @@ Node重点验证白名单、引用、惰性历史、防重、冲突依赖及事�
 本仓库debug/Metro就绪后，启动`python3 scripts/qq-fixture-server.py`（仅回环8094合成HTTP/WS/媒体），临时映射8094，执行`python3 scripts/p4-qq-device-check.py --serial <device>`。随机隔离库/测试SecureStore和原件只由探针清理，不清普通数据、调用模型或请求通知许可。
 
 真实账号在debug菜单“打开QQ账号验证”中手动扫码/查询/读取/下载，用户只在手机确认；账号/二维码/正文/URL不打印或提交。真实结果、合成结果和原生/Metro提交分开记录；不因本地seq保留就认定平台必然重投失败消息。结束在debug期间核对普通记录摘要，恢复当前独立preview及APK摘要、脱离Metro冷启动；停止本任务Metro/8094夹具、移除自己的8081/8094映射及Download测试文件，不删除用户截图或真实绑定。详见[QQ报告](p4-qq-validation.md)。
+
+
+## P5连续开发统一验收入口（2026-10-11）
+
+本批不每个模块构建/测试，跨模块实现后统一检查；Git由主任务在feat/p5-daily-workflows分层提交，构建基线与文档提交分别记录。真机相关统一放在末尾，设备不在adb时明确待验，不用模拟器结果冒充手机结果。
+
+当前debug/同基线Metro下，显式指定设备执行 `python3 scripts/p5-daily-device-check.py --serial <device>` 和 `python3 scripts/p5-backup-device-check.py --serial <device>`。两者只用随机隔离库/合成件，成功后关闭自身结果弹窗，便于串行执行；失败不能将旧JSON当新证据。QQ传输继续使用8094回环夹具及p4-qq-device-check.py，正式账号绑定与发送内容单独在产品窗口完成，不搬运旧验证沙箱。
+
+调试界面验收记录设置/助手两入口、成绩编辑取消、所选整理空状态、冷启动与普通对象摘要。独立preview检查前停止本任务Metro/夹具、移除自身映射，核对设备APK hash再离线启动；preview不可run-as，不声称安装后SQL逐项摘要。当前结果见[p5-daily-validation.md](p5-daily-validation.md)。

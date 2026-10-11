@@ -68,5 +68,9 @@ assert all(result[field] for field in ('fullObjects','zipRoundtrip','relocatedFi
 path = ROOT / '.local' / 'p5-backup-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
 path.chmod(0o600)
-# English/Chinese system button labels vary. The result is already persisted.
+for node in ui().iter('node'):
+    if node.get('resource-id') == 'android:id/button1':
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds', '')))
+        adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+        break
 print('PASS native complete v3 backup ZIP, exact grades and identity conflicts, memo/QQ/organization history, credential exclusion, relocated originals, late rollback, archive roundtrip, bounded rejection, SQLite reopen and zero queue; no model')
