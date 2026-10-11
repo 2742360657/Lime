@@ -118,3 +118,9 @@ Node重点验证白名单、引用、惰性历史、防重、冲突依赖及事�
 当前debug/同基线Metro下，显式指定设备执行 `python3 scripts/p5-daily-device-check.py --serial <device>` 和 `python3 scripts/p5-backup-device-check.py --serial <device>`。两者只用随机隔离库/合成件，成功后关闭自身结果弹窗，便于串行执行；失败不能将旧JSON当新证据。QQ传输继续使用8094回环夹具及p4-qq-device-check.py，正式账号绑定与发送内容单独在产品窗口完成，不搬运旧验证沙箱。
 
 调试界面验收记录设置/助手两入口、成绩编辑取消、所选整理空状态、冷启动与普通对象摘要。独立preview检查前停止本任务Metro/夹具、移除自身映射，核对设备APK hash再离线启动；preview不可run-as，不声称安装后SQL逐项摘要。当前结果见[p5-daily-validation.md](p5-daily-validation.md)。
+
+## 离线日用管理的后续统一验收
+
+2026-10-11用户本轮明确要求测试后续统一执行。本批可做静态编辑诊断/类型与语法、文档/秘密检查；不执行功能套件、云模型、APK构建或ADB操作，未执行的用例不能标通过。
+
+待统一验收时，先运行新SQLite用例tests/domain/offline-management.test.js及受影响service/agent/backup/daily回归，确认授权、幂等、事务与v3回环；再集中构建当前基线。scripts/p5-offline-ui-emulator-check.py供明确的模拟器serial和debug/preview模式使用，不允许真机、不写普通记录，启动时删除自身旧结果，整段完成才写通过结果；中文输入与真实写入/关闭重开使用集中人工项目。旧会话work/p5-ui-smoke.py对应a980edd旧入口，不能用于本批新默认活动页。准确待验清单见[p5-offline-management.md](p5-offline-management.md)。
