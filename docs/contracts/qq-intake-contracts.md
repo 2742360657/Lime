@@ -2,7 +2,7 @@
 
 # 正式QQ前台收件契约
 
-日期：2026-10-11。基线fc0a762；本批复用已验证的官方QQ机器人HTTP、系统AES-GCM、WebSocket、前台生命周期及P3材料组件。真实扫码/短期Resume/TXT与PNG下载证据见[独立验证报告](../archive/validation/p4-qq-validation.md)，不据此承诺无缺口补收。
+日期：2026-10-11。基线fc0a762；本批复用已验证的官方QQ机器人HTTP、系统AES-GCM、WebSocket、前台生命周期及P3材料组件。真实扫码/短期Resume/TXT与PNG下载证据见[独立验证报告](../technical-baseline.md)，不据此承诺无缺口补收。
 
 设置与助手共用QQ收件窗口：扫码、手动查询、解绑、显式约60秒前台读取、单件保存/重试、原件查看及明确选入聊天。绑定不触发读取；材料保存不触发模型分析。关闭窗口或进入后台停止网络操作；已有提交保留。二维码和绑定任务key仅短期内存，AppSecret与附件URL进入独立产品SecureStore命名空间 `lime-qq-product-v1`。不搬运 `lime-qq-validation` 沙箱凭据、消息或原件。
 

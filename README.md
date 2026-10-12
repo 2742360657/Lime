@@ -16,7 +16,7 @@
 | [架构边界](docs/product-architecture.md) | 复用当前基础设施支持自主处理；不是重造平台 |
 | [待测台账](docs/phase-test-ledger.md) | 新范围的流程验收，阶段完成后集中执行 |
 
-[现有代码契约](docs/contracts/README.md) 和 [历史归档](docs/archive/README.md) 用于核查已有实现及旧证据，不覆盖最新需求。
+[现有代码契约](docs/contracts/README.md) 用于核查实现；[技术基线](docs/technical-baseline.md)区分已验证范围与当前目标。旧文档从Git查询，不在工作目录维护另一套规划。
 
 ## 开始工作
 

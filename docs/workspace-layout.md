@@ -1,43 +1,43 @@
-# 开发目录与环境
+# 最终开发目录与环境
 
-更新：2026-10-12。本机唯一活动仓库为 `/home/angelime/Projects/Lime`。会话附件/交付目录仅用于沟通，不是另一份源码checkout。
+更新：2026-10-12。本机只保留Lime这一份应用源码仓库：`/home/angelime/Projects/Lime`。会话目录只是说明/交付文件，不是代码checkout。
 
 ```text
-Lime/
-  README.md / AGENTS.md       开发入口与执行规则
-  development-plan-revised.md 当前路线
-  src/                       现有手机源码；下一功能阶段对齐新范围
-  android/                   提交的原生工程与固定Gradle wrapper
-  assets/ / plugins/         应用资源与现有Expo原生插件
-  tests/                     自动化测试、SQLite与Expo基础
-  scripts/
-    env.sh                   统一工具路径
-    check-environment.sh     只读工具/依赖核对
-    android-build.sh          debug/preview/release构建
-    device/                  显式设备验证脚本
-    fixtures/                本机合成协议夹具
-  docs/
-    product-scope.md          当前产品定义
-    product-architecture.md   后续架构边界
-    project-status.md         当前实现/差距
-    development-workflow.md   日常工作方式
-    phase-test-ledger.md      当前待测项
-    contracts/               已有代码契约快照
-    archive/                 旧规划与原版本验收
-  .local/                    全部忽略，私密权限
-    dev.env                  本机构建配置
-    signing/                 私密签名
-    cache/                   未使用全局路径时的缓存
-    runs/workspace-reset/    本轮环境检查
-    runs/device/             此后设备检查输出
-    archive/                 旧临时脚本、日志、截图、快照和研究资料
-  artifacts/                 全部忽略
-    apks/                    此后构建的包和元信息
-    archive/                 之前的技术包及元信息
+/home/angelime/
+  AGENTS.md                    本机唯一开发入口
+  Projects/
+    Lime/                      唯一Git源码仓库
+      README.md / AGENTS.md
+      development-plan-revised.md
+      App.tsx / index.ts
+      src/                     当前手机源码
+      android/                 提交的原生工程与Gradle wrapper
+      assets/ / plugins/       资源与现有Expo插件
+      tests/                   SQLite与Expo检查
+      scripts/                 环境/构建/仓库检查
+        device/                显式设备检查
+        fixtures/              本机合成协议夹具
+      docs/                    当前产品、架构、状态、流程、技术基线
+        contracts/             已有接口契约
+      .local/                  忽略、私密
+        dev.env                本机工具配置
+        signing/               活动签名和必要留存签名
+        private/               原始资料/记录、人格与模型凭据
+        runs/                  开发检查与清理记录
+      artifacts/apks/          最近技术包与真实元信息
+      node_modules/            当前锁定依赖
+      .git/                    Lime完整历史、分支与检查点
+  .local/share/toolchains/     固定Node、JDK17、Android SDK
+  .cache/npm/ / .cache/gradle/ 当前构建与包缓存
+  .android/                    ADB配对身份和现有AVD
+  .config/host/                已有服务位置说明，无开发仓库
+  Documents/Codex/             仅剩Lime会话交付说明/当前会话目录
 ```
 
-工具沿用已安装路径：`~/.local/share/toolchains/{node,jdk17,android-sdk}`，npm/Gradle缓存为 `~/.cache/{npm,gradle}`，AVD为 `~/.android/avd`。这些路径由 `.local/dev.env`配置，机器信息不写入公开工具脚本。保留现有SDK、锁文件、依赖、原生构建缓存与签名；不重复安装或复制一套工具。
+旧server-infra、AngelimeAssistant/迁移/容器恢复归档、会话中的Angelime/AstrBot/QQ参考源码和Python临时环境已删除。重复APK、原始调试日志/截图/一次性脚本、已完成的系统迁移脚本和旧编译产物已清理；不保留第二份开发工程。过期规划与验收文档从Lime Git历史查询。
 
-本轮私密历史材料移动到 `.local/archive/2026-10-12-workspace-reset/`，其私密manifest记录原位置和归档位置。旧APK集中 `artifacts/archive/2026-10-12-pre-scope-reset/`。归档保存证据和数据，不是运行时兼容代码，后续工作不调用其中临时脚本或加载个人快照。
+必要签名、云模型凭据、原始人格、记录导出和少量私有数据备份保存在 `.local`，复制/压缩后做完整性核对。它们不自动导入手机、不建立旧后台，也不公开。当前活动签名与ADB身份摘要未变；当前手机数据未操作。
 
-源码仍可追溯至90a6d25；当前源码的目录调整、日记移除与自主处理逻辑改造留在下一功能阶段。整理目录不要求先重新安装手机或运行模型。
+系统SSH/Tailscale/代理/现有fnOS继续使用 `/etc`、`/usr/local/libexec`、`/var/lib/libvirt` 等标准目录，服务和NAS数据未更改；这些是现有运行环境，不是另一项软件开发。
+
+工具沿用 `~/.local/share/toolchains/{node,jdk17,android-sdk}`，缓存为 `~/.cache/{npm,gradle}`，AVD为 `~/.android/avd`，由 `.local/dev.env`配置。保留固定SDK、依赖、缓存和原生工程，使用 `source scripts/env.sh` 及 `bash scripts/check-environment.sh`核对。清理后源码的范围改造仍是下一功能阶段。

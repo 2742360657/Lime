@@ -2,11 +2,11 @@
 
 # 备忘录保留与助手接入契约
 
-更新：2026-10-11。实现状态与集中验收结果由[当前状态](../archive/planning/project-status.md)及[待测台账](../archive/validation/phase-test-ledger.md)登记；本契约不把历史真机结果当成本批验收。
+更新：2026-10-11。实现状态与集中验收结果由[当前状态](../technical-baseline.md)及[待测台账](../technical-baseline.md)登记；本契约不把历史真机结果当成本批验收。
 
 ## 来源与保留范围
 
-Lime 的基础备忘录来自用户原项目 [Angelime](https://github.com/2742360657/Angelime)，导出基线为 `3248b4f402160a062a4107788ae51f6aa5984f7a`、`codex/memo-record-closure`。原项目当前公开 [MemosScreen](https://github.com/2742360657/Angelime/blob/main/src/screens/MemosScreen.tsx) 和 [Reducer](https://github.com/2742360657/Angelime/blob/main/src/state/habitReducer.ts) 用于只读核对。Lime 继续维护已迁入的页面及交互，没有再次复制原仓库历史、个人内容或旧服务器组件；导出边界见[源码来源](../archive/planning/source-provenance.md)。
+Lime 的基础备忘录来自用户原项目 [Angelime](https://github.com/2742360657/Angelime)，导出基线为 `3248b4f402160a062a4107788ae51f6aa5984f7a`、`codex/memo-record-closure`。原项目当前公开 [MemosScreen](https://github.com/2742360657/Angelime/blob/main/src/screens/MemosScreen.tsx) 和 [Reducer](https://github.com/2742360657/Angelime/blob/main/src/state/habitReducer.ts) 用于只读核对。Lime 继续维护已迁入的页面及交互，没有再次复制原仓库历史、个人内容或旧服务器组件；导出边界见[源码来源](../technical-baseline.md)。
 
 标题、正文、分类、标题/正文/分类本机搜索、自动保存、批量移动与排序、软删除和回收站恢复继续保留。成熟的紧凑编辑器从 `MemosScreen` 抽到 `src/memos/MemoEditor.tsx`，保持标题/分类/正文和“完成”返回路径。现有备忘录仍使用 `documents.kind='memo'`、`document_groups.kind='memo'` 和 `local_drafts`；不新增独立备忘录表、不改已有ID或日期、不自动分析正文。
 
