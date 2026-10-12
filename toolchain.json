@@ -12,6 +12,7 @@
   "android_ndk": "27.1.12297006",
   "package_id": "app.lime.personalassistant",
   "development_package_id": "app.lime.personalassistant.dev",
-  "stage": "P2-A local domain; native isolated acceptance; direct assistant pending",
-  "application_build_verified": true
+  "stage": "Workspace reset; habits, tasks, memos and autonomous assistant",
+  "application_build_verified": false,
+  "last_technical_build_commit": "90a6d25e89b37c3f23c2af266971bc5eb3a71bbc"
 }

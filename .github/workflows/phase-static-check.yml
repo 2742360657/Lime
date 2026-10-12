@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       phase:
-        description: Completed functional phase to check
+        description: Completed scope to check
         required: true
         type: choice
-        options: [P1, P2-A, P2, P3, P4, P5]
+        options: [workspace, core, assistant, channels, release]
 permissions:
   contents: read
 jobs:
@@ -21,4 +21,5 @@ jobs:
       - run: python3 scripts/repository-check.py
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run test:phase
+      - if: inputs.phase != 'workspace'
+        run: npm run test:phase

@@ -9,7 +9,7 @@ import { createAgentStore } from '../agent/store';
 import { createAgentRuntime } from '../agent/runtime';
 
 // Manual debug-only fixture. Isolated DB and Key; no ordinary records or account API.
-// Run scripts/agent-fixture-server.py and reverse device port 8092 before this probe.
+// Run scripts/fixtures/agent-fixture-server.py and reverse device port 8092 before this probe.
 export async function runAgentProbe() {
   const filename = `lime-dev-agent-${Crypto.randomUUID()}.sqlite`, keyName = `lime.probe.${Crypto.randomUUID()}`;
   let db = new PowerSyncDatabase({ schema: createDatabaseSchema(), database: { dbFilename: filename } });
