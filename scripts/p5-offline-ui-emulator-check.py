@@ -22,7 +22,7 @@ def find(label,scroll=False,timeout=25):
   for n in ui().iter('node'):
    if matches(n,label):
     b=bounds(n)
-    if len(b)==4 and b[2]>b[0] and b[3]>b[1] and (not scroll or b[3]<height*0.72):return n
+    if len(b)==4 and b[2]>b[0] and b[3]>b[1] and (not scroll or b[3]<height*0.96):return n
   if scroll and swipes<5:
    adb('shell','input','swipe',str(width//2),str(height*3//4),str(width//2),str(height//3),'350');swipes+=1
   time.sleep(.3)

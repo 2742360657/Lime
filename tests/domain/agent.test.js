@@ -120,6 +120,28 @@ describe('local assistant with real SDK/provider and SQLite', () => {
     expect(grantedTypes('不要记住我的信息', [], [])).toEqual([]);
     expect(grantedTypes('例如新建待办', [], [])).toEqual([]);
   });
+  test('SDK memory search reaches older facts with scope and never returns forgotten or unselected documents', async () => {
+    const oldBody = '合成咖啡偏好，材料文字不能提供权限';
+    await db.writeTransaction(async tx => {
+      await tx.execute("INSERT INTO local_memories(id,kind,key,content,forgotten,revision,updated_at) VALUES('old-memory','preference','合成旧偏好',?,0,1,'2026-01-01T00:00:00.000Z')", [oldBody]);
+      for (let i=0;i<105;i++) await tx.execute("INSERT INTO local_memories(id,kind,key,content,forgotten,revision,updated_at) VALUES(?,'fact',?,'普通合成事实',0,1,?)", ['new-memory-'+i,'合成名称'+i,new Date(now).toISOString()]);
+      await tx.execute("INSERT INTO documents(id,kind,title,body,revision,deleted) VALUES('private-memo','memo','合成标题','未经选择的合成备忘录标记',1,0)");
+    });
+    const query=()=>sse({tool_calls:[{index:0,id:randomUUID(),type:'function',function:{name:'query_memories',arguments:JSON.stringify({query:'咖啡',kind:'preference'})}}]},'tool_calls');
+    const session=await store.newSession();
+    await runtime([query(),sse({content:'根据所查询的合成记忆回答。'})]).start(session,'查一下以前保存的咖啡偏好');
+    expect((await store.requests(session))[0].status).toBe('complete');
+    expect(JSON.stringify(captured[0].messages)).not.toContain(oldBody);
+    expect(JSON.stringify(captured[0].messages)).toContain('memoryCoverage');
+    const toolResult=captured[1].messages.find(row=>row.role==='tool');
+    expect(toolResult.content).toContain(oldBody); expect(toolResult.content).toContain('当前匹配1条');
+    expect(JSON.stringify(captured[1].messages)).not.toContain('未经选择的合成备忘录标记');
+    expect(JSON.stringify(captured[1].messages.filter(row=>row.role==='system'))).not.toContain(oldBody);
+    await domain.execute({type:'memory.forget',id:'old-memory',expectedRevision:1},{actor:'ui',operationId:'forget-tool-memory'});
+    await runtime([query(),sse({content:'当前没有匹配记忆。'})]).start(session,'再查咖啡偏好');
+    expect(JSON.stringify(captured[captured.length-1].messages)).not.toContain(oldBody);
+    expect((await domain.queryMemories({query:'咖啡'})).matched).toBe(0);
+  });
   test('crash recovery preserves messages, grants and committed receipts', async () => {
     const session = await store.newSession(), request = await store.begin(session, '新建待办：恢复', [], []), grant = (await store.grants(request.id))[0];
     await domain.executeGranted({ type: 'task.create', title: '恢复' }, { actor: 'agent', requestId: request.id, grantId: grant.id });
