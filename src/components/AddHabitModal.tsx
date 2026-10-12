@@ -31,6 +31,8 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   const { theme, groups, addHabit, updateHabit } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const saving = useRef(false);
+  const initialized = useRef(false);
+  const target = useRef<{ id: string; revision?: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -38,9 +40,10 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   const [targetCount, setTargetCount] = useState('1');
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
+    if (!visible) { initialized.current = false; return; }
+    if (initialized.current) return;
+    initialized.current = true;
+    target.current = habit ? { id: habit.id, revision: habit.revision } : null;
     setName(habit?.name ?? '');
     setSelectedGroupId(habit?.groupId ?? null);
     setCadence(habit?.cadence ?? 'daily');
@@ -58,7 +61,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
       cadence,
       targetCount: numericTarget,
     };
-    const success = habit ? await updateHabit(habit.id, input, habit.revision) : await addHabit(input);
+    const success = target.current ? await updateHabit(target.current.id, input, target.current.revision) : await addHabit(input);
     if (success) {
       onClose();
     }
@@ -72,7 +75,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
           <TouchableOpacity disabled={busy} onPress={onClose} style={styles.headerButton}>
             <Text style={styles.headerButtonText}>取消</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{habit ? '编辑习惯' : '新建习惯'}</Text>
+          <Text style={styles.headerTitle}>{target.current ? '编辑习惯' : '新建习惯'}</Text>
           <TouchableOpacity disabled={busy} onPress={() => void handleSubmit()} style={[styles.headerButton, styles.saveButton]}>
             <Text style={styles.saveButtonText}>{busy ? '保存中…' : '保存'}</Text>
           </TouchableOpacity>
