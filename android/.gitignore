@@ -1,26 +1,8 @@
-# OSX
-#
-.DS_Store
-
-# Android/IntelliJ
-#
 build/
-# 例外：保留可直接从仓库下载安装的 release 包（需先取消排除目录，再排除目录内容）
-!app/build/
-app/build/*
-!app/build/outputs/
-app/build/outputs/*
-!app/build/outputs/apk/
-app/build/outputs/apk/*
-!app/build/outputs/apk/release/
-app/build/outputs/apk/release/*
-!app/build/outputs/apk/release/app-release.apk
-.idea
-.gradle
+.idea/
+.gradle/
 local.properties
 *.iml
 *.hprof
 .cxx/
-
-# Bundle artifacts
 *.jsbundle

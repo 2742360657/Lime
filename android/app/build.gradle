@@ -3,6 +3,12 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def appConfig = new groovy.json.JsonSlurper().parse(file("${projectRoot}/app.json")).expo
+def signingPropertiesFile = file(findProperty('LIME_SIGNING_PROPERTIES') ?: System.getenv('LIME_SIGNING_PROPERTIES') ?: "${projectRoot}/.local/signing/keystore.properties")
+def releaseProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { releaseProperties.load(it) }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -89,11 +95,11 @@ android {
 
     namespace 'com.androidsoftwaredaily.habitcheckin'
     defaultConfig {
-        applicationId 'com.androidsoftwaredaily.habitcheckin'
+        applicationId appConfig.android.package
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.1.1"
+        versionCode appConfig.android.versionCode as Integer
+        versionName appConfig.version
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -104,21 +110,23 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        // 正式发布签名。
-        // keystore 与口令保存在仓库之外：优先读 ~/.gradle/gradle.properties 中的
-        // ANGELIME_KEYSTORE_DIR，未配置时回退到本机默认目录。
-        // 注意：expo prebuild 会重新生成本文件，改动需用 scripts/apply-signing.mjs 重新应用。
         release {
-            def keystoreDir = project.findProperty('ANGELIME_KEYSTORE_DIR') ?: '/Ciallo/Secrets/angelime/'
-            def keystoreProps = new Properties()
-            def keystorePropsFile = file("${keystoreDir}keystore.properties")
-            if (keystorePropsFile.exists()) {
-                keystorePropsFile.withInputStream { keystoreProps.load(it) }
+            if (signingPropertiesFile.exists()) {
+                def keyFile = new File(releaseProperties.getProperty('storeFile', ''))
+                storeFile keyFile.isAbsolute() ? keyFile : new File(signingPropertiesFile.parentFile, keyFile.path)
+                storePassword releaseProperties.getProperty('storePassword', '')
+                keyAlias releaseProperties.getProperty('keyAlias', '')
+                keyPassword releaseProperties.getProperty('keyPassword', '')
             }
-            storeFile file("${keystoreDir}${keystoreProps.getProperty('storeFile', 'angelime-release.keystore')}")
-            storePassword keystoreProps.getProperty('storePassword', '')
-            keyAlias keystoreProps.getProperty('keyAlias', '')
-            keyPassword keystoreProps.getProperty('keyPassword', '')
+        }
+    }
+    // One independently installable APK per requested ABI.
+    splits {
+        abi {
+            enable true
+            reset()
+            include(*(findProperty('reactNativeArchitectures') ?: 'arm64-v8a').split(','))
+            universalApk false
         }
     }
     buildTypes {
@@ -126,7 +134,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
+            signingConfig (findProperty('LIME_PREVIEW') == 'true' ? signingConfigs.debug : signingConfigs.release)
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -192,5 +200,13 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+tasks.matching { it.name == 'validateSigningRelease' }.configureEach {
+    doFirst {
+        if (findProperty('LIME_PREVIEW') != 'true' && !signingPropertiesFile.exists()) {
+            throw new GradleException('Release signing is missing. Set LIME_SIGNING_PROPERTIES to a private keystore.properties file, or use npm run build:preview.')
+        }
     }
 }

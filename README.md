@@ -1,87 +1,62 @@
-# 酸橙 Lime
+<p align="center"><img src="assets/lime-icon.png" width="96" alt="酸橙 Lime 图标"></p>
 
-一款纯本地的 Android 个人管理应用，无账号、无服务器、无网络依赖。
+# 酸橙 · Lime
 
-习惯、待办和备忘录的数据完整保存在设备本地，支持导出备份和恢复。
+**把习惯、待办和备忘录放在一个离线 Android 应用里。** 无需账号、无需服务器；日常数据保存在手机，可自行导出和恢复。
 
----
+**[下载最新 APK](https://github.com/2742360657/Lime/releases/latest) · [使用指南](docs/usage.md) · [开发指南](docs/development.md) · [English](docs/README.en.md)**
 
-## 功能
+## 界面
 
-**习惯打卡**
+<p>
+  <img src="docs/screenshots/today.png" width="180" alt="今日概览">
+  <img src="docs/screenshots/tasks.png" width="180" alt="日期分桶待办">
+  <img src="docs/screenshots/habits.png" width="180" alt="习惯与打卡">
+  <img src="docs/screenshots/memos.png" width="180" alt="备忘录">
+</p>
 
-新建习惯并设置频次（每天 / 每周 / 每月）和目标次数，快速打卡，支持补打历史。习惯可以按分组管理，支持归档。打卡历史可以按月日历查看，也可以添加感受和时间记录。
+截图使用隔离模拟器中的示例数据。
 
-**待办**
+## 可以做什么
 
-新建待办并设置日期和时间，任务按"逾期 / 今天 / 明天 / 近七天 / 稍后 / 无日期"自动分桶，支持拖动排序和批量整理。完成后可撤销。
+| 功能 | 内容 |
+|---|---|
+| 习惯 | 每天/每周/每月目标、分组、打卡、补打、历史与感受、归档 |
+| 待办 | 日期和时间、自动日期分桶、排序、完成和撤销 |
+| 备忘录 | 自动保存、分类、搜索、排序、回收站恢复 |
+| 今日概览 | 查看当天习惯和待办 |
+| 外观 | 六套内置配色与本地个人资料 |
+| 备份 | 导出 JSON，通过系统分享保存；导入恢复，兼容历史 v1–v7 数据格式 |
 
-**备忘录**
+## 下载与安装
 
-快速写作，自动保存，支持分类、搜索和软删除（回收站可恢复）。
+打开 [Releases](https://github.com/2742360657/Lime/releases)，普通手机选择 `arm64-v8a` APK，x86_64 模拟器选择 `x86_64` APK。Android **7.0+**；允许所用浏览器/文件管理器安装未知来源应用后安装。
 
-**今日概览**
-
-当天的习惯完成情况和待办汇总。
-
-**主题**
-
-六套内置配色方案：松绿、海蓝、暖棕、柔粉、薄荷、石墨。
-
-**备份与恢复**
-
-在设置页将全部数据导出为 JSON 文件，通过系统分享发送到任意位置；恢复时从文件导入。支持 v1–v7 历史格式迁移。
-
----
-
-## 下载
-
-前往 [Releases](https://github.com/2742360657/Angelime/releases) 下载最新 APK，安装到 Android 设备（arm64，Android 7.0+）。
-
-> 本应用不上架应用商店，安装时需要在系统设置中允许"安装未知来源应用"。
-
----
-
-## 仓库结构
-
-```
-main              本地版（本仓库），当前主要维护线
-extended/dev      扩展版开发分支（含 DeepSeek AI 助手 + 微信/QQ 收件）
-```
-
-扩展版基于本仓库追加了 AI 助手、渠道收件和本地通知提醒等功能，暂停主动开发，代码在 `extended/dev` 分支供参考。
-
----
-
-## 开发环境
-
-- Node 22 + npm
-- JDK 17
-- Android SDK Platform 36 / Build Tools 36
-
-```bash
-npm ci
-npm start          # Expo Metro 开发服务器
-npm run android    # 安装调试版到已连接设备
-npm run typecheck  # TypeScript 类型检查
-```
-
-构建 release APK（需要在 `android/` 目录配置签名）：
-
-```bash
-npm run build:apk
-```
-
----
+**v1.2.0 改用新的私密签名：旧 Angelime/Lime 版本无法直接覆盖安装。先导出并确认备份已保存，再卸载旧版、安装新版并恢复 JSON。** 后续 v1.2.0 起的同签名版本可覆盖升级。完整迁移与校验步骤见[使用指南](docs/usage.md)。
 
 ## 数据与隐私
 
-所有数据存储在设备本地的 `habit-checkin/data.json`（Expo documentDirectory）。应用不申请网络权限，不联网，不上传任何数据。
+本主线没有登录、广告、分析统计或联网业务；正式 APK 移除了网络权限。备份和分享只在你主动操作时打开系统选取/分享界面，接收应用如何处理文件取决于你的选择。数据恢复会覆盖当前数据，应先备份。详见[隐私说明](docs/privacy.md)。
 
-备份文件包含全部个人数据，请妥善保管，恢复前确认文件来源可靠。
+## 开发与 AI 入口
 
----
+Node 22、JDK 17、Android SDK 36；使用仓库锁文件和 Gradle wrapper。
 
-## 许可
+```bash
+git clone https://github.com/2742360657/Lime.git
+cd Lime
+source scripts/env.sh  # 已有系统工具也可直接配置 ANDROID_HOME/JAVA_HOME
+npm ci
+npm run check
+npm start
+```
 
-MIT License。详见 [NOTICE.md](NOTICE.md)（如有）。
+独立试用包：`npm run build:preview`。正式签名构建和源码结构见[开发指南](docs/development.md)与[架构说明](docs/architecture.md)。AI 开始工作先读 [AGENTS.md](AGENTS.md)。
+
+`main` 是本地版维护主线；[`extended/dev`](https://github.com/2742360657/Lime/tree/extended/dev) 保留暂停开发的 AI/微信/QQ 扩展，不属于当前正式版能力。
+
+## 贡献与许可
+
+欢迎通过 [Issues](https://github.com/2742360657/Lime/issues) 报告问题，或提交聚焦 PR。见[贡献指南](CONTRIBUTING.md)。
+
+采用 [MIT License](LICENSE)，依赖保留各自许可证。源码延续项目所有者原 Angelime 项目；旧仓库地址会跳转至本仓库。

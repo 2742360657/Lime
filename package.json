@@ -6,8 +6,9 @@
     "start": "expo start",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "prebuild:android": "expo prebuild --platform android && node scripts/apply-signing.mjs",
-    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
+    "check": "node scripts/check-repository.mjs && npm run typecheck",
+    "build:apk": "bash scripts/build-android.sh release arm64-v8a",
+    "build:preview": "bash scripts/build-android.sh preview arm64-v8a"
   },
   "dependencies": {
     "@react-navigation/drawer": "^7.14.2",
@@ -30,5 +31,14 @@
     "babel-preset-expo": "~55.0.12",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "license": "MIT",
+  "description": "Offline Android habits, tasks and memos with local backup and restore.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2742360657/Lime.git"
+  },
+  "engines": {
+    "node": ">=22 <23"
+  }
 }

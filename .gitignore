@@ -1,60 +1,36 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
 node_modules/
-
-# Expo
+.local/
+.env
+.env.*
+!.env.example
+artifacts/
 .expo/
 dist/
 dist-test/
 web-build/
 expo-env.d.ts
 .cache/
-
-# 签名与密钥
+.kotlin/
+.metro-health-check*
+*.log
+*.tsbuildinfo
+*.apk
+*.aab
 *.jks
+*.keystore
+!android/app/debug.keystore
 *.p8
 *.p12
 *.key
-*.mobileprovision
-
-# Kotlin / Metro
-.kotlin/
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
 *.pem
-
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# 本地 UI 冒烟测试输出（脚本已移除，保留规则避免误提交）
-artifacts/
-ui-*.png
-
-# Android / Gradle 构建产物（android/ 本身纳入版本控制）
+*.mobileprovision
+*.sqlite*
+*.db
+.DS_Store
 android/.gradle/
 android/build/
 android/app/build/
-# 例外：只保留可直接下载安装的 release 包，其余构建产物仍然忽略
-!android/app/build/outputs/apk/release/app-release.apk
 android/app/.cxx/
 android/local.properties
 android/.idea/
-*.apk
-*.aab
-*.keystore
-!android/app/debug.keystore
-# 发布签名 keystore 与口令存放在仓库之外，见 README「发布签名」
-
-# iOS 原生工程暂未使用
-/ios
+/ios/

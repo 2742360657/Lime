@@ -11,18 +11,24 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
-      "package": "app.lime.personal",
+      "package": "com.androidsoftwaredaily.habitcheckin",
       "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/lime-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "allowBackup": false
-    }
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.INTERNET",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "platforms": [
+      "android"
+    ]
   }
 }
