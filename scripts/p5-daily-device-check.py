@@ -51,15 +51,17 @@ def tap(label):
     adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
 
 
+(ROOT / '.local' / 'p5-daily-native-result.json').unlink(missing_ok=True)
 adb('shell', 'am', 'start', '-n', PACKAGE + '/app.lime.personalassistant.MainActivity')
 wait('日记')
 adb('shell', 'input', 'keyevent', '82')
 tap('验证日用记录与整理')
 wait('日用记录验证通过')
 result = json.loads(adb('shell', 'run-as', PACKAGE, 'cat', 'files/lime-p5-daily-probe.json'))
+assert result.get('batch') == 'offline-management'
 assert result['status'] == 'passed' and result['localQueue'] == 0
 assert result['syntheticOnly'] is True and result['ordinaryDatabaseAccessed'] is False and result['modelCalls'] == 0
-flags = ('memoUnselectedDenied', 'memoSelectedProposal', 'memoDraftPreserved', 'memoHistoricalSource', 'memoMetadataPrivate', 'gradeDecimal', 'gradeFullRange', 'gradeMissingCredits', 'gradeDuplicateDenied', 'activityCompletionReplay', 'singleCheckin', 'trainingCounts', 'trainingCoverage', 'organizationPreview', 'organizationVersionGuard', 'organizationConfirm', 'organizationUndo', 'organizationReopenUndo', 'reopenReceiptReplay', 'localQueueZero', 'isolatedDatabaseCleaned')
+flags = ('memoUnselectedDenied', 'memoSelectedProposal', 'memoDraftPreserved', 'memoHistoricalSource', 'memoMetadataPrivate', 'gradeDecimal', 'gradeFullRange', 'gradeMissingCredits', 'gradeDuplicateDenied', 'activityCompletionReplay', 'singleCheckin', 'trainingCounts', 'trainingCoverage', 'organizationPreview', 'organizationVersionGuard', 'organizationConfirm', 'organizationUndo', 'organizationReopenUndo', 'reopenReceiptReplay', 'localQueueZero', 'isolatedDatabaseCleaned','memoryOlderSearch','memoryStablePages','memoryLiteralKeywords','memoryForgottenExcluded','activityStablePages','uiRetryReplay','shanghaiCompletionDate')
 assert all(result['flags'][field] for field in flags)
 path = ROOT / '.local' / 'p5-daily-native-result.json'
 path.write_text(json.dumps(result, indent=2) + '\n')
@@ -69,4 +71,4 @@ for node in ui().iter('node'):
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds', '')))
         adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
         break
-print('PASS isolated native memo authorization and drafts, exact grades, activity/checkin history, reversible organization, SQLite reopen and zero queue; no model')
+print('PASS isolated native memory search/paging/forget/literal keywords, retry and Shanghai date, memo authorization and drafts, exact grades, activity/checkin history, reversible organization, SQLite reopen and zero queue; no model')

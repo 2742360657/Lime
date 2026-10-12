@@ -6,6 +6,8 @@ import { createDatabaseSchema } from '../storage/databaseSchema';
 import { createDomain } from '../domain/service';
 import { createAgentStore } from '../agent/store';
 import { createDailyService, DailyError } from '../daily/service';
+import { createUiRetry } from '../domain/uiRetry';
+import { shanghaiDate } from '../reminders/planner';
 import { DomainError } from '../domain/types';
 
 // One random local-only database, no singleton ordinary database or native material access.
@@ -94,6 +96,53 @@ export async function runDailyProbe() {
     ensure((await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM checkins')).n === 1);
     flags.activityCompletionReplay = true; flags.singleCheckin = true; flags.trainingCounts = true; flags.trainingCoverage = true;
 
+    phase = 'offline-memory-search';
+    const oldMemory = deps.id();
+    await db.writeTransaction(async tx => {
+      await tx.execute("INSERT INTO local_memories(id,kind,key,content,forgotten,revision,created_at,updated_at) VALUES(?,'preference','合成旧偏好','不喝合成咖啡',0,1,?,?)", [oldMemory, tick, '2026-01-01T00:00:00.000Z']);
+      for (let i = 0; i < 105; i++) await tx.execute("INSERT INTO local_memories(id,kind,key,content,forgotten,revision,created_at,updated_at) VALUES(?,'fact',?,'合成分页内容',0,1,?,?)", [`synthetic-memory-${String(i).padStart(3, '0')}`, '合成分页' + i, tick, new Date(tick).toISOString()]);
+    });
+    ensure(!(await domain.listMemories({ limit: 100 })).some(row => row.id === oldMemory));
+    const oldPage = await domain.queryMemories({ query: '咖啡', kind: 'preference' });
+    ensure(oldPage.matched === 1 && oldPage.records[0].id === oldMemory && !oldPage.nextCursor);
+    const page1 = await domain.queryMemories({ query: '合成分页', limit: 40 });
+    const page2 = await domain.queryMemories({ query: '合成分页', limit: 40, cursor: page1.nextCursor });
+    const page3 = await domain.queryMemories({ query: '合成分页', limit: 40, cursor: page2.nextCursor });
+    ensure(page1.matched === 105 && page2.remaining === 65 && page3.remaining === 25 && !page3.nextCursor);
+    ensure(new Set([...page1.records, ...page2.records, ...page3.records].map(row => row.id)).size === 105);
+    flags.memoryOlderSearch = true; flags.memoryStablePages = true;
+    for (const keyword of ['%', '_', '\\']) {
+      const receipt = await domain.execute({ type: 'memory.remember', kind: 'fact', key: '合成字面' + keyword, content: '合成边界字符' }, { ...ui, operationId: deps.id() });
+      const page = await domain.queryMemories({ query: keyword });
+      ensure(page.matched === 1 && page.records[0].id === receipt.entity.id);
+    }
+    flags.memoryLiteralKeywords = true;
+    await domain.execute({ type: 'memory.forget', id: oldMemory, expectedRevision: 1 }, { ...ui, operationId: deps.id() });
+    ensure((await domain.queryMemories({ query: '咖啡' })).matched === 0);
+    ensure((await db.get<{ content: string; forgotten: number }>('SELECT content,forgotten FROM local_memories WHERE id=?', [oldMemory])).content === '');
+    flags.memoryForgottenExcluded = true;
+
+    phase = 'offline-activity-pages';
+    const all1 = await domain.queryActivities({ status: 'all', limit: 2 });
+    const all2 = await domain.queryActivities({ status: 'all', limit: 2, cursor: all1.nextCursor });
+    ensure(all1.matched === 3 && all2.remaining === 1 && new Set([...all1.records, ...all2.records].map(row => row.id)).size === 3);
+    ensure((await domain.queryActivities({ status: 'completed' })).records[0].checkin_state === 'linked');
+    flags.activityStablePages = true;
+    const uiRetry = createUiRetry(deps.id), plan = { type: 'activity.start' as const, kind: '合成午夜', title: '合成_%活动', habitId: habit };
+    const lostResponse = await domain.execute(plan, { ...ui, operationId: uiRetry.operation(plan) });
+    const retried = await domain.execute(plan, { ...ui, operationId: uiRetry.operation({ ...plan }) });
+    ensure(retried.disposition === 'replayed' && retried.entity.id === lostResponse.entity.id);
+    ensure((await domain.queryActivities({ query: '_%' })).matched === 1);
+    uiRetry.committed();
+    tick = Date.parse('2026-10-11T16:30:00Z');
+    const close = { type: 'activity.complete' as const, id: lostResponse.entity.id, expectedRevision: 1, note: '合成午夜完成' };
+    const midnight = await domain.execute(close, { ...ui, operationId: uiRetry.operation(close) });
+    ensure((await domain.execute(close, { ...ui, operationId: uiRetry.operation(close) })).disposition === 'replayed');
+    const checkin = await db.get<{ date_key: string }>('SELECT date_key FROM checkins WHERE id=?', [midnight.related!.id]);
+    ensure(checkin.date_key === '2026-10-12' && checkin.date_key === shanghaiDate(tick));
+    ensure((await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM checkins')).n === 2);
+    flags.uiRetryReplay = true; flags.shanghaiCompletionDate = true;
+
     phase = 'organization-preview-guard';
     const createMemo = (title: string) => domain.execute({ type: 'memo.create', title, body: '合成整理正文保持原样', groupId: groupOld }, { ...ui, operationId: deps.id() });
     const left = await createMemo('合成守卫甲'), right = await createMemo('合成守卫乙'), staleBatch = deps.id();
@@ -128,7 +177,7 @@ export async function runDailyProbe() {
     const restored = await db.get<{ deleted: number; revision: number; note: string }>('SELECT deleted,revision,note FROM tasks WHERE id=?', [task.entity.id]);
     ensure(restored.deleted === 0 && restored.revision === 3 && restored.note === '合成原备注');
     ensure((await domain.execute(finish, { ...ui, operationId: finishId })).disposition === 'replayed');
-    ensure((await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM checkins')).n === 1);
+    ensure((await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM checkins')).n === 2);
     flags.organizationReopenUndo = true; flags.reopenReceiptReplay = true;
     phase = 'queue'; ensure((await db.getUploadQueueStats()).count === 0); flags.localQueueZero = true;
     phase = 'complete'; passed = true;
@@ -143,7 +192,7 @@ export async function runDailyProbe() {
     }
     flags.isolatedDatabaseCleaned = cleaned;
     if (!cleaned) { passed = false; phase = 'cleanup'; }
-    const result = { status: passed ? 'passed' : 'failed', phase, syntheticOnly: true, ordinaryDatabaseAccessed: false, modelCalls: 0, localQueue: flags.localQueueZero ? 0 : null, flags };
+    const result = { batch: 'offline-management', status: passed ? 'passed' : 'failed', phase, syntheticOnly: true, ordinaryDatabaseAccessed: false, modelCalls: 0, localQueue: flags.localQueueZero ? 0 : null, flags };
     new File(Paths.document, 'lime-p5-daily-probe.json').write(JSON.stringify(result));
   }
   if (!passed) throw new Error('Synthetic daily probe failed');
