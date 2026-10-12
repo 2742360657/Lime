@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "酸橙",
-    "slug": "angelime",
-    "version": "1.1.1",
+    "slug": "lime",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/lime-icon.png",
     "userInterfaceStyle": "light",
@@ -15,13 +15,14 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.androidsoftwaredaily.habitcheckin",
-      "versionCode": 4,
+      "package": "app.lime.personal",
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/lime-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false
     }
   }
 }

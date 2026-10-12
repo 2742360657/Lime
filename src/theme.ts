@@ -135,13 +135,6 @@ const SHARED_THEME_TOKENS = {
     small: 12,
     pill: 999,
   },
-  shadow: {
-    shadowColor: '#1F2E25',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
 } as const;
 
 export function getTheme(themeId: ThemeId): AppTheme {
@@ -149,5 +142,13 @@ export function getTheme(themeId: ThemeId): AppTheme {
   return {
     ...preset,
     ...SHARED_THEME_TOKENS,
+    // shadowColor 跟随各主题的深色基调，而不是固定用松绿的色相
+    shadow: {
+      shadowColor: preset.colors.textPrimary,
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
+    },
   };
 }
