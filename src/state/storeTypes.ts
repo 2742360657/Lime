@@ -1,7 +1,7 @@
 import type {DocumentContent} from '../assistant/database';
 import { createContext } from 'react';
 
-import { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from '../storage/habitStorage';
+import { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from '../storage/appSettings';
 import { DEFAULT_THEME_ID, getTheme, ThemeId } from '../theme';
 import type {
   AppData,
@@ -157,7 +157,6 @@ export const HabitContext = createContext<HabitContextValue | null>(null);
 
 export const initialState: HabitState = {
   appData: {
-      version: 7,
       habits: [],
       groups: [],
       todos: [],

@@ -4,7 +4,7 @@ const { memoCommandSchema } = require('../../src/memos/commands');
 const { mutateMemo, listMemoMetadata, listMemoGroups } = require('../../src/memos/domain');
 const { createMemoDraftSession, decodeMemoDraft } = require('../../src/memos/draftSession');
 const { assertMemoUpdate, MemoClassificationError } = require('../../src/memos/editGuard');
-const { emptyRows, mergeRecords, portableRow } = require('../../src/assistant/recordBackup');
+const { emptyRows, mergeRecords, portableRow } = require('../../src/assistant/recoveryRecords');
 
 describe('memos reuse canonical documents with bounded metadata', () => {
   let db, now;
@@ -97,7 +97,7 @@ describe('memos reuse canonical documents with bounded metadata', () => {
     const row = db.sql.prepare('SELECT * FROM documents WHERE id=?').get(entity.id);
     await db.execute("UPDATE document_groups SET deleted=1 WHERE id='g'");
     const rows = emptyRows(); rows.documents = [portableRow('documents', { ...row, title: '草稿标题', body: ' 草稿输入\r\n', deleted: 0 })];
-    const result = await db.writeTransaction(tx => mergeRecords(tx, { format: 'angelime-records', version: 1, exported_at: '', rows, drafts: [], recovery: [] }, randomUUID, true));
+    const result = await db.writeTransaction(tx => mergeRecords(tx, { rows, drafts: [], recovery: [] }, randomUUID, true));
     expect(result.added).toBe(1); expect(result.detached).toBe(1);
     const original = db.sql.prepare('SELECT * FROM documents WHERE id=?').get(row.id);
     const copied = db.sql.prepare('SELECT * FROM documents WHERE id<>?').get(row.id);

@@ -142,6 +142,24 @@ describe('local assistant with real SDK/provider and SQLite', () => {
     expect(JSON.stringify(captured[captured.length-1].messages)).not.toContain(oldBody);
     expect((await domain.queryMemories({query:'咖啡'})).matched).toBe(0);
   });
+  test('SDK uses generic metadata and selected calculation; new record proposals need manual confirmation', async () => {
+    const record={type:'record.create',typeKey:'任意测量',schemaKey:'table',title:'合成测量',body:'所选合成正文',tags:[],occurredAt:null,payload:{columns:[{key:'v',label:'测量',kind:'decimal',unit:'米'}],rows:[{v:'188.33'},{v:'199.01'}]}};
+    const selected=await domain.execute(record,{actor:'ui',operationId:'selected'});
+    await domain.execute({...record,title:'另一份',body:'未选资料正文标记'},{actor:'ui',operationId:'unselected'});
+    const toolCall=(name,args)=>sse({tool_calls:[{index:0,id:randomUUID(),type:'function',function:{name,arguments:JSON.stringify(args)}}]},'tool_calls');
+    const session=await store.newSession();
+    await runtime([toolCall('query_local_records',{}),toolCall('calculate_records',{column:'v',operation:'average'}),call({...record,title:'整理副本'}),sse({content:'当前所选两行平均193.67米，副本等待确认。'})]).start(session,'计算并整理这份资料',[{id:selected.entity.id,revision:1,kind:'record'}]);
+    expect((await store.requests(session))[0].status).toBe('complete');
+    expect(JSON.stringify(captured)).not.toContain('未选资料正文标记');
+    expect(JSON.stringify(captured[2].messages.filter(m=>m.role==='tool'))).toContain('193.67');
+    expect(captured[0].tools.some(t=>t.function.name==='query_grades')).toBe(false);
+    const request=(await store.requests(session))[0],result=(await store.results(request.id))[0];
+    expect(result.status).toBe('proposal');expect((await domain.listRecords()).matched).toBe(2);
+    await domain.acceptProposal(result.proposalId,1,{actor:'ui',operationId:'confirm-record'});
+    expect((await domain.listRecords()).matched).toBe(3);
+    await runtime([sse({content:'你好。'})]).start(session,'你好');
+    expect(JSON.stringify(captured[captured.length-1].messages)).not.toContain('所选合成正文');
+  });
   test('crash recovery preserves messages, grants and committed receipts', async () => {
     const session = await store.newSession(), request = await store.begin(session, '新建待办：恢复', [], []), grant = (await store.grants(request.id))[0];
     await domain.executeGranted({ type: 'task.create', title: '恢复' }, { actor: 'agent', requestId: request.id, grantId: grant.id });

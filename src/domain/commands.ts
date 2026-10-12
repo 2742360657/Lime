@@ -1,10 +1,10 @@
+import { recordCommandSchemas, validPayload } from '../records/model';
 import { z } from 'zod';
 import { memoCommandSchemas } from '../memos/commands';
-import { gradeCommandSchemas } from '../grades/commands';
 
 export const identifier = z.string().trim().min(1).max(160);
 export const revision = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
-export const documentRefsSchema = z.array(z.strictObject({ id: identifier, revision, kind: z.literal('attachment').optional() })).max(4);
+export const documentRefsSchema = z.array(z.strictObject({ id: identifier, revision, kind: z.enum(['attachment','record']).optional() })).max(4);
 export function isDateKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-01' || value > '9999-12-31') return false;
   const parsed = new Date(`${value}T12:00:00Z`);
@@ -29,9 +29,9 @@ const taskFields = {
   dueDateKey: dateKey.nullable().default(null),
   dueTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().default(null),
 };
-export const commandSchema = z.discriminatedUnion('type', [
+const commonCommandSchemas = [
+  ...recordCommandSchemas,
   ...memoCommandSchemas,
-  ...gradeCommandSchemas,
   z.strictObject({ type: z.literal('reminder.create'), ...reminderFields }),
   z.strictObject({ type: z.literal('reminder.update'), id: identifier, expectedRevision: revision, ...reminderFields }),
   z.strictObject({ type: z.literal('reminder.cancel'), id: identifier, expectedRevision: revision }),
@@ -52,7 +52,12 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('activity.complete'), id: identifier, expectedRevision: revision,
     note: z.string().trim().max(300).default('') }),
   z.strictObject({ type: z.literal('activity.cancel'), id: identifier, expectedRevision: revision }),
-]).superRefine((command, ctx) => {
+] as const;
+const rawCommandSchema = z.discriminatedUnion('type',commonCommandSchemas);
+const refineCommand = (command: z.infer<typeof rawCommandSchema>, ctx: z.RefinementCtx) => {
+  if(command.type === 'record.create' || command.type === 'record.update') {
+    try { validPayload(command.schemaKey, command.payload); } catch { ctx.addIssue({code:'custom',message:'资料结构与内容格式不一致。',path:['payload']}); }
+  }
   if (command.type === 'reminder.create' || command.type === 'reminder.update') {
     if ((command.mode === 'once' && (!command.dateKey || command.monthDay !== null || command.advanceDays !== 0 || !command.dayOf)) ||
       (command.mode === 'annual' && (command.dateKey !== null || !command.monthDay || !isDateKey(`2000-${command.monthDay}`) || (!command.dayOf && command.advanceDays === 0))))
@@ -62,7 +67,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     ctx.addIssue({ code: 'custom', message: 'A time requires a date', path: ['dueTime'] });
   if (command.type === 'habit.checkin' && command.dateKey && command.timestamp !== undefined && dateKeyAt(command.timestamp) !== command.dateKey)
     ctx.addIssue({ code: 'custom', message: 'Date and local timestamp differ', path: ['dateKey'] });
-});
+};
+export const commandSchema = rawCommandSchema.superRefine(refineCommand);
+export const agentCommandSchema = commandSchema;
 export type Command = z.infer<typeof commandSchema>;
 
 // Stable ordering avoids treating harmless argument-key ordering as a new operation.

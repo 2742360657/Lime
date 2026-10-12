@@ -41,9 +41,9 @@ def verify_modules(drawer=False):
  if drawer:tap('打开页面菜单')
  tap('QQ收件',True);find('尚未绑定QQ');assert find('读取QQ消息').get('enabled')=='false';tap('关闭QQ收件')
  if drawer:tap('打开页面菜单')
- tap('成绩记录',True);find('按学期筛选成绩');tap('新增成绩')
- for label in ['课程名称','成绩学期','成绩分数','课程学分','成绩备注']:find(label)
- tap('取消编辑成绩');tap('关闭成绩记录')
+ tap('本机资料',True);find('资料标题关键词');tap('新增资料')
+ for label in ['资料标题','资料类型','资料标签','资料正文']:find(label)
+ tap('取消资料编辑');tap('关闭资料')
  if drawer:tap('打开页面菜单')
  tap('日用记录与整理',True);find('搜索活动计划');tap('新增活动计划')
  for label in ['活动计划标题','活动计划类型','活动计划备注']:find(label)
@@ -51,7 +51,7 @@ def verify_modules(drawer=False):
  find('可恢复整理');tap('可恢复整理');find('预览所选整理');assert find('预览所选整理').get('enabled')=='false';tap('关闭日用记录')
 start();tap('编辑个人资料');tap('助手配置',True);find('搜索个人记忆',True);tap('新增个人记忆',True);find('个人记忆名称',True);find('个人记忆内容',True);tap('取消记忆编辑',True);tap('关闭');verify_modules();adb('shell','input','keyevent','4');find('日记')
 navigate('助手');verify_modules(drawer=True)
-start();tap('编辑个人资料');tap('成绩记录',True);find('按学期筛选成绩');tap('关闭成绩记录')
-result={'status':'passed','phase':'p5-offline-management','memoryCreateCancel':True,'activityCreateCancel':True,'mode':a.mode,'settingsAndAssistantEntries':True,'qqUnboundReadDisabled':True,'gradeFormCancel':True,'dailyHistoryQuery':True,'organizationWithoutSelectionDisabled':True,'coldReopen':True,'ordinaryWritesRequested':False,'networkRequestsRequested':False,'modelCalls':0}
+start();tap('编辑个人资料');tap('本机资料',True);find('资料标题关键词');tap('关闭资料')
+result={'status':'passed','phase':'p5-offline-management','memoryCreateCancel':True,'activityCreateCancel':True,'mode':a.mode,'settingsAndAssistantEntries':True,'qqUnboundReadDisabled':True,'recordFormCancel':True,'dailyHistoryQuery':True,'organizationWithoutSelectionDisabled':True,'coldReopen':True,'ordinaryWritesRequested':False,'networkRequestsRequested':False,'modelCalls':0}
 out=RESULT;out.write_text(json.dumps(result,indent=2)+'\n');out.chmod(0o600)
-print('PASS '+a.mode+' offline memory/activity form cancel, settings/assistant module entries, unbound QQ, grade cancel, history query, empty selection guard and cold reopen; no requested ordinary writes/network/model')
+print('PASS '+a.mode+' offline memory/activity form cancel, settings/assistant module entries, unbound QQ, record cancel, history query, empty selection guard and cold reopen; no requested ordinary writes/network/model')

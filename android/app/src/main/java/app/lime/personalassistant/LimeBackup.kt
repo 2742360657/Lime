@@ -157,12 +157,6 @@ class LimeBackupModule(private val context: ReactApplicationContext) : ReactCont
     context.contentResolver.openOutputStream(u,"wt")?.use { out -> source.inputStream().use { copy(it,out,packageLimit) } } ?: error("IO")
     null
   }
-  @ReactMethod fun readLegacy(value: String, promise: Promise) = work(promise) {
-    val u=Uri.parse(value);require(u.scheme=="content" && u.authority?.startsWith(context.packageName+".")!=true) { "FORMAT" }
-    val output=ByteArrayOutputStream()
-    context.contentResolver.openInputStream(u)?.use { copy(it,output,manifestLimit) } ?: error("IO")
-    Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(output.toByteArray())).toString()
-  }
   @ReactMethod fun discard(id: String, promise: Promise) = work(promise) { stage(id).deleteRecursively();null }
 }
 class LimeBackupPackage : ReactPackage {

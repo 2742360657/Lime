@@ -1,3 +1,5 @@
+import { recordSource, type RecordRow } from '../records/model';
+import { documentRefsSchema } from '../domain/commands';
 import { z } from 'zod';
 import type { DomainDatabase, DocumentRef, Receipt } from '../domain/types';
 import type { Command } from '../domain/commands';
@@ -74,20 +76,25 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
       return db.readTransaction(tx => tx.getAll('SELECT * FROM local_agent_requests WHERE session_id=? ORDER BY created_at,id', [sessionId]));
     },
     async begin(sessionId: string, text: string, refs: DocumentRef[], active: { id: string }[]): Promise<AgentRequest> {
-      if (!text.trim() || text.length > 12000 || refs.length > 4 || !z.array(z.object({ id: z.string().min(1).max(160), revision: z.number().int().positive(), kind: z.literal('attachment').optional() }).strict()).safeParse(refs).success)
+      if (!text.trim() || text.length > 12000 || refs.length > 4 || !documentRefsSchema.safeParse(refs).success)
         throw new Error('请输入消息，最多 12000 字符，引用不超过四篇。');
       const id = deps.id(), now = deps.now();
       return db.writeTransaction(async tx => {
         if (!await tx.getOptional('SELECT id FROM local_agent_sessions WHERE id=?', [sessionId])) throw new Error('对话不存在，请新建对话。');
         let sourceLength = 0;
+        const selected = new Set<string>();
         for (const ref of refs) {
-          const source = ref.kind === 'attachment'
+          const identity = `${ref.kind ?? 'document'}:${ref.id}`;
+          if (selected.has(identity)) throw new Error('同一资料只能选择一次。');
+          selected.add(identity);
+          const generic = ref.kind === 'record' ? await tx.getOptional<RecordRow>('SELECT * FROM local_records WHERE id=? AND revision=? AND deleted=0',[ref.id,ref.revision]) : null;
+          const source = ref.kind === 'record' ? generic ? recordSource(generic) : null : ref.kind === 'attachment'
             ? await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>("SELECT id,revision,filename AS title,body,'attachment' AS kind,'' AS date FROM local_materials WHERE id=? AND revision=? AND deleted=0 AND status='ready'", [ref.id, ref.revision])
             : await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>('SELECT id,revision,title,body,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [ref.id, ref.revision]);
           if (!source) throw new Error('引用已变化，请重新选择。');
           sourceLength += JSON.stringify(source).length;
           if (source.body.length > 32000 || sourceLength > 32000) throw new Error('本轮材料过长，请减少引用或拆分后选择。');
-          await tx.execute('INSERT INTO local_agent_sources(id,request_id,document_id,revision,title,body,kind,date) VALUES(?,?,?,?,?,?,?,?)', [`${id}:${ref.id}`, id, ref.id, ref.revision, source.title, source.body, source.kind, source.date]);
+          await tx.execute('INSERT INTO local_agent_sources(id,request_id,document_id,revision,title,body,kind,date) VALUES(?,?,?,?,?,?,?,?)', [`${id}:${identity}`, id, ref.id, ref.revision, source.title, source.body, source.kind, source.date]);
         }
         const request = { id, session_id: sessionId, text: text.trim(), source_refs: JSON.stringify(refs), status: 'running', error: null, created_at: now };
         await tx.execute('INSERT INTO local_agent_requests(id,session_id,text,source_refs,status,error,created_at,updated_at) VALUES(?,?,?,?,?,NULL,?,?)', [id, sessionId, request.text, request.source_refs, 'running', now, now]);

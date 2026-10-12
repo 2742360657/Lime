@@ -1,11 +1,11 @@
 import { Alert, DevSettings, DeviceEventEmitter } from 'react-native';
 
 // Only development builds register this manual probe. It uses its own database
-// and never reads or migrates the application's existing JSON records.
+// and never reads the application's ordinary records.
 export function registerDatabaseProbe(): void {
   if (!__DEV__) return;
   DevSettings.addMenuItem('验证日用记录与整理', async () => {
-    try { const { runDailyProbe } = await import('./dailyProbe'); await runDailyProbe(); Alert.alert('日用记录验证通过', '隔离合成备忘录授权、成绩精确统计、活动打卡、整理守卫与重开撤销通过；没有读取普通库或调用模型。'); }
+    try { const { runDailyProbe } = await import('./dailyProbe'); await runDailyProbe(); Alert.alert('日用记录验证通过', '隔离合成备忘录授权、通用资料校验与精确统计、活动打卡、整理守卫与重开撤销通过；没有读取普通库或调用模型。'); }
     catch { Alert.alert('日用记录验证失败', '请检查当前原生包及私密阶段诊断；普通记录未参与验证。'); }
   });
   DevSettings.addMenuItem('验证QQ手机组件', async () => {
@@ -68,15 +68,7 @@ export function registerDatabaseProbe(): void {
       Alert.alert('本地命令验证失败', '合成验证未通过，没有操作实际记录或调用模型。');
     }
   });
-  DevSettings.addMenuItem('验证本地迁移与记录', async () => {
-    try {
-      const { runLocalMigrationProbe } = await import('./localMigrationProbe');
-      const result = await runLocalMigrationProbe();
-      Alert.alert('本地迁移验证通过', `${result.documents} 条合成原文、草稿、打卡和关闭重开已验证。本地上传队列为0。`);
-    } catch {
-      Alert.alert('本地迁移验证失败', '合成验证未通过，未操作日记或其他实际记录。');
-    }
-  });
+
   DevSettings.addMenuItem('验证 PowerSync 本地数据库', async () => {
     try {
       const { PowerSyncDatabase, Schema, Table, column } = await import('@powersync/react-native');

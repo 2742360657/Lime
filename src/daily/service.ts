@@ -30,8 +30,8 @@ export type TrainingHistory = {
   basis: string;
 };
 const recordColumns = {
-  memo: ['id','owner_id','kind','title','body','date','group_id','sort_order','created_at','edited_at','deleted_at','revision','deleted','updated_at'],
-  task: ['id','owner_id','title','status','document_id','due_at','note','due_date_key','due_time','sort_order','created_at','completed_at','revision','deleted','updated_at'],
+  memo: ['id','kind','title','body','date','group_id','sort_order','created_at','edited_at','deleted_at','revision','deleted','updated_at'],
+  task: ['id','title','status','document_id','note','due_date_key','due_time','sort_order','created_at','completed_at','revision','deleted','updated_at'],
 };
 const historySchema = z.strictObject({
   from: z.string().refine(isDateKey), through: z.string().refine(isDateKey),

@@ -1,9 +1,11 @@
+import { mutateRecord, createRecordQueries } from '../records/store';
+import { calculateRecords } from '../records/compute';
+import { recordSource } from '../records/model';
+import type { RecordCommand, RecordRow } from '../records/model';
 import { createMemoryQueries } from '../memories/queries';
 import { createActivityQueries } from '../daily/activities';
 import { mutateMemo, listMemoMetadata, listMemoGroups } from '../memos/domain';
 import type { MemoCommand } from '../memos/commands';
-import { mutateGrade, createGradeQueries } from '../grades/store';
-import type { GradeCommand } from '../grades/commands';
 import { createDailyService } from '../daily/service';
 import { shanghaiDate, shanghaiTimestamp, type ReminderRow } from '../reminders/planner';
 import { canonicalJson, commandSchema, dateKeyAt, documentRefsSchema, identifier, isDateKey, revision, type Command } from './commands';
@@ -19,8 +21,8 @@ type SavedOperation = { fingerprint: string; receipt: string };
 type Deps = { id: () => string; now: () => number; digest: (text: string) => Promise<string> };
 
 export function createDomain(db: DomainDatabase, deps: Deps) {
-  const grades = createGradeQueries(db), daily = createDailyService(db, deps);
-  const queryMemories = createMemoryQueries(db), queryActivities = createActivityQueries(db);
+  const daily = createDailyService(db, deps);
+  const queryMemories = createMemoryQueries(db), queryActivities = createActivityQueries(db), records = createRecordQueries(db);
   function parse(value: unknown): Command {
     const result = commandSchema.safeParse(value);
     if (!result.success) throw new DomainError('INVALID_ARGUMENT');
@@ -47,7 +49,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
   }
   async function verifyRefs(tx: DomainTransaction, refs: DocumentRef[]) {
     for (const ref of refs) {
-      const table = ref.kind === 'attachment' ? 'local_materials' : 'documents';
+      const table = ref.kind === 'attachment' ? 'local_materials' : ref.kind === 'record' ? 'local_records' : 'documents';
       const source = await tx.getOptional<BaseRow>(`SELECT id,revision,deleted FROM ${table} WHERE id=?`, [ref.id]);
       if (!source || source.deleted || source.revision !== ref.revision) throw new DomainError('SOURCE_CHANGED');
     }
@@ -70,12 +72,14 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     return { kind: 'checkin', id, revision: 1 };
   }
   function verifyMemoProposal(cmd: Command, refs: DocumentRef[]) {
+    if ((cmd.type === 'record.update' || cmd.type === 'record.trash') && !refs.some(ref => ref.kind === 'record' && ref.id === cmd.id && ref.revision === cmd.expectedRevision)) throw new DomainError('PERMISSION_DENIED');
+    if (cmd.type === 'record.restore') throw new DomainError('PERMISSION_DENIED');
     if (cmd.type === 'memo.restore') throw new DomainError('PERMISSION_DENIED');
-    if ((cmd.type === 'memo.update' || cmd.type === 'memo.trash') && !refs.some(ref => ref.kind !== 'attachment' && ref.id === cmd.id && ref.revision === cmd.expectedRevision)) throw new DomainError('PERMISSION_DENIED');
+    if ((cmd.type === 'memo.update' || cmd.type === 'memo.trash') && !refs.some(ref => ref.kind === undefined && ref.id === cmd.id && ref.revision === cmd.expectedRevision)) throw new DomainError('PERMISSION_DENIED');
   }
   async function mutate(tx: DomainTransaction, cmd: Command, refs: DocumentRef[]): Promise<Omit<Receipt, 'operationId'>> {
+    if (cmd.type.startsWith('record.')) return mutateRecord(tx, cmd as RecordCommand, deps, refs);
     if (cmd.type.startsWith('memo.')) return mutateMemo(tx, cmd as MemoCommand, deps);
-    if (cmd.type.startsWith('grade.')) return mutateGrade(tx, cmd as GradeCommand, deps, refs);
     const now = deps.now(), updated = new Date(now).toISOString();
     const changed = (kind: EntityRef['kind'], id: string, revision: number, unchanged = false): Omit<Receipt, 'operationId'> =>
       ({ disposition: unchanged ? 'unchanged' : 'committed', entity: { kind, id, revision } });
@@ -225,8 +229,6 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     },
     listMemos(options: Parameters<typeof listMemoMetadata>[1] = {}) { return db.readTransaction(tx => listMemoMetadata(tx, options)); },
     listMemoGroups() { return db.readTransaction(tx => listMemoGroups(tx)); },
-    listGrades: grades.list,
-    summarizeGrades: grades.summary,
     trainingHistory: daily.readTrainingHistory,
     async listHabits(options: { limit?: number } = {}): Promise<HabitRow[]> {
       return db.readTransaction(tx => tx.getAll<HabitRow>('SELECT * FROM habits WHERE deleted=0 AND archived_at IS NULL ORDER BY sort_order,id LIMIT ?', [limit(options.limit)]));
@@ -242,6 +244,9 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         return tx.getAll<{ id: string; habit_id: string; date_key: string; timestamp: number; note: string; revision: number }>('SELECT id,habit_id,date_key,timestamp,note,revision FROM checkins WHERE habit_id=? AND deleted=0 AND date_key>=? AND date_key<=? ORDER BY timestamp DESC,id LIMIT ?', [options.habitId, options.from, options.through, limit(options.limit)]);
       });
     },
+    listRecords: records.list,
+    getRecord: records.get,
+    calculateRecords: (refs: DocumentRef[], input: Parameters<typeof calculateRecords>[2], context: ReadContext) => calculateRecords(db, refs, input, context),
     queryMemories,
     queryActivities,
     async listMemories(options: { limit?: number } = {}): Promise<MemoryRow[]> {
@@ -257,6 +262,11 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       if (!context || !['ui', 'agent'].includes(context.actor) || (context.actor === 'agent' && !checkedRefs(context.documentRefs).some(r => r.id === ref.id && r.revision === ref.revision && r.kind === ref.kind))) throw new DomainError('PERMISSION_DENIED');
       return db.readTransaction(async tx => {
         await verifyRefs(tx, [ref]);
+        if (ref.kind === 'record') {
+          const row = await tx.getOptional<RecordRow>('SELECT * FROM local_records WHERE id=?', [ref.id]);
+          if (!row) throw new DomainError('SOURCE_CHANGED');
+          return recordSource(row);
+        }
         if (ref.kind === 'attachment') {
           const material = await tx.getOptional<{ id: string; filename: string; body: string; note: string; status: string; revision: number }>('SELECT id,filename,body,note,status,revision FROM local_materials WHERE id=?', [ref.id]);
           if (!material || material.status !== 'ready') throw new DomainError('INVALID_ARGUMENT');

@@ -2,7 +2,7 @@ import {Alert,Pressable,Text,View} from 'react-native';
 import {useQuery} from '@powersync/react-native';
 import * as Crypto from 'expo-crypto';
 import {database} from './database';
-import {emptyRows,mergeRecords,portableRow,recordFields,type RecordTable,type Snapshot,type PortableDraft} from './recordBackup';
+import {emptyRows,mergeRecords,portableRow,recordFields,type RecordTable,type Snapshot,type PortableDraft} from './recoveryRecords';
 import {useHabits} from '../state/HabitStore';
 
 export function RecordRecovery() {
@@ -17,7 +17,7 @@ export function RecordRecovery() {
    if(!handled.length)throw new Error('这份副本没有可恢复的完整记录，请保留它并导出备份。');
    // Repeated operations can snapshot the same row more than once.
    for(const table of Object.keys(rows) as RecordTable[])rows[table]=[...new Map(rows[table].map(r=>[r.id,r])).values()];
-   await mergeRecords(tx,{format:'angelime-records',version:1,exported_at:'',rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
+   await mergeRecords(tx,{rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
    const remaining=snapshots.filter(s=>!handled.includes(s));
    if(remaining.length)await tx.execute('UPDATE local_conflicts SET snapshots=? WHERE id=?',[JSON.stringify(remaining),id]);else await tx.execute('DELETE FROM local_conflicts WHERE id=?',[id]);
   });Alert.alert('已保存恢复副本','已作为新记录保存在本机，原记录未覆盖。');}
@@ -27,7 +27,7 @@ export function RecordRecovery() {
   try {await database.writeTransaction(async tx=>{
    const d=await tx.getOptional<PortableDraft>('SELECT * FROM local_drafts WHERE id=?',[id]);if(!d)return;
    const now=Date.now(),rows=emptyRows();rows.documents=[portableRow('documents',{id:d.document_id,kind:d.kind??'diary',title:d.title,body:d.body,date:d.date,group_id:d.group_id??null,sort_order:0,created_at:now,edited_at:now,deleted_at:null,deleted:0})];
-   await mergeRecords(tx,{format:'angelime-records',version:1,exported_at:'',rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
+   await mergeRecords(tx,{rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
    await tx.execute('DELETE FROM local_drafts WHERE id=?',[id]);
   });Alert.alert('草稿已保存为新记录','原有记录未覆盖。');}
   catch(e){Alert.alert('恢复未完成',e instanceof Error?e.message:'草稿仍保留。');}

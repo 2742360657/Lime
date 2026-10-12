@@ -4,7 +4,6 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { createDomain } = require('../../src/domain/service');
 const { createDatabaseSchema } = require('../../src/storage/databaseSchema');
-const { migrateLocalDatabase } = require('../../src/storage/localMigration');
 const { sqliteHarness } = require('./sqliteHarness.cjs');
 
 const now = new Date(2026, 9, 9, 18, 30).getTime();
@@ -24,9 +23,9 @@ async function document() {
 beforeEach(() => { counter = 0; db = sqliteHarness(); domain = createDomain(db, deps()); });
 afterEach(() => db.close());
 
-test('all new tables stay local-only and the historical schema remains fixed', () => {
+test('the single current schema stays local-only and includes generic records', () => {
   expect(createDatabaseSchema().tables.every(t => t.localOnly)).toBe(true);
-  expect(createDatabaseSchema(false).tables.map(t => t.name)).not.toContain('local_activities');
+  expect(createDatabaseSchema().tables.map(t => t.name)).toContain('local_records');
 });
 
 test.each([
@@ -46,11 +45,11 @@ test.each([
 test('task lifecycle preserves metadata, rejects stale editors and never revives deleted rows', async () => {
   const created = await execute({ type: 'task.create', title: '  合成任务  ', dueDateKey: '2028-02-29', dueTime: '18:30' });
   const id = created.entity.id;
-  await db.tx.execute('UPDATE tasks SET document_id=?,owner_id=? WHERE id=?', ['source', 'legacy-owner', id]);
+  await db.tx.execute('UPDATE tasks SET document_id=? WHERE id=?', ['source', id]);
   await execute({ type: 'task.update', id, expectedRevision: 1, title: '更正', note: '保留' });
   await expectCode(execute({ type: 'task.update', id, expectedRevision: 1, title: '旧编辑器' }), 'VERSION_CONFLICT');
   const row = await db.tx.getOptional('SELECT * FROM tasks WHERE id=?', [id]);
-  expect(row).toMatchObject({ title: '更正', note: '保留', revision: 2, document_id: 'source', owner_id: 'legacy-owner' });
+  expect(row).toMatchObject({ title: '更正', note: '保留', revision: 2, document_id: 'source' });
   const done = await execute({ type: 'task.complete', id, expectedRevision: 2, completed: true });
   expect(done.entity.revision).toBe(3);
   const unchanged = await execute({ type: 'task.complete', id, expectedRevision: 3, completed: true });
@@ -205,16 +204,4 @@ test('disk reopen retains pending activity/explicit memory and receipts for cros
     expect(await execute({ type: 'activity.complete', id, expectedRevision: 1 }, 'finish-disk')).toMatchObject({ ...finished, disposition: 'replayed' });
     expect(await count('checkins')).toBe(1);
   } finally { db.close(); db = sqliteHarness(); rmSync(folder, { recursive: true, force: true }); }
-});
-
-test('historical migration never queries or creates new agent tables in the source', async () => {
-  const source = sqliteHarness();
-  try {
-    for (const table of ['local_operations', 'local_activities', 'local_memories', 'local_proposals']) source.sql.exec(`DROP TABLE ${table}`);
-    await source.tx.execute("INSERT INTO tasks(id,title,status,revision,deleted) VALUES('old','合成旧待办','open',1,0)");
-    await migrateLocalDatabase(db, source);
-    expect((await domain.listTasks())[0].id).toBe('old');
-    expect(await count('local_operations')).toBe(0);
-    expect(source.sql.prepare("SELECT name FROM sqlite_master WHERE name='local_activities'").get()).toBeUndefined();
-  } finally { source.close(); }
 });

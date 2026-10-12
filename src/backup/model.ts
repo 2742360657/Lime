@@ -1,26 +1,26 @@
+import { validateRecordRow, type RecordRow } from '../records/model';
 import { tableColumns } from '../storage/databaseSchema';
-import { portableRow, recordFields, validateBackup, emptyRows, type RecordTable } from '../assistant/recordBackup';
+import { portableRow, recordFields, portableDraft, type RecordTable } from '../assistant/recoveryRecords';
 import { validatePersona, validateModel } from '../agent/store';
 import { canonicalJson, commandSchema, documentRefsSchema } from '../domain/commands';
 import type { SqlValue } from '../domain/types';
-import { validateGradeRow } from '../grades/store';
 import { validateOrganizationBatch, organizationDependencies } from '../daily/model';
 
 export const MAX_MANIFEST = 25 * 1024 * 1024;
 export const MAX_PACKAGE = 256 * 1024 * 1024;
 export const exportTables = [
-  'document_groups', 'habit_groups', 'documents', 'habits', 'checkins', 'tasks', 'suggestions',
+  'document_groups', 'habit_groups', 'documents', 'habits', 'checkins', 'tasks',
   'local_drafts', 'local_conflicts', 'local_memories', 'local_activities', 'local_personas',
   'local_operations', 'local_proposals', 'local_agent_sessions', 'local_agent_messages',
   'local_agent_requests', 'local_agent_results', 'local_agent_sources', 'local_materials',
   'local_material_imports', 'local_reminder_rules', 'local_backup_archives', 'local_meta',
   'local_weixin_items',
-  'local_qq_items', 'local_grades', 'local_organization_batches',
+  'local_qq_items', 'local_organization_batches', 'local_records',
 ] as const;
 export type BackupTable = typeof exportTables[number];
 export type Row = Record<string, SqlValue> & { id: string };
 export type Blob = { hash: string; size: number; role: 'material' | 'archive' };
-export type Manifest = { format: 'lime-local-backup'; version: 1 | 2 | 3; exportedAt: string; rows: Record<BackupTable, Row[]>; blobs: Blob[] };
+export type Manifest = { format: 'lime-local-backup'; version: 4; exportedAt: string; rows: Record<BackupTable, Row[]>; blobs: Blob[] };
 export class BackupError extends Error {
   constructor(readonly code: 'FORMAT' | 'LIMIT' | 'MISSING_FILE' | 'INTEGRITY' | 'REFERENCE' | 'BUSY' | 'IO') {
     super(({ FORMAT: '数据包格式或版本不受支持。', LIMIT: '数据包超出当前支持大小，请保留原文件。', MISSING_FILE: '原件或图片副本缺失，未生成完整数据包。', INTEGRITY: '数据包内容校验失败，尚未恢复。', REFERENCE: '数据包中的关联不完整，尚未恢复。', BUSY: '请先停止助手生成，再恢复。', IO: '文件操作未完成，请检查空间或权限；原有记录仍保留。' })[code]);
@@ -35,7 +35,7 @@ export function blobHash(value: unknown) {
   return value.slice(5);
 }
 export function safeMeta(id: string) {
-  return ['agent-model', 'agent-context-boundary'].includes(id) || /^(task-sources-|record-before-import-)/.test(id);
+  return ['agent-model', 'agent-context-boundary'].includes(id);
 }
 function object(v: unknown): Record<string, unknown> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new BackupError('FORMAT');
@@ -54,15 +54,6 @@ export function projectRow(table: BackupTable, value: unknown): Row {
     result[field] = v as SqlValue;
   }
   if (table === 'local_weixin_items' || table === 'local_qq_items') result.capability_id = null;
-  if (table === 'local_meta' && result.id.startsWith('task-sources-')) {
-    const cached = object(json(result.value));
-    if (!Array.isArray(cached.sources) || !Array.isArray(cached.proposals)) throw new BackupError('FORMAT');
-    const fields = ['id','filename','status','parser','source_kind','revision','text','truncated','material_id'];
-    result.value = JSON.stringify({
-      proposals: cached.proposals.map(v => { const p = object(v); return { id:p.id,summary:p.summary }; }),
-      sources: cached.sources.map(v => { const r = object(v); return Object.fromEntries(fields.filter(f => f in r).map(f => [f,r[f]])); }),
-    });
-  }
   return result;
 }
 export function fileSlots(table: BackupTable, row: Row): { field: 'uri' | 'image'; index?: number; value: string; role: Blob['role']; size?: number; hash?: string }[] {
@@ -102,7 +93,7 @@ export function equalRow(table: BackupTable, a: Row, b: Row) {
   return normalize(a) === normalize(b);
 }
 type Ref = { table: BackupTable; id: string; historical?: boolean };
-const entityTables: Record<string, BackupTable> = { task: 'tasks', memo: 'documents', grade: 'local_grades', habit: 'habits', checkin: 'checkins', memory: 'local_memories', activity: 'local_activities', reminder: 'local_reminder_rules' };
+const entityTables: Record<string, BackupTable> = { task: 'tasks', memo: 'documents', record: 'local_records', habit: 'habits', checkin: 'checkins', memory: 'local_memories', activity: 'local_activities', reminder: 'local_reminder_rules' };
 export function dependencies(table: BackupTable, row: Row): Ref[] {
   const refs: Ref[] = [], add = (parent: BackupTable, id: unknown) => { if (id !== null && id !== undefined && id !== '') { if (typeof id !== 'string') throw new BackupError('REFERENCE'); refs.push({ table: parent, id }); } };
   if (table === 'documents') add('document_groups', row.group_id);
@@ -114,16 +105,15 @@ export function dependencies(table: BackupTable, row: Row): Ref[] {
   if (table === 'local_agent_requests') add('local_agent_sessions', row.session_id);
   if (['local_agent_messages', 'local_agent_results', 'local_agent_sources', 'local_proposals'].includes(table)) add('local_agent_requests', row.request_id);
   if (table === 'local_agent_messages') add('local_agent_sessions', row.session_id);
-  if (table === 'suggestions') add('documents', row.document_id);
-  if (['local_agent_requests','local_proposals','local_material_imports','local_grades'].includes(table)) {
+  if (['local_agent_requests','local_proposals','local_material_imports','local_records'].includes(table)) {
     const sources = table === 'local_material_imports' ? json(row.outcome).refs : json(row.source_refs);
     if (!Array.isArray(sources)) throw new BackupError('REFERENCE');
     for (const ref of sources) {
       if (!ref || typeof ref.id !== 'string') throw new BackupError('REFERENCE');
-      refs.push({ table: table === 'local_material_imports' || ref.kind === 'attachment' ? 'local_materials' : 'documents', id: ref.id, historical: table !== 'local_material_imports' });
+      refs.push({ table: table === 'local_material_imports' || ref.kind === 'attachment' ? 'local_materials' : ref.kind === 'record' ? 'local_records' : 'documents', id: ref.id, historical: table !== 'local_material_imports' });
     }
   }
-  if (table === 'local_agent_sources') refs.push({ table: row.kind === 'attachment' ? 'local_materials' : 'documents', id: String(row.document_id), historical: true });
+  if (table === 'local_agent_sources') refs.push({ table: row.kind === 'attachment' ? 'local_materials' : row.kind === 'record' ? 'local_records' : 'documents', id: String(row.document_id), historical: true });
   const receipt = (v: unknown) => {
     if (!v || typeof v !== 'object') throw new BackupError('REFERENCE');
     const r = v as Record<string, any>;
@@ -143,24 +133,23 @@ export function dependencies(table: BackupTable, row: Row): Ref[] {
 export function validateManifest(value: unknown): Manifest {
   try {
     const raw = object(value);
-    if (raw.format !== 'lime-local-backup' || ![1,2,3].includes(Number(raw.version)) || typeof raw.version !== 'number' || Object.keys(raw).sort().join(',') !== 'blobs,exportedAt,format,rows,version') throw new BackupError('FORMAT');
+    if (raw.format !== 'lime-local-backup' || raw.version !== 4 || typeof raw.version !== 'number' || Object.keys(raw).sort().join(',') !== 'blobs,exportedAt,format,rows,version') throw new BackupError('FORMAT');
     if (typeof raw.exportedAt !== 'string' || raw.exportedAt.length > 40 || !Number.isFinite(Date.parse(raw.exportedAt))) throw new BackupError('FORMAT');
     const source = object(raw.rows), rows = emptyBackupRows();
-    const newTables = ['local_qq_items', 'local_grades', 'local_organization_batches'];
-    const expectedTables = exportTables.filter(t => raw.version === 3 || !newTables.includes(t) && (raw.version === 2 || t !== 'local_weixin_items'));
+    const expectedTables = [...exportTables];
     if (Object.keys(source).sort().join(',') !== expectedTables.sort().join(',')) throw new BackupError('FORMAT');
     let count = 0;
     for (const table of exportTables) {
-      const values = expectedTables.includes(table) ? source[table] : []; if (!Array.isArray(values) || (count += values.length) > 50000) throw new BackupError('LIMIT');
+      const values = source[table]; if (!Array.isArray(values) || (count += values.length) > 50000) throw new BackupError('LIMIT');
       rows[table] = values.map(v => {
         const r = object(v), projected = projectRow(table, v);
         if (Object.keys(r).sort().join(',') !== Object.keys(projected).sort().join(',')) throw new BackupError('FORMAT');
         if ((table === 'local_weixin_items' || table === 'local_qq_items') && (r.capability_id !== null || !Number.isSafeInteger(projected.position) || Number(projected.position) < 0 || Number(projected.position) > 99 || typeof projected.body !== 'string' || projected.body.length > 32000 || typeof projected.filename !== 'string' || projected.filename.length > 180 || (projected.status === 'saved' && !projected.material_id))) throw new BackupError('FORMAT');
-        if (table === 'local_grades' && !validateGradeRow(projected)) throw new BackupError('FORMAT');
+        if (table === 'local_records') validateRecordRow(projected as unknown as RecordRow);
         if (table === 'local_organization_batches') validateOrganizationBatch(projected);
         if (table === 'local_meta' && !safeMeta(projected.id)) throw new BackupError('FORMAT');
         if (Object.hasOwn(recordFields, table)) portableRow(table as RecordTable, projected);
-        if (table === 'local_drafts') validateBackup({format:'angelime-records',version:1,rows:emptyRows(),drafts:[projected],recovery:[]});
+        if (table === 'local_drafts') portableDraft(projected);
         if (table === 'local_personas') validatePersona(String(projected.filename),String(projected.body));
         if (table === 'local_meta' && projected.id === 'agent-model') validateModel(String(projected.value));
         if (table === 'local_meta' && projected.id === 'agent-context-boundary' && (!Number.isFinite(Number(projected.value)) || Number(projected.value)<0)) throw new BackupError('FORMAT');
@@ -173,14 +162,14 @@ export function validateManifest(value: unknown): Manifest {
           local_agent_results:['request_id','result'],local_backup_archives:['uri','hash','summary'],local_meta:['value'],
           local_weixin_items:['message_id','account_key','fingerprint','kind','filename','body','status','note','state'],
           local_qq_items:['message_id','account_key','fingerprint','kind','filename','body','status','note','state'],
-          local_grades:['course','term','note','source_refs'],
+          local_records:['type_key','schema_key','title','body','payload','tags','source_refs'],
         };
         for(const field of requiredText[table] ?? [])if(typeof projected[field]!=='string')throw new BackupError('FORMAT');
         for (const flag of ['deleted','forgotten','enabled','day_of']) if (flag in projected && projected[flag] !== null && ![0,1].includes(Number(projected[flag]))) throw new BackupError('FORMAT');
         if ('revision' in projected && (!Number.isSafeInteger(projected.revision) || Number(projected.revision) < 0)) throw new BackupError('FORMAT');
         if (table === 'local_reminder_rules' && !commandSchema.safeParse({ type: 'reminder.create', title: projected.title, note: projected.note, mode: projected.mode, dateKey: projected.date_key, monthDay: projected.month_day, time: projected.time, advanceDays: projected.advance_days, dayOf: !!projected.day_of, enabled: !!projected.enabled }).success) throw new BackupError('FORMAT');
         if (table === 'local_proposals' && projected.command && !commandSchema.safeParse(json(projected.command)).success) throw new BackupError('FORMAT');
-        if (['local_agent_requests','local_proposals','local_grades'].includes(table)) {
+        if (['local_agent_requests','local_proposals','local_records'].includes(table)) {
           if (!documentRefsSchema.safeParse(json(projected.source_refs)).success) throw new BackupError('FORMAT');
         }
         if (table === 'local_agent_results' && !commandSchema.safeParse(json(projected.result).command).success) throw new BackupError('FORMAT');
@@ -221,6 +210,6 @@ export function validateManifest(value: unknown): Manifest {
       }
     }
     if (used.size !== blobs.length) throw new BackupError('INTEGRITY');
-    return { format: 'lime-local-backup', version: 3, exportedAt: raw.exportedAt, rows, blobs };
+    return { format: 'lime-local-backup', version: 4, exportedAt: raw.exportedAt, rows, blobs };
   } catch (error) { if (error instanceof BackupError) throw error; throw new BackupError('FORMAT'); }
 }

@@ -1,29 +1,28 @@
+import { recordTables } from '../records/schema';
 import { Schema, Table, column } from '@powersync/react-native';
 import { weixinTables } from '../channels/weixin/schema';
 import { qqProductTables } from '../channels/qq/productSchema';
-import { gradeTables } from '../grades/schema';
 import { dailyTables } from '../daily/schema';
 
-// Keep the existing columns and IDs: storage isolation does not change record semantics.
-export const legacyTableColumns = {
-  document_groups: { owner_id: column.text, kind: column.text, name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  documents: { group_id: column.text, sort_order: column.integer, created_at: column.integer, edited_at: column.integer, deleted_at: column.integer, owner_id: column.text, kind: column.text, title: column.text, body: column.text, date: column.text, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  tasks: { owner_id: column.text, title: column.text, status: column.text, document_id: column.text, due_at: column.text, note: column.text, due_date_key: column.text, due_time: column.text, sort_order: column.integer, created_at: column.integer, completed_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  habit_groups: { owner_id: column.text, name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  habits: { owner_id: column.text, name: column.text, group_id: column.text, cadence: column.text, target_count: column.integer, sort_order: column.integer, created_at: column.integer, archived_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  checkins: { owner_id: column.text, habit_id: column.text, date_key: column.text, timestamp: column.integer, note: column.text, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
-  suggestions: { owner_id: column.text, document_id: column.text, document_revision: column.integer, request_id: column.text, summary: column.text, tasks: column.text, model: column.text, status: column.text, updated_at: column.text },
+// Canonical fields for the mature diary, memo, task and habit editors.
+export const coreTableColumns = {
+  document_groups: { kind: column.text, name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
+  documents: { group_id: column.text, sort_order: column.integer, created_at: column.integer, edited_at: column.integer, deleted_at: column.integer, kind: column.text, title: column.text, body: column.text, date: column.text, revision: column.integer, deleted: column.integer, updated_at: column.text },
+  tasks: { title: column.text, status: column.text, document_id: column.text, note: column.text, due_date_key: column.text, due_time: column.text, sort_order: column.integer, created_at: column.integer, completed_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
+  habit_groups: { name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
+  habits: { name: column.text, group_id: column.text, cadence: column.text, target_count: column.integer, sort_order: column.integer, created_at: column.integer, archived_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
+  checkins: { habit_id: column.text, date_key: column.text, timestamp: column.integer, note: column.text, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
   local_meta: { value: column.text },
   local_conflicts: { payload: column.text, snapshots: column.text, error: column.text, created_at: column.text },
   local_drafts: { base_content: column.text, kind: column.text, group_id: column.text, base_revision: column.integer, title: column.text, body: column.text, date: column.text, document_id: column.text },
 };
 
-// Additive local-only objects. Never change the historical source schema on migration.
+// One current local-only schema; the model cannot modify table definitions.
 export const tableColumns = {
-  ...legacyTableColumns,
+  ...coreTableColumns,
+  ...recordTables,
   ...weixinTables,
   ...qqProductTables,
-  ...gradeTables,
   ...dailyTables,
   local_weixin_items: { message_id: column.text, account_key: column.text, fingerprint: column.text, position: column.integer, kind: column.text, filename: column.text, body: column.text, capability_id: column.text, material_id: column.text, status: column.text, note: column.text, state: column.text, created_at: column.integer, revision: column.integer },
   local_backup_imports: { receipt: column.text, created_at: column.integer },
@@ -47,11 +46,9 @@ export const tableColumns = {
 
 export type LocalTable = keyof typeof tableColumns;
 export const localTables = Object.keys(tableColumns) as LocalTable[];
-export const migrationTables = Object.keys(legacyTableColumns) as (keyof typeof legacyTableColumns)[];
 
-export function createDatabaseSchema(localOnly = true) {
-  const names: LocalTable[] = localOnly ? localTables : migrationTables;
-  return new Schema(Object.fromEntries(names.map(name => [name,
-    new Table(tableColumns[name], { localOnly: localOnly || name.startsWith('local_') }),
+export function createDatabaseSchema() {
+  return new Schema(Object.fromEntries(localTables.map(name => [name,
+    new Table(tableColumns[name], {localOnly:true, ...(name==='local_records'?{indexes:{records_type_time:['type_key','created_at'],records_type_occurred:['type_key','occurred_at'],records_state_time:['deleted','created_at']}}:{})}),
   ])));
 }

@@ -1,7 +1,5 @@
 import type { Transaction } from '@powersync/react-native';
 import type { AppData, Habit, TodoItem } from '../types/habit';
-import { createId } from '../utils/id';
-import { database } from './database';
 
 type Row = Record<string, string | number | null> & { id: string; revision: number };
 const tables = ['document_groups','habit_groups', 'habits', 'checkins', 'tasks','documents'] as const;
@@ -52,41 +50,4 @@ export async function writeBusiness(tx: Transaction, before: AppData, after: App
  }
  // Detach children before deleting their parent classification.
  for(const table of [...tables].reverse())for(const row of old[table])if(!next[table].some(r=>r.id===row.id))await tx.execute(`UPDATE ${table} SET deleted=1,revision=revision+1,updated_at=? WHERE id=? AND deleted=0`,[now,row.id]);
-}
-
-export async function migrateLegacyBusiness(data: AppData): Promise<AppData> {
- return database.writeTransaction(async tx => {
-  if(!await tx.getOptional('SELECT value FROM local_meta WHERE id=?',['business-import-v1'])) {
-   // Original JSON is retained; this additional immutable snapshot and marker commit with the import.
-   await tx.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['business-import-backup-v1',JSON.stringify(data)]);
-   const legacy=records(data);
-   for(const table of ['habit_groups','habits','checkins','tasks'] as const) for(const row of legacy[table]) {
-    if(await tx.getOptional(`SELECT id FROM ${table} WHERE id=?`,[row.id]))continue;
-    const fields=Object.keys(row).filter(k => k!=='revision');
-    await tx.execute(`INSERT INTO ${table}(${fields.join(',')},revision,deleted,updated_at) VALUES(${Array(fields.length+3).fill('?').join(',')})`,[...fields.map(k => row[k]),1,0,new Date().toISOString()]);
-   }
-   await tx.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['business-import-v1','1']);
-  }
-  if(!await tx.getOptional('SELECT value FROM local_meta WHERE id=?',['memo-import-v1'])) {
-   await tx.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['memo-import-backup-v1',JSON.stringify({memoGroups:data.memoGroups,memos:data.memos})]);
-   const legacy=records(data),groupMap=new Map<string,string>(),memoMap=new Map<string,string>();
-   for(const source of legacy.document_groups) {
-    const existing=await tx.getOptional<Row>('SELECT * FROM document_groups WHERE id=?',[source.id]);
-    const id=existing&&(existing.kind!=='memo'||existing.name!==source.name||existing.sort_order!==source.sort_order||Number(existing.created_at)!==source.created_at||existing.deleted===1)?createId():source.id;
-    groupMap.set(source.id,id);
-    if(id===source.id&&existing)continue;
-    await tx.execute('INSERT INTO document_groups(id,kind,name,sort_order,created_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,1,0,?)',[id,'memo',source.name,source.sort_order,source.created_at,new Date().toISOString()]);
-   }
-   for(const source of legacy.documents) {
-    if(String(source.title).length>300||String(source.body).length>100000||source.id.length>100)throw new Error('旧备忘录超出支持长度。原JSON仍保留，请先导出后处理。');
-    const existing=await tx.getOptional<Row>('SELECT * FROM documents WHERE id=?',[source.id]);
-    const id=existing&&(existing.kind!=='memo'||existing.title!==source.title||existing.body!==source.body||existing.date!==source.date||existing.group_id!==(groupMap.get(String(source.group_id))??null)||existing.sort_order!==source.sort_order||Number(existing.created_at)!==source.created_at||Number(existing.edited_at)!==source.edited_at||existing.deleted!==source.deleted)?createId():source.id;
-    memoMap.set(source.id,id);if(existing&&id===source.id)continue;
-    await tx.execute('INSERT INTO documents(id,kind,title,body,date,group_id,sort_order,created_at,edited_at,deleted_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)',[id,'memo',source.title,source.body,source.date,groupMap.get(String(source.group_id))??null,source.sort_order,source.created_at,source.edited_at,source.deleted_at,source.deleted,new Date().toISOString()]);
-   }
-   await tx.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['memo-import-map-v1',JSON.stringify({groups:Object.fromEntries(groupMap),documents:Object.fromEntries(memoMap)})]);
-   await tx.execute('INSERT INTO local_meta(id,value) VALUES(?,?)',['memo-import-v1','1']);
-  }
-  return readBusiness(tx,data);
- });
 }

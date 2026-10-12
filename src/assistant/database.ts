@@ -2,7 +2,6 @@ import { database } from '../storage/database';
 export { database } from '../storage/database';
 export type DocumentContent={title:string;body:string;date:string;group_id?:string|null};
 export type DocumentRow={base_content?:DocumentContent;id:string;kind:string;title:string;body:string;date:string;revision:number;deleted:number;updated_at:string;group_id?:string|null;sort_order?:number;created_at?:number;edited_at?:number;deleted_at?:number|null};
-export type SuggestionRow={id:string;document_id:string;document_revision:number;summary:string;tasks:string;status:string};
 export function localDate() {const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 export async function saveDocument(doc:{id:string;title:string;body:string;date:string;kind?:string},expectedRevision?:number,expectedContent?:DocumentContent):Promise<number> {
  return database.writeTransaction(async tx=>{

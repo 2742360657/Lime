@@ -8,7 +8,7 @@ const { createHash } = require('node:crypto');
 const hash = 'a'.repeat(64), packageHash = 'b'.repeat(64);
 const digest = async s => createHash('sha256').update(s).digest('hex');
 const args = { digest: packageHash, archiveUri: 'file:///isolated/package.zip', archiveSize: 100, now: 100, fileUri: h => 'file:///isolated/'+h+'.bin' };
-const task = (id='task') => projectRow('tasks',{id,title:'合成待办',note:'',status:'open',document_id:null,due_at:null,due_date_key:'2026-10-11',due_time:'10:00',sort_order:0,created_at:100,completed_at:null,revision:1,deleted:0,updated_at:'2026-10-10T00:00:00Z'});
+const task = (id='task') => projectRow('tasks',{id,title:'合成待办',note:'',status:'open',document_id:null,due_date_key:'2026-10-11',due_time:'10:00',sort_order:0,created_at:100,completed_at:null,revision:1,deleted:0,updated_at:'2026-10-10T00:00:00Z'});
 let source,target;
 beforeEach(()=>{source=sqliteHarness();target=sqliteHarness();});
 afterEach(()=>{source.close();target.close();});
@@ -66,7 +66,7 @@ test('portable material paths are relocated, same content skips, corrupt blobs/e
   const m=await captureBackup(source);m.blobs=[{hash,size:3,role:'material'}];m.rows.local_materials=[projectRow('local_materials',{id:'material',filename:'synthetic.txt',uri:'blob:'+hash,hash,size:3,mime:'text/plain',kind:'text',body:'原文',images:'[]',pages:0,status:'ready',note:'',revision:4,deleted:0,created_at:100})];
   validateManifest(m);await restoreBackup(target,m,args);expect((await target.getOptional('SELECT uri FROM local_materials')).uri).toBe(args.fileUri(hash));
   expect(await restoreBackup(target,m,{...args,digest:'c'.repeat(64)})).toMatchObject({added:0,skipped:1});
-  const variants=[{...m,version:4},{...m,rows:{...m.rows,unexpected:[]}},{...m,blobs:[{hash,size:4,role:'material'}]},{...m,rows:{...m.rows,local_meta:[{id:'secret',value:'x'}]}},{...m,rows:{...m.rows,tasks:[{...task(),evil:'x'}]}}];
+  const variants=[{...m,version:3},{...m,rows:{...m.rows,unexpected:[]}},{...m,blobs:[{hash,size:4,role:'material'}]},{...m,rows:{...m.rows,local_meta:[{id:'secret',value:'x'}]}},{...m,rows:{...m.rows,tasks:[{...task(),evil:'x'}]}}];
   for(const bad of variants)expect(()=>validateManifest(bad)).toThrow();
 });
 test('missing references and malformed requests are rejected before SQL mutation',async()=>{
@@ -100,7 +100,7 @@ test('restorable records reject nullable UI text and malformed drafts before act
   m.rows.local_memories=[];m.rows.local_drafts=[projectRow('local_drafts',{id:'draft',document_id:'document',kind:'diary',title:'',body:null,date:'2026-10-10'})];
   expect(()=>validateManifest(m)).toThrow();
 });
-test('historical source excerpt projection retains content but strips transport credentials and URLs',async()=>{
-  await seed(source,'local_meta',{id:'task-sources-owner-task',value:JSON.stringify({proposals:[],sources:[{id:'source',filename:'合成通知',status:'saved',text:'原文',truncated:false,transport_token:'SYNTHETIC_PRIVATE_MARKER',download_url:'https://example.invalid/private'}]})});
-  const m=await captureBackup(source);expect(JSON.stringify(m)).toContain('原文');expect(JSON.stringify(m)).not.toContain('SYNTHETIC_PRIVATE_MARKER');expect(JSON.stringify(m)).not.toContain('download_url');validateManifest(m);
+test('obsolete server source caches are excluded from the current package',async()=>{
+  await seed(source,'local_meta',{id:'task-sources-owner-task',value:'SYNTHETIC_PRIVATE_MARKER'});
+  const m=await captureBackup(source);expect(m.rows.local_meta).toEqual([]);
 });

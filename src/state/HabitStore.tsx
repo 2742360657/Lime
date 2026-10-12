@@ -8,10 +8,10 @@ import {
   useRef,
 } from 'react';
 
-import { loadAppDataFromDisk, saveAppDataToDisk } from '../storage/habitStorage';
+import { readAppSettings, writeAppSettings } from '../storage/appSettings';
 import { getTheme, ThemeId } from '../theme';
 import {type DocumentContent, database } from '../assistant/database';
-import { migrateLegacyBusiness, readBusiness, writeBusiness } from '../assistant/businessStore';
+import { readBusiness, writeBusiness } from '../assistant/businessStore';
 import type { AppData, Memo } from '../types/habit';
 import { clampToMinute, getTodayKey } from '../utils/date';
 import { createId } from '../utils/id';
@@ -41,6 +41,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
         if ((action.type === 'add-checkin-now' || action.type === 'add-checkin') && !fresh.appData.habits.some(h => h.id === action.habitId && h.archivedAt === null)) throw new Error('HABIT_CHANGED');
         const updated=habitReducer(fresh,action);
         await writeBusiness(tx,fresh.appData,updated.appData);
+        if (JSON.stringify(fresh.appData.settings) !== JSON.stringify(updated.appData.settings)) await writeAppSettings(tx, updated.appData.settings);
         return {...updated,appData:await readBusiness(tx,updated.appData)};
       });publish(next);return next;
     });
@@ -80,7 +81,6 @@ export function HabitProvider({ children }: PropsWithChildren) {
     }
     void commitAction(action).catch(()=>{});
   },[commitAction]);
-  const saveQueue = useRef(Promise.resolve());
   const addMemo = useCallback(async (groupId: string | null) => {
     const id = createId();
     const now = Date.now();
@@ -190,7 +190,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
 
     async function hydrate() {
       try {
-        const appData = await migrateLegacyBusiness(await loadAppDataFromDisk());
+        const appData = await database.readTransaction(async tx => readBusiness(tx, { ...initialState.appData, settings: await readAppSettings(tx) }));
         if (!isMounted) {
           return;
         }
@@ -203,7 +203,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
           type: 'set-error',
           error: error instanceof Error ? error.message : '读取本地数据失败，请稍后重试。',
         });
-        // Do not replace a failed database/import with an empty, writable dataset.
+        // Keep a failed database read from becoming an empty, writable dataset.
       }
     }
 
@@ -213,19 +213,6 @@ export function HabitProvider({ children }: PropsWithChildren) {
       isMounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!state.isHydrated) {
-      return;
-    }
-
-    saveQueue.current = saveQueue.current.then(() => saveAppDataToDisk(state.appData)).catch((error: unknown) => {
-      dispatch({
-        type: 'set-error',
-        error: error instanceof Error ? error.message : '保存本地数据失败，请稍后重试。',
-      });
-    });
-  }, [state.appData, state.isHydrated]);
 
   useEffect(() => {
     if(!state.isHydrated)return;

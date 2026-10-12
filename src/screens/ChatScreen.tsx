@@ -1,7 +1,8 @@
 import { MaterialPicker } from '../materials/MaterialPicker';
 import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
 import { QqIntakeModal } from '../channels/qq/QqIntakeModal';
-import { GradeRecordsModal } from '../grades/GradeRecordsModal';
+import { RecordSourceView } from '../records/TableView';
+import { RecordsModal } from '../records/RecordsModal';
 import { DailyToolsModal } from '../daily/DailyToolsModal';
 import { MaterialViewer } from '../materials/MaterialViewer';
 import { materialStore } from '../materials/service';
@@ -10,15 +11,16 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, Tex
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { database } from '../storage/database';
+import {domain} from '../domain';
 import type { DocumentRef } from '../domain';
 import { useHabits } from '../state/HabitStore';
 import { useAgent } from '../agent/AgentProvider';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 import { ActionCard } from '../agent/ActionCard';
 import type { ActionResult, AgentMessage, AgentRequest, AgentSession } from '../agent/store';
-import { LegacyChatHistory } from './LegacyChatHistory';
 
 type Source = Omit<DocumentRef, 'kind'> & { title: string; kind: string; date: string; body?: string };
+const sourceIdentity = (source: Pick<Source,'id'|'kind'>) => `${source.kind === 'attachment' || source.kind === 'record' ? source.kind : 'document'}:${source.id}`;
 export function ChatScreen({ route }: { route?: { params?: { documentId?: string; documentRevision?: number; quoteNonce?: string; materialsNonce?: string } } }) {
   const { theme } = useHabits(), c = theme.colors;
   const insets = useSafeAreaInsets();
@@ -28,9 +30,9 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   const [input, setInput] = useState(''), [quoted, setQuoted] = useState<Source[]>([]), [picker, setPicker] = useState(false), [documents, setDocuments] = useState<Source[]>([]);
   const [filePicker, setFilePicker] = useState(false), [materialPreview, setMaterialPreview] = useState<{ id: string; body: string; revision: number } | null>(null), [draftSession, setDraftSession] = useState('');
   const [sourcePreview, setSourcePreview] = useState<Source | null>(null), [sources, setSources] = useState<Record<string, Source[]>>({});
-  const [settingsVisible, setSettingsVisible] = useState(false), [legacy, setLegacy] = useState(false), [error, setError] = useState('');
+  const [settingsVisible, setSettingsVisible] = useState(false), [error, setError] = useState('');
   const [weixinVisible, setWeixinVisible] = useState(false);
-  const [qqVisible, setQqVisible] = useState(false), [gradesVisible, setGradesVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
+  const [qqVisible, setQqVisible] = useState(false), [recordsVisible, setRecordsVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
   const scroll = useRef<ScrollView>(null), initializing = useRef(false);
   useEffect(() => {
     let active = true;
@@ -63,17 +65,18 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   useEffect(() => {
     let active = true;
     if (route?.params?.documentId && draftSession === session) void database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [route.params.documentId, route.params.documentRevision ?? -1]).then(source => {
-      if (active) { if (source) { setQuoted(previous => [...previous.filter(s => s.id !== source.id), source].slice(0, 4)); setLegacy(false); } else setError('引用已变化，请返回记录重新选择。'); }
+      if (active) { if (source) { setQuoted(previous => [...previous.filter(s => sourceIdentity(s) !== sourceIdentity(source)), source].slice(0, 4)); } else setError('引用已变化，请返回记录重新选择。'); }
     }).catch(() => { if (active) setError('引用暂时无法读取。'); });
     return () => { active = false; };
   }, [route?.params?.documentId, route?.params?.documentRevision, route?.params?.quoteNonce, draftSession, session]);
-  useEffect(() => { if (route?.params?.materialsNonce) { setFilePicker(true); setLegacy(false); } }, [route?.params?.materialsNonce]);
+  useEffect(() => { if (route?.params?.materialsNonce) { setFilePicker(true); } }, [route?.params?.materialsNonce]);
   useEffect(() => {
     if (!session) return; let active = true; setDraftSession(''); setQuoted([]);
     void materialStore.draft(session).then(async refs => {
       const selections: Source[] = [];
       for (const ref of refs) {
-        if (ref.kind === 'attachment') { const m = await materialStore.get(ref.id); if (m && !m.deleted) selections.push({ id: m.id, revision: ref.revision, kind: 'attachment', title: m.filename, date: '' }); }
+        if(ref.kind === 'record'){const r=await domain.getRecord(ref.id,{actor:'ui'});if(r&&!r.deleted)selections.push({id:r.id,revision:ref.revision,kind:'record',title:r.title,date:''});}
+        else if (ref.kind === 'attachment') { const m = await materialStore.get(ref.id); if (m && !m.deleted) selections.push({ id: m.id, revision: ref.revision, kind: 'attachment', title: m.filename, date: '' }); }
         else { const doc = await database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND deleted=0', [ref.id]); if (doc) selections.push({ ...doc, revision: ref.revision }); }
       }
       if (active) { setQuoted(selections); setDraftSession(session); }
@@ -81,14 +84,14 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     return () => { active = false; };
   }, [session]);
   useEffect(() => {
-    if (draftSession === session && session) void materialStore.saveDraft(session, quoted.map(ref => ({ id: ref.id, revision: ref.revision, ...(ref.kind === 'attachment' ? { kind: 'attachment' as const } : {}) }))).catch(() => setError('材料选择未保存，请重试。'));
+    if (draftSession === session && session) void materialStore.saveDraft(session, quoted.map(ref => ({ id: ref.id, revision: ref.revision, ...(ref.kind === 'attachment' ? { kind: 'attachment' as const } : ref.kind === 'record' ? {kind:'record' as const} : {}) }))).catch(() => setError('材料选择未保存，请重试。'));
   }, [session, draftSession, quoted]);
   async function send(retryId?: string) {
     if (state.busy || !session) return;
     const text = input, refs = quoted;
     setError('');
 
-    try { await runtime.start(session, text.trim() || '请帮我分析选中的材料。', refs.map(({ id, revision, kind }) => ({ id, revision, ...(kind === 'attachment' ? { kind: 'attachment' as const } : {}) })), retryId, () => { if (!retryId) { setInput(''); setQuoted([]); } }); }
+    try { await runtime.start(session, text.trim() || '请帮我分析选中的材料。', refs.map(({ id, revision, kind }) => ({ id, revision, ...(kind === 'attachment' ? { kind: 'attachment' as const } : kind === 'record' ? {kind:'record' as const} : {}) })), retryId, () => { if (!retryId) { setInput(''); setQuoted([]); } }); }
     catch (e) { if (!retryId) { setInput(text); setQuoted(refs); } setError(e instanceof Error ? e.message : '请求未完成，请重试。'); }
   }
   async function pickRecords() {
@@ -97,30 +100,29 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   }
   const button = (label: string, fn: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={fn} style={{ paddingVertical: 8, paddingHorizontal: 8, opacity: disabled ? 0.4 : 1 }}><Text style={{ fontSize: 12, color: c.primary }}>{label}</Text></Pressable>;
   const panels = [
-    { id: 'new', label: '新对话', onPress: () => { void store.newSession().then(id => { setSession(id); setLegacy(false); }).catch(() => setError('新建对话失败。')); } },
+    { id: 'new', label: '新对话', onPress: () => { void store.newSession().then(id => { setSession(id); }).catch(() => setError('新建对话失败。')); } },
     { id: 'config', label: '助手配置', onPress: () => setSettingsVisible(true) },
     { id: 'weixin', label: '微信收件', onPress: () => setWeixinVisible(true) },
     { id: 'qq', label: 'QQ收件', onPress: () => setQqVisible(true) },
-    { id: 'grades', label: '成绩记录', onPress: () => setGradesVisible(true) },
+    { id: 'records', label: '本机资料', onPress: () => setRecordsVisible(true) },
     { id: 'daily', label: '日用记录与整理', onPress: () => setDailyVisible(true) },
-    ...sessions.map(s => ({ id: s.id, label: s.title, selected: s.id === session && !legacy, onPress: () => { setSession(s.id); setLegacy(false); } })),
-    { id: 'legacy', label: '旧版历史缓存', selected: legacy, onPress: () => setLegacy(true) },
+    ...sessions.map(s => ({ id: s.id, label: s.title, selected: s.id === session, onPress: () => { setSession(s.id); } })),
   ];
   return <ScreenScaffold panelTitle="助手" panelItems={panels}>
-    {legacy ? <LegacyChatHistory /> : <KeyboardAvoidingView style={{ flex: 1 }} contentContainerStyle={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top + 66}>
+    <KeyboardAvoidingView style={{ flex: 1 }} contentContainerStyle={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top + 66}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, borderBottomColor: c.border, borderBottomWidth: 1 }}>
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sessions.find(s => s.id === session)?.title || '助手'}</Text>
         {button('配置', () => setSettingsVisible(true))}
       </View>
       <ScrollView ref={scroll} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、备忘录、成绩、习惯和显式记忆。日记与备忘录正文需选中后才供本轮分析。</Text> : null}
+        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、备忘录、资料、习惯和显式记忆。资料、日记与备忘录正文需选中后才供本轮分析。</Text> : null}
         {messages.map(message => {
           const request = requests.find(r => r.id === message.request_id);
           const generating = state.busy && state.requestId === message.request_id && message.role === 'assistant';
           const text = generating ? state.text || message.body : message.body;
           return <View key={message.id} style={{ alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '96%', minWidth: 100, gap: 7, padding: 10, borderRadius: 10, backgroundColor: message.role === 'user' ? c.primarySoft : c.surface }}>
             <Text selectable style={{ fontSize: 14, lineHeight: 22, color: c.textPrimary }}>{text || (generating ? '正在处理…' : request?.status === 'complete' ? '本轮已结束。' : '未生成回答。')}</Text>
-            {message.role === 'user' ? sources[message.request_id]?.map(source => <View key={source.id}>{button(`原文 · ${source.title || source.date || '记录'}`, () => source.kind === 'attachment' ? setMaterialPreview({ id: source.id, body: source.body ?? '', revision: source.revision }) : setSourcePreview(source))}</View>) : null}
+            {message.role === 'user' ? sources[message.request_id]?.map(source => <View key={sourceIdentity(source)}>{button(`原文 · ${source.title || source.date || '记录'}`, () => source.kind === 'attachment' ? setMaterialPreview({ id: source.id, body: source.body ?? '', revision: source.revision }) : setSourcePreview(source))}</View>) : null}
             {message.role === 'assistant' ? <>
               {results[message.request_id]?.map((result, i) => <ActionCard key={result.proposalId || result.receipt?.operationId || i} result={result} />)}
               {request?.status === 'restored' ? <Text style={{ fontSize: 11, color: c.textMuted }}>恢复的聊天历史；本轮不会重试或重放。</Text> : null}
@@ -132,25 +134,25 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
       </ScrollView>
       {error ? <Text style={{ paddingHorizontal: 12, fontSize: 12, lineHeight: 19, color: c.textSecondary }}>{error}</Text> : null}
       <View style={{ paddingHorizontal: 10, paddingTop: 4, paddingBottom: 8, gap: 5, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
-        {quoted.map(source => <View key={source.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: c.textSecondary }}>本轮引用 · {source.title || source.date || '记录'}</Text>{button('取消引用', () => setQuoted(quoted.filter(s => s.id !== source.id)))}</View>)}
+        {quoted.map(source => <View key={sourceIdentity(source)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: c.textSecondary }}>本轮引用 · {source.title || source.date || '记录'}</Text>{button('取消引用', () => setQuoted(quoted.filter(s => sourceIdentity(s) !== sourceIdentity(source))))}</View>)}
         <TextInput accessibilityLabel="给助手发消息" placeholder="给助手发消息…" placeholderTextColor={c.textMuted} multiline maxLength={12000} value={input} onChangeText={setInput} style={{ fontSize: 14, lineHeight: 21, minHeight: 42, maxHeight: 120, padding: 9, borderWidth: 1, borderColor: c.border, borderRadius: 8, color: c.textPrimary }} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><View style={{ flexDirection: 'row' }}>{button('引用记录', () => void pickRecords(), quoted.length >= 4)}{button('文件／图片', () => setFilePicker(true))}</View>
           {state.busy ? button(state.sessionId === session ? '停止生成' : '停止其他对话生成', runtime.stop) : button('发送', () => void send(), (!input.trim() && !quoted.length) || !session)}
         </View>
       </View>
-    </KeyboardAvoidingView>}
-    <MaterialPicker visible={filePicker} remaining={4 - quoted.length} onClose={() => setFilePicker(false)} onPick={m => setQuoted(previous => previous.some(s => s.id === m.id) ? previous.map(s => s.id === m.id ? { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' } : s) : [...previous, { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    </KeyboardAvoidingView>
+    <MaterialPicker visible={filePicker} remaining={4 - quoted.length} onClose={() => setFilePicker(false)} onPick={m => setQuoted(previous => previous.some(s => s.kind === 'attachment' && s.id === m.id) ? previous.map(s => s.kind === 'attachment' && s.id === m.id ? { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' } : s) : [...previous, { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
     <MaterialViewer id={materialPreview?.id ?? null} snapshot={materialPreview ?? undefined} onClose={() => setMaterialPreview(null)} />
     <AssistantSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
-    <WeixinIntakeModal visible={weixinVisible} remaining={4 - quoted.length} onClose={() => setWeixinVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => s.id !== m.id), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
-    <QqIntakeModal visible={qqVisible} remaining={4 - quoted.length} onClose={() => setQqVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => s.id !== m.id), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
-    <GradeRecordsModal visible={gradesVisible} onClose={() => setGradesVisible(false)} />
+    <WeixinIntakeModal visible={weixinVisible} remaining={4 - quoted.length} onClose={() => setWeixinVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => !(s.kind === 'attachment' && s.id === m.id)), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    <QqIntakeModal visible={qqVisible} remaining={4 - quoted.length} onClose={() => setQqVisible(false)} onPick={m => setQuoted(previous => [...previous.filter(s => !(s.kind === 'attachment' && s.id === m.id)), { id: m.id, revision: m.revision, kind: 'attachment', title: m.filename, date: '' }].slice(0, 4))} />
+    <RecordsModal visible={recordsVisible} remaining={4-quoted.length} onClose={() => setRecordsVisible(false)} onPick={ref => setQuoted(previous => [...previous.filter(s => !(s.id === ref.id && s.kind === ref.kind)),{...ref,kind:'record'}].slice(0,4))} />
     <DailyToolsModal visible={dailyVisible} onClose={() => setDailyVisible(false)} />
     <Modal visible={picker || Boolean(sourcePreview)} animationType="slide" onRequestClose={() => { setPicker(false); setSourcePreview(null); }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>{button('关闭', () => { setPicker(false); setSourcePreview(null); })}<Text style={{ fontSize: 14, color: c.textPrimary }}>{sourcePreview ? '本轮原文快照' : '选择记录'}</Text></View>
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-          {sourcePreview ? <><Text style={{ fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sourcePreview.title || sourcePreview.date}</Text><Text selectable style={{ fontSize: 14, lineHeight: 23, color: c.textPrimary }}>{sourcePreview.body}</Text></> : documents.map(doc => <Pressable key={doc.id} disabled={quoted.some(s => s.id === doc.id)} onPress={() => { setQuoted(previous => [...previous, doc].slice(0, 4)); setPicker(false); }} style={{ padding: 10, borderRadius: 8, backgroundColor: c.surface }}><Text style={{ fontSize: 13, color: c.textPrimary }}>{doc.title || doc.date || '无标题'}{quoted.some(s => s.id === doc.id) ? ' · 已选' : ''}</Text><Text style={{ marginTop: 4, fontSize: 11, color: c.textMuted }}>{doc.kind === 'diary' ? '日记' : '备忘录'} · {doc.date} · v{doc.revision}</Text></Pressable>)}
+          {sourcePreview ? <><Text style={{ fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sourcePreview.title || sourcePreview.date}</Text>{sourcePreview.kind==='record'?<RecordSourceView body={sourcePreview.body??''}/>:<Text selectable style={{ fontSize: 14, lineHeight: 23, color: c.textPrimary }}>{sourcePreview.body}</Text>}</> : documents.map(doc => <Pressable key={doc.id} disabled={quoted.some(s => sourceIdentity(s) === sourceIdentity(doc))} onPress={() => { setQuoted(previous => [...previous, doc].slice(0, 4)); setPicker(false); }} style={{ padding: 10, borderRadius: 8, backgroundColor: c.surface }}><Text style={{ fontSize: 13, color: c.textPrimary }}>{doc.title || doc.date || '无标题'}{quoted.some(s => sourceIdentity(s) === sourceIdentity(doc)) ? ' · 已选' : ''}</Text><Text style={{ marginTop: 4, fontSize: 11, color: c.textMuted }}>{doc.kind === 'diary' ? '日记' : '备忘录'} · {doc.date} · v{doc.revision}</Text></Pressable>)}
         </ScrollView>
       </SafeAreaView>
     </Modal>

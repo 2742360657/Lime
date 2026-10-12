@@ -15,5 +15,4 @@ export const backupNative = {
   async discard(id: string) { try { await requireNative().discard(id); } catch {} },
   async write(id: string, uri: string) { try { await requireNative().writeTo(id,uri); } catch { throw new BackupError('IO'); } },
   async exportArchive(source: string, uri: string) { try { await requireNative().copyOut(source,uri); } catch { throw new BackupError('IO'); } },
-  async legacyText(uri: string): Promise<string> { try { return await requireNative().readLegacy(uri); } catch { throw new BackupError('FORMAT'); } },
 };

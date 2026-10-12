@@ -62,20 +62,16 @@ export async function runDailyProbe() {
     flags.memoSelectedProposal = true; flags.memoDraftPreserved = true; flags.memoHistoricalSource = true; flags.memoMetadataPrivate = true;
     await agent.finish(request.id, '合成请求已结束；没有模型调用。', 'complete', null);
 
-    phase = 'grades';
-    const grade = (course: string, score: string, credits: string | null, term = '合成2026秋') =>
-      domain.execute({ type: 'grade.create', course, score, credits, term }, { ...ui, operationId: deps.id() });
-    await grade('合成课程甲', '88.33', '1.25'); await grade('合成课程乙', '99.01', '2.75');
-    const bounded = await domain.listGrades({ term: '合成2026秋', limit: 1 }), full = await domain.summarizeGrades({ term: '合成2026秋' });
-    ensure(bounded.rows.length === 1 && bounded.matched === 2 && !bounded.complete);
-    ensure(full.complete && full.matched === 2 && full.average === '93.67' && full.weightedAverage === '95.67');
-    flags.gradeDecimal = true; flags.gradeFullRange = true;
-    await grade('合成缺学分课程', '50.00', null, '合成缺学分');
-    const missing = await domain.summarizeGrades({ term: '合成缺学分' });
-    ensure(missing.complete && missing.average === '50.00' && missing.weightedAverage === null && 'missingCredits' in missing && missing.missingCredits === 1);
-    ensure(await rejects(() => grade('合成课程甲', '70.00', '1.00'), 'ALREADY_EXISTS'));
-    ensure(await rejects(() => grade('合成无效小数', '88.333', '1.00'), 'INVALID_ARGUMENT'));
-    flags.gradeMissingCredits = true; flags.gradeDuplicateDenied = true;
+    phase = 'generic-records';
+    const record = await domain.execute({type:'record.create',typeKey:'合成广泛资料',schemaKey:'table',title:'合成数值表',body:'同一模型存任意领域',tags:['合成范围'],occurredAt:tick,payload:{columns:[{key:'value',label:'数值',kind:'decimal',unit:''},{key:'weight',label:'权重',kind:'decimal',unit:''}],rows:[{value:'188.33',weight:'1.25'},{value:'199.01',weight:'2.75'}]}},{...ui,operationId:deps.id()});
+    const recordRef={id:record.entity.id,revision:1,kind:'record' as const};
+    const metadata=await domain.listRecords({typeKey:'合成广泛资料',tag:'合成范围',from:tick-100,through:tick+100});
+    ensure(metadata.matched===1 && !JSON.stringify(metadata).includes('188.33'));
+    ensure(await rejects(()=>domain.readDocument(recordRef,{actor:'agent',documentRefs:[]}), 'PERMISSION_DENIED'));
+    const tableAverage=await domain.calculateRecords([recordRef],{column:'value',operation:'average'},{actor:'agent',documentRefs:[recordRef]});
+    const weighted=await domain.calculateRecords([recordRef],{column:'value',operation:'weightedAverage',weightColumn:'weight'},{actor:'agent',documentRefs:[recordRef]});
+    ensure(tableAverage.value==='193.67' && weighted.value==='195.67');
+    flags.recordGenericPayload=true;flags.recordMetadataPrivate=true;flags.recordSelectedCalculation=true;
 
     phase = 'training';
     const habit = deps.id();

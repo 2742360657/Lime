@@ -17,7 +17,7 @@ import { useHabits } from '../state/HabitStore';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
 import { QqIntakeModal } from '../channels/qq/QqIntakeModal';
-import { GradeRecordsModal } from '../grades/GradeRecordsModal';
+import { RecordsModal } from '../records/RecordsModal';
 import { DailyToolsModal } from '../daily/DailyToolsModal';
 
 export function SettingsScreen() {
@@ -31,7 +31,7 @@ export function SettingsScreen() {
   const [archivedVisible, setArchivedVisible] = useState(false);
   const [assistantVisible, setAssistantVisible] = useState(false);
   const [weixinVisible, setWeixinVisible] = useState(false);
-  const [qqVisible, setQqVisible] = useState(false), [gradesVisible, setGradesVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
+  const [qqVisible, setQqVisible] = useState(false), [recordsVisible, setRecordsVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
   const [remindersVisible, setRemindersVisible] = useState(false);
   const route = useRoute();
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
@@ -39,9 +39,10 @@ export function SettingsScreen() {
   const dailyNonce = (route.params as { dailyNonce?: string } | undefined)?.dailyNonce;
   useEffect(() => { if (assistantNonce) setAssistantVisible(true); }, [assistantNonce]);
   useEffect(() => { if (dailyNonce) setDailyVisible(true); }, [dailyNonce]);
-  const gradeNonce = (route.params as { gradeNonce?: string } | undefined)?.gradeNonce;
+  const recordNonce = (route.params as { recordNonce?: string } | undefined)?.recordNonce;
+  const recordId = (route.params as { recordId?: string } | undefined)?.recordId;
+  useEffect(() => { if (recordNonce) setRecordsVisible(true); }, [recordNonce]);
   useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
-  useEffect(() => { if (gradeNonce) setGradesVisible(true); }, [gradeNonce]);
 
   const failure = (error: unknown) => error instanceof BackupError ? error.message : '操作未完成，请保留原文件并检查空间、权限或格式。';
   const handleBackup = async () => {
@@ -60,9 +61,7 @@ export function SettingsScreen() {
       await cancelPrepared();
       const input = await pickFullBackup(); if (!input) return;
       prepared.current = input;
-      const scope = input.kind === 'full'
-        ? `包含 ${input.count} 条记录及历史对象、${input.manifest.blobs.length} 份原件/图片或恢复包。相同内容跳过；冲突及关联对象保留在可导出的恢复副本，不覆盖现有记录。聊天和未接受建议只恢复为历史；新增人格及提醒停用。`
-        : `这是旧基础 JSON，包含 ${input.count} 条基础记录。相同记录跳过，不同内容另存副本；不包含新聊天、附件等对象。`;
+      const scope = `包含 ${input.count} 条记录、资料及历史对象、${input.manifest.blobs.length} 份原件或恢复包。相同内容跳过；冲突另存，不覆盖现有记录。恢复不会重放助手操作或启用渠道。`;
       Alert.alert('恢复范围确认', scope, [
         { text: '取消', style: 'cancel', onPress: () => { void cancelPrepared(); } },
         { text: '恢复到本机', onPress: async () => {
@@ -70,7 +69,7 @@ export function SettingsScreen() {
           prepared.current = null; setBusyAction('restore');
           try {
             const result = await restorePrepared(input);
-            const conflicts = 'conflicts' in result ? result.conflicts : result.copies;
+            const conflicts = result.conflicts;
             Alert.alert('本机恢复完成', result.repeated ? '这份数据包已恢复，未重复写入。' : `新增 ${result.added} 条，跳过 ${result.skipped} 条。${conflicts ? `另有 ${conflicts} 条冲突或关联对象已保留为恢复副本。` : ''}恢复不会重放助手操作。`);
           } catch (error) { Alert.alert('恢复失败', failure(error)); }
           finally { await discardPrepared(input); setBusyAction(null); }
@@ -109,7 +108,7 @@ export function SettingsScreen() {
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
           <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
           <SettingRow label="QQ收件" value="扫码绑定 · 前台读取 · 附件重试" onPress={() => setQqVisible(true)} />
-          <SettingRow label="成绩记录" value="课程 · 学期 · 平均与加权计算" onPress={() => setGradesVisible(true)} />
+          <SettingRow label="本机资料" value="通用文字与表格 · 来源 · 回收站" onPress={() => setRecordsVisible(true)} />
           <SettingRow label="日用记录与整理" value="活动计划 · 完成打卡 · 选择与撤销" onPress={() => setDailyVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
@@ -147,7 +146,7 @@ export function SettingsScreen() {
       <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
       <WeixinIntakeModal visible={weixinVisible} onClose={() => setWeixinVisible(false)} />
       <QqIntakeModal visible={qqVisible} onClose={() => setQqVisible(false)} />
-      <GradeRecordsModal visible={gradesVisible} onClose={() => setGradesVisible(false)} />
+      <RecordsModal focusId={recordId} visible={recordsVisible} onClose={() => setRecordsVisible(false)} />
       <DailyToolsModal visible={dailyVisible} onClose={() => setDailyVisible(false)} />
       <ReminderSettingsModal visible={remindersVisible} onClose={() => setRemindersVisible(false)} />
     </ScreenScaffold>

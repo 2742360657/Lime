@@ -72,69 +72,10 @@ export type AppSettings = {
 };
 
 export type AppData = {
-  version: 7;
   habits: Habit[];
   groups: HabitGroup[];
   todos: TodoItem[];
   memoGroups: MemoGroup[];
   memos: Memo[];
-  settings: AppSettings;
-};
-
-export type AppBackupFile = AppData & {
-  exportedAt: number;
-};
-
-export type LegacyV1HabitDataFile = {
-  version: 1;
-  habits: Array<{
-    id: string;
-    name: string;
-    createdAt: number;
-    checkins: number[];
-  }>;
-};
-
-export type LegacyV2AppDataFile = {
-  version: 2;
-  habits: Array<{
-    id: string;
-    name: string;
-    groupId: string | null;
-    createdAt: number;
-    hiddenAt?: number | null;
-    checkins: number[];
-  }>;
-  groups: Array<Omit<HabitGroup, 'order'>>;
-  settings: AppSettings;
-};
-
-export type LegacyV3CheckinRecord = {
-  id: string;
-  dateKey: string;
-  hasTime: boolean;
-  timestamp: number | null;
-  createdAt: number;
-};
-
-export type LegacyV3AppDataFile = {
-  version: 3;
-  habits: Array<{
-    id: string;
-    name: string;
-    groupId: string | null;
-    createdAt: number;
-    hiddenAt?: number | null;
-    archivedAt?: number | null;
-    checkins: Array<number | LegacyV3CheckinRecord>;
-  }>;
-  groups: Array<Omit<HabitGroup, 'order'>>;
-  settings: AppSettings;
-};
-
-export type LegacyV4AppDataFile = {
-  version: 4;
-  habits: Array<Omit<Habit, 'order' | 'cadence' | 'targetCount'>>;
-  groups: Array<Omit<HabitGroup, 'order'>>;
   settings: AppSettings;
 };

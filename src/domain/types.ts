@@ -8,11 +8,11 @@ export interface DomainDatabase {
   writeTransaction<T>(fn: (tx: DomainTransaction) => Promise<T>): Promise<T>;
   readTransaction<T>(fn: (tx: DomainTransaction) => Promise<T>): Promise<T>;
 }
-export type DocumentRef = { id: string; revision: number; kind?: 'attachment' };
+export type DocumentRef = { id: string; revision: number; kind?: 'attachment' | 'record' };
 // Constructed by application code. None of these fields are model tool arguments.
 export type ReadContext = { actor: 'ui' | 'agent'; documentRefs?: DocumentRef[] };
 export type UiContext = { actor: 'ui' };
-export type EntityRef = { kind: 'task' | 'habit' | 'checkin' | 'memory' | 'activity' | 'reminder' | 'memo' | 'grade'; id: string; revision: number };
+export type EntityRef = { kind: 'task' | 'habit' | 'checkin' | 'memory' | 'activity' | 'reminder' | 'memo' | 'record'; id: string; revision: number };
 export type Receipt = {
   operationId: string;
   disposition: 'committed' | 'replayed' | 'unchanged';
