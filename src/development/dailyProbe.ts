@@ -128,7 +128,7 @@ export async function runDailyProbe() {
     ensure(all1.matched === 3 && all2.remaining === 1 && new Set([...all1.records, ...all2.records].map(row => row.id)).size === 3);
     ensure((await domain.queryActivities({ status: 'completed' })).records[0].checkin_state === 'linked');
     flags.activityStablePages = true;
-    const uiRetry = createUiRetry(deps.id), plan = { type: 'activity.start' as const, kind: '合成午夜', title: '合成_%活动', habitId: habit };
+    const uiRetry = createUiRetry(deps.id), plan = { type: 'activity.start' as const, kind: '合成午夜', title: '合成_%活动', note: '', habitId: habit };
     const lostResponse = await domain.execute(plan, { ...ui, operationId: uiRetry.operation(plan) });
     const retried = await domain.execute(plan, { ...ui, operationId: uiRetry.operation({ ...plan }) });
     ensure(retried.disposition === 'replayed' && retried.entity.id === lostResponse.entity.id);
