@@ -15,7 +15,7 @@ import { UndoToast } from '../components/UndoToast';
 import { useHabits } from '../state/HabitStore';
 import { TodoItem } from '../types/habit';
 import { getTodayKey } from '../utils/date';
-import { getHabitProgress } from '../utils/habit';
+import { getHabitProgress, getHabitSummary } from '../utils/habit';
 import {
   bucketToDueDateKey,
   buildTodoBuckets,
@@ -284,7 +284,7 @@ export function TodayScreen() {
 
           <AccordionSection
             title="习惯"
-            meta={`${habits.filter((habit) => getHabitProgress(habit).completed).length}/${habits.length}`}
+            meta={getHabitSummary(habits)}
             collapsed={collapsed.has('habits')}
             onToggle={() => toggleBucket('habits')}
             accessibilityLabel="折叠今天的习惯"

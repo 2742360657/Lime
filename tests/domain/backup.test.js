@@ -15,6 +15,17 @@ afterEach(()=>{source.close();target.close();});
 async function seed(db,table,row) {const r=projectRow(table,row),keys=Object.keys(r);await db.execute(`INSERT INTO ${table}(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`,keys.map(k=>r[k]));return r;}
 async function packet() { return validateManifest(await captureBackup(source)); }
 
+test('free-recording habit targets survive complete backup and restore with their check-ins', async () => {
+  const domain = createDomain(source, { id: () => require('node:crypto').randomUUID(), now: () => 100, digest });
+  const habit = await domain.execute({ type: 'habit.create', name: '自由阅读', cadence: 'daily', targetCount: 0 }, { actor: 'ui', operationId: 'free-create' });
+  await domain.execute({ type: 'habit.checkin', id: habit.entity.id, expectedRevision: 1, note: '一章' }, { actor: 'ui', operationId: 'free-checkin' });
+  const manifest = await packet();
+  expect(manifest.rows.habits[0].target_count).toBe(0);
+  await restoreBackup(target, manifest, args);
+  expect((await target.getOptional('SELECT target_count FROM habits WHERE id=?', [habit.entity.id])).target_count).toBe(0);
+  expect(await target.getAll('SELECT note FROM checkins WHERE habit_id=?', [habit.entity.id])).toEqual([{ note: '一章' }]);
+});
+
 test('explicit table/meta projection excludes grants, keys, notification state and internal migrations',async()=>{
   await seed(source,'local_meta',{id:'agent-model',value:'deepseek-flash'});
   for(const id of ['secret-setting','reminders-enabled','material-draft-test','lime-local-migration-v1'])await seed(source,'local_meta',{id,value:'SYNTHETIC_PRIVATE_VALUE'});

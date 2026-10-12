@@ -53,13 +53,23 @@ export function getHabitProgress(habit: Habit, reference = new Date()) {
   ).length;
   const periodLabel =
     habit.cadence === 'daily' ? '今日' : habit.cadence === 'weekly' ? '本周' : '本月';
+  const hasTarget = habit.targetCount > 0;
 
   return {
     count,
     target: habit.targetCount,
-    completed: count >= habit.targetCount,
-    label: `${periodLabel} ${count} / ${habit.targetCount}`,
+    hasTarget,
+    completed: hasTarget && count >= habit.targetCount,
+    label: hasTarget ? `${periodLabel} ${count} / ${habit.targetCount}` : `${periodLabel}已记录 ${count} 次`,
   };
+}
+
+export function getHabitSummary(habits: Habit[], reference = new Date()) {
+  const goals = habits.filter((habit) => habit.targetCount > 0);
+  const free = habits.length - goals.length;
+  if (!goals.length) return free ? `${free} 项自由记录` : '0 项';
+  const completed = goals.filter((habit) => getHabitProgress(habit, reference).completed).length;
+  return `${completed}/${goals.length} 达标${free ? ` · ${free} 项自由记录` : ''}`;
 }
 
 export function buildDateCountMap(habit: Habit) {

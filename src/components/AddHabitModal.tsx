@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Modal,
   Platform,
   SafeAreaView,
   ScrollView,
   StatusBar as NativeStatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -14,6 +16,7 @@ import {
 
 import { HabitInput, useHabits } from '../state/HabitStore';
 import { Habit, HabitCadence } from '../types/habit';
+import { parseHabitTarget } from '../utils/habitTarget';
 
 type AddHabitModalProps = {
   visible: boolean;
@@ -38,6 +41,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [cadence, setCadence] = useState<HabitCadence>('daily');
   const [targetCount, setTargetCount] = useState('1');
+  const [hasTarget, setHasTarget] = useState(false);
 
   useEffect(() => {
     if (!visible) { initialized.current = false; return; }
@@ -47,14 +51,16 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
     setName(habit?.name ?? '');
     setSelectedGroupId(habit?.groupId ?? null);
     setCadence(habit?.cadence ?? 'daily');
-    setTargetCount(String(habit?.targetCount ?? 1));
+    setHasTarget(!!habit && habit.targetCount > 0);
+    setTargetCount(String(habit?.targetCount || 1));
   }, [habit, visible]);
 
   const handleSubmit = async () => {
     if (saving.current) return;
     saving.current = true; setBusy(true);
     try {
-    const numericTarget = Math.max(1, Math.min(9999, Number.parseInt(targetCount, 10) || 1));
+    const numericTarget = parseHabitTarget(hasTarget, targetCount);
+    if (numericTarget === null) { Alert.alert('检查目标次数', '请输入 1–9999 的整数，或关闭“设置目标次数”。'); return; }
     const input: HabitInput = {
       name,
       groupId: selectedGroupId,
@@ -97,7 +103,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>目标周期</Text>
+            <Text style={styles.label}>记录周期</Text>
             <View style={styles.cadenceList}>
               {CADENCE_OPTIONS.map((option) => {
                 const active = cadence === option.id;
@@ -117,10 +123,18 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
 
           <View style={styles.targetRow}>
             <View style={styles.targetCopy}>
+              <Text style={styles.label}>设置目标次数</Text>
+              <Text style={styles.hint}>可选；不设置时只记录次数，不计算达标。</Text>
+            </View>
+            <Switch accessibilityLabel="设置目标次数" disabled={busy} value={hasTarget} onValueChange={setHasTarget} />
+          </View>
+          {hasTarget && <View style={styles.targetRow}>
+            <View style={styles.targetCopy}>
               <Text style={styles.label}>周期内目标次数</Text>
             </View>
             <TextInput
               keyboardType="number-pad"
+              accessibilityLabel="周期内目标次数"
               editable={!busy}
               maxLength={4}
               value={targetCount}
@@ -128,7 +142,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
               selectTextOnFocus
               style={styles.targetInput}
             />
-          </View>
+          </View>}
 
           <View style={styles.field}>
             <Text style={styles.label}>所属分组</Text>
@@ -186,6 +200,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     content: { padding: 20, gap: 24, paddingBottom: 44 },
     field: { gap: 11 },
     label: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
+    hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
     titleInput: {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,

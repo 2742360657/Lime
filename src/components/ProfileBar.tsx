@@ -39,6 +39,9 @@ export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
         <Text style={styles.signature}>{new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(new Date())}</Text>
       </View>
       </TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="打开设置" onPress={onPress} style={styles.menuButton}>
+        <Text style={styles.menuIcon}>⚙</Text>
+      </TouchableOpacity>
     </View>
   );
 }

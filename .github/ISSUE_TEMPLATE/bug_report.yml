@@ -1,0 +1,16 @@
+name: 问题反馈 / Bug report
+description: 报告安装、界面或数据问题
+body:
+  - type: input
+    id: version
+    attributes:
+      label: APK 与 Android 版本
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤、预期与实际结果
+      description: 请勿上传私人备份、数据库或凭据。
+    validations:
+      required: true

@@ -32,7 +32,7 @@ test('habit edits keep checkins, creation metadata and order; stale editors and 
 test.each([
   { name: '', cadence: 'daily', targetCount: 1 },
   { name: 'x', cadence: 'hourly', targetCount: 1 },
-  { name: 'x', cadence: 'daily', targetCount: 0 },
+  { name: 'x', cadence: 'daily', targetCount: -1 },
   { name: 'x', cadence: 'daily', targetCount: 1.5 },
   { name: 'x', cadence: 'daily', targetCount: 10000 },
   { name: 'x', cadence: 'daily', targetCount: 1, actor: 'ui' },
@@ -40,6 +40,19 @@ test.each([
   await expect(ui({ type: 'habit.create', ...fields })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
   expect(await domain.listHabits()).toEqual([]);
   expect(await db.getAll('SELECT id FROM local_operations')).toEqual([]);
+});
+
+test('free habit goals create, edit and return to free recording without losing check-ins', async () => {
+  const created = await ui({ type: 'habit.create', name: '自由阅读', cadence: 'daily' });
+  expect((await db.getOptional('SELECT * FROM habits WHERE id=?', [created.entity.id])).target_count).toBe(0);
+  await ui({ type: 'habit.checkin', id: created.entity.id, expectedRevision: 1, note: '读完一章' });
+  await ui({ type: 'habit.update', id: created.entity.id, expectedRevision: 1, name: '自由阅读', cadence: 'weekly', targetCount: 3, groupId: null });
+  await ui({ type: 'habit.update', id: created.entity.id, expectedRevision: 2, name: '自由阅读', cadence: 'weekly', targetCount: 0, groupId: null });
+  expect(await db.getOptional('SELECT target_count,revision FROM habits WHERE id=?', [created.entity.id])).toMatchObject({ target_count: 0, revision: 3 });
+  expect(await db.getAll('SELECT note FROM checkins WHERE habit_id=?', [created.entity.id])).toEqual([{ note: '读完一章' }]);
+  const session = await store.newSession(), request = await store.begin(session, '建立不设目标的运动习惯', []);
+  const receipt = await domain.executeRoutine({ type: 'habit.create', name: '自由运动', cadence: 'monthly', targetCount: 0 }, { actor: 'agent', requestId: request.id });
+  expect((await db.getOptional('SELECT target_count FROM habits WHERE id=?', [receipt.entity.id])).target_count).toBe(0);
 });
 
 test('request writes are bounded across retries and concurrent duplicate checkins commit once', async () => {

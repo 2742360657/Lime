@@ -15,6 +15,7 @@ export type Habit = {
   groupId: string | null;
   order: number;
   cadence: HabitCadence;
+  /** 0 means free recording without a completion goal. */
   targetCount: number;
   createdAt: number;
   archivedAt: number | null;

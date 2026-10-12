@@ -98,7 +98,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     try { setDocuments(await database.getAll<Source>("SELECT id,revision,title,kind,date FROM documents WHERE kind='memo' AND deleted=0 ORDER BY edited_at DESC,id LIMIT 100")); setPicker(true); }
     catch { setError('记录暂时无法读取。'); }
   }
-  const button = (label: string, fn: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={fn} style={{ paddingVertical: 8, paddingHorizontal: 8, opacity: disabled ? 0.4 : 1 }}><Text style={{ fontSize: 12, color: c.primary }}>{label}</Text></Pressable>;
+  const button = (label: string, fn: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={fn} style={{ paddingVertical: 8, paddingHorizontal: 8, opacity: disabled ? 0.4 : 1 }}><Text style={{ fontSize: 13, fontWeight: '600', color: c.primary }}>{label}</Text></Pressable>;
   const panels = [
     { id: 'new', label: '新对话', onPress: () => { void store.newSession().then(id => { setSession(id); }).catch(() => setError('新建对话失败。')); } },
     { id: 'config', label: '助手配置', onPress: () => setSettingsVisible(true) },
@@ -112,10 +112,17 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     <KeyboardAvoidingView style={{ flex: 1 }} contentContainerStyle={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top + 66}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, borderBottomColor: c.border, borderBottomWidth: 1 }}>
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sessions.find(s => s.id === session)?.title || '助手'}</Text>
-        {button('配置', () => setSettingsVisible(true))}
+        {button('模型设置', () => setSettingsVisible(true))}
       </View>
       <ScrollView ref={scroll} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>说出要记下的事、要做的事，或今天的完成情况。助手会查询相关历史并管理习惯、待办和备忘录；结果和来源保存在本机。</Text> : null}
+        {!messages.length ? <View style={{ padding: 20, borderRadius: 20, gap: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: c.primary }}>酸橙 AI · 测试版</Text>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: c.textPrimary }}>把日常交给助手整理</Text>
+          <Text style={{ fontSize: 14, lineHeight: 23, color: c.textSecondary }}>记下想法、整理待办、记录习惯，也可以带上图片或文件。相关记录和操作结果保存在本机，方便查看与更正。</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="配置模型" onPress={() => setSettingsVisible(true)} style={{ padding: 14, borderRadius: 12, backgroundColor: c.primarySoft }}><Text style={{ fontSize: 14, fontWeight: '700', color: c.primary }}>首次使用：配置 DeepSeek 模型</Text></Pressable>
+          <Text style={{ fontSize: 12, lineHeight: 20, color: c.textMuted }}>模型需要你自己的 API Key。图片、文本及所选内容可能发送给模型服务；不要输入不希望分享的资料。</Text>
+          {['帮我建立阅读习惯，先不设置目标。', '记下明天下午要去图书馆。', '帮我整理这次读书的想法。'].map(example => <Pressable key={example} accessibilityRole="button" accessibilityLabel={example} onPress={() => setInput(example)} style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: c.border }}><Text style={{ fontSize: 13, lineHeight: 21, color: c.textPrimary }}>{example}</Text></Pressable>)}
+        </View> : null}
         {messages.map(message => {
           const request = requests.find(r => r.id === message.request_id);
           const generating = state.busy && state.requestId === message.request_id && message.role === 'assistant';

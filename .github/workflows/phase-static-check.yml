@@ -1,5 +1,9 @@
 name: Phase checks
 on:
+  push:
+    branches: [extended/dev]
+  pull_request:
+    branches: [extended/dev]
   workflow_dispatch:
     inputs:
       phase:

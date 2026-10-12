@@ -101,9 +101,15 @@ export function SettingsScreen() {
             value={`${archivedHabits.length} 个`}
             onPress={() => setArchivedVisible(true)}
           />
+        </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>助手与收件</Text>
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
-          <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
-          <SettingRow label="QQ收件" value="扫码绑定 · 前台读取 · 附件重试" onPress={() => setQqVisible(true)} />
+          <SettingRow label="微信收件" value="扫码绑定 · 前台收件 · 自动整理" onPress={() => setWeixinVisible(true)} />
+          <SettingRow label="QQ收件" value="扫码绑定 · 前台收件 · 附件重试" onPress={() => setQqVisible(true)} />
+        </View>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>记录与提醒</Text>
           <SettingRow label="日用记录与整理" value="活动计划 · 完成打卡 · 选择与撤销" onPress={() => setDailyVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>

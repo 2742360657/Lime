@@ -16,7 +16,7 @@
 | 活动 | start/complete，关联习惯时事务内一次打卡 | cancel |
 | 提醒 | create/update | cancel；规则保存不等于系统排程或送达 |
 
-习惯create必填name/cadence/targetCount，groupId默认null；update另需id/expectedRevision并完整传入可编辑字段。名称1–80字符，周期daily/weekly/monthly，目标1–9999整数。分组必须有效；事务确定组内顺序，调整保留创建时间、打卡和无变化的顺序。相同字段不增加版本。手动编辑器和助手使用同一命令。
+习惯create必填name/cadence，targetCount默认0（不设目标），groupId默认null；update另需id/expectedRevision并完整传入可编辑字段。名称1–80字符，周期daily/weekly/monthly，目标0–9999整数，0表示自由记录。分组必须有效；事务确定组内顺序，调整保留创建时间、打卡和无变化的顺序。相同字段不增加版本。手动编辑器和助手使用同一命令。
 
 待办标题80字符、备注300字符；备忘录保留原换行，标题300/正文100000字符。日期合法YYYY-MM-DD；时间HH:mm，截止时间须有日期。打卡日期与本机时间戳一致，感受保存在note，不建立专用跑步字段。已归档/删除习惯拒绝新增和调整。
 

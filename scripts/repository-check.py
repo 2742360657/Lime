@@ -45,19 +45,21 @@ toolchain = json.loads((ROOT / 'toolchain.json').read_text())
 if not (package['name'] == lock['name'] == lock['packages']['']['name'] == app['slug'] == 'lime'):
     errors.append('Project/lock/Expo names disagree')
 identity = 'app.lime.personalassistant'
-if app['name'] != '酸橙' or app['android']['package'] != identity or toolchain['package_id'] != identity:
+if app['name'] != '酸橙 AI' or app['android']['package'] != identity or toolchain['package_id'] != identity:
     errors.append('Application branding/identity disagree')
 gradle = (ROOT / 'android/app/build.gradle').read_text()
-for expected in [f"namespace '{identity}'", f"applicationId '{identity}'", "LIME_KEYSTORE_DIR", '../.local/signing/debug.keystore']:
+for expected in [f"namespace '{identity}'", "applicationId appConfig.android.package", "LIME_SIGNING_PROPERTIES", '../.local/signing/debug.keystore']:
     if expected not in gradle:
         errors.append(f'Missing Android identity/signing setting: {expected}')
 for name in ['MainActivity.kt', 'MainApplication.kt']:
     path = ROOT / 'android/app/src/main/java/app/lime/personalassistant' / name
     if not path.exists() or not path.read_text().startswith('package ' + identity):
         errors.append(f'Kotlin package mismatch: {name}')
-for name in ['scripts/apply-signing.mjs', 'android/app/build.gradle']:
+for name in ['android/app/build.gradle']:
     if '/Ciallo/' in (ROOT / name).read_text():
         errors.append(f'Old signing path remains: {name}')
+if not (package['version'] == lock['version'] == lock['packages']['']['version'] == app['version']):
+    errors.append('Application versions disagree')
 if errors:
     for error in errors:
         print(error)
