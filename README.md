@@ -21,7 +21,7 @@
 
 | 功能 | 内容 |
 |---|---|
-| 习惯 | 每天/每周/每月目标、分组、打卡、补打、历史与感受、归档 |
+| 习惯 | 可不设目标的自由记录、每天/每周/每月目标、分组、打卡、补打、历史与感受、归档 |
 | 待办 | 日期和时间、自动日期分桶、排序、完成和撤销 |
 | 备忘录 | 自动保存、分类、搜索、排序、回收站恢复 |
 | 今日概览 | 查看当天习惯和待办 |
@@ -53,7 +53,7 @@ npm start
 
 独立试用包：`npm run build:preview`。正式签名构建和源码结构见[开发指南](docs/development.md)与[架构说明](docs/architecture.md)。AI 开始工作先读 [AGENTS.md](AGENTS.md)。
 
-`main` 是本地版维护主线；[`extended/dev`](https://github.com/2742360657/Lime/tree/extended/dev) 保留暂停开发的 AI/微信/QQ 扩展，不属于当前正式版能力。
+`main` 是本地版维护主线；[`extended/dev`](https://github.com/2742360657/Lime/tree/extended/dev) 维护 AI/微信/QQ 扩展测试版，与本地版独立安装；下载和界面见 [AI 扩展版](docs/ai-edition.md)。
 
 ## 贡献与许可
 

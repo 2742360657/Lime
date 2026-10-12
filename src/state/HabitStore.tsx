@@ -13,6 +13,7 @@ import { getTheme, ThemeId } from '../theme';
 import type { AppData, Memo } from '../types/habit';
 import { clampToMinute, getTodayKey } from '../utils/date';
 import { createId } from '../utils/id';
+import { isValidHabitTarget } from '../utils/habitTarget';
 
 import { habitReducer } from './habitReducer';
 import { createCheckinRecord } from './reducerHelpers';
@@ -235,6 +236,10 @@ export function HabitProvider({ children }: PropsWithChildren) {
 
   const addHabit = useCallback(
     (input: HabitInput) => {
+      if (!isValidHabitTarget(input.targetCount)) {
+        dispatch({ type: 'set-error', error: '目标次数须为 1–9999 的整数，或不设目标。' });
+        return false;
+      }
       const trimmed = input.name.trim();
       if (!trimmed) {
         dispatch({ type: 'set-error', error: '习惯名称不能为空。' });
@@ -257,7 +262,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
           groupId: normalizedGroupId,
           order: nextOrder,
           cadence: input.cadence,
-          targetCount: Math.max(1, Math.floor(input.targetCount)),
+          targetCount: input.targetCount,
           createdAt: Date.now(),
           archivedAt: null,
           checkins: [],
@@ -270,6 +275,10 @@ export function HabitProvider({ children }: PropsWithChildren) {
 
   const updateHabit = useCallback(
     (habitId: string, input: HabitInput) => {
+      if (!isValidHabitTarget(input.targetCount)) {
+        dispatch({ type: 'set-error', error: '目标次数须为 1–9999 的整数，或不设目标。' });
+        return false;
+      }
       const trimmed = input.name.trim();
       if (!trimmed) {
         dispatch({ type: 'set-error', error: '习惯名称不能为空。' });
@@ -290,7 +299,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
         name: trimmed,
         groupId: normalizedGroupId,
         cadence: input.cadence,
-        targetCount: Math.max(1, Math.floor(input.targetCount)),
+        targetCount: input.targetCount,
         order: nextOrder,
       });
       return true;

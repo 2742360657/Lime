@@ -1,7 +1,7 @@
 # Lime — Agent 开发入口
 
 - 当前主线是纯本地 Android 应用：习惯、待办、备忘录、今日概览、主题和 JSON 备份/恢复。先读 README.md、docs/development.md、docs/architecture.md；不要从旧分支推导主线需求。
-- main 是公开稳定线；extended/dev 是暂停开发的 AI/微信/QQ 扩展参考。功能与文档变更从最新 main 建聚焦分支，不把扩展线整体合并到 main。
+- main 是公开稳定线；extended/dev 是独立安装的 AI/微信/QQ 扩展测试线。功能与文档变更从最新 main 建聚焦分支，不把扩展线整体合并到 main。
 - app.json 是原生应用版本/包名来源；package.json 与锁文件版本保持一致。保留 com.androidsoftwaredaily.habitcheckin、数据路径、备份迁移及 v1.2.0 起的新私密签名。旧签名曾公开，禁止恢复用于发布；旧用户须先核实备份再重装恢复，后续同签名覆盖升级。
 - 默认复用已提交 android 工程与固定锁文件。先 source scripts/env.sh，缺依赖时 npm ci；检查 npm run check。不要执行 prebuild --clean、无关依赖升级或再建工具链。
 - 手动 UI 和存储行为保持现有产品范围。主线不加入 AI 服务、常驻后台、云端数据库或 fnOS 管理功能；新功能需有明确任务依据。

@@ -22,6 +22,7 @@ import {
 } from '../types/habit';
 import { buildFallbackTimestamp, clampToMinute, toLocalDateKey } from '../utils/date';
 import { createId } from '../utils/id';
+import { normalizeHabitTarget } from '../utils/habitTarget';
 
 const DATA_DIRECTORY = `${FileSystem.documentDirectory}habit-checkin/`;
 const DATA_FILE = `${DATA_DIRECTORY}data.json`;
@@ -160,10 +161,7 @@ function sanitizeHabit(candidate: unknown, fallbackOrder = 0): Habit | null {
     groupId: typeof raw.groupId === 'string' ? raw.groupId : null,
     order: typeof raw.order === 'number' ? raw.order : fallbackOrder,
     cadence: isHabitCadence(raw.cadence) ? raw.cadence : 'daily',
-    targetCount:
-      typeof raw.targetCount === 'number' && Number.isFinite(raw.targetCount)
-        ? Math.max(1, Math.floor(raw.targetCount))
-        : 1,
+    targetCount: normalizeHabitTarget(raw.targetCount),
     createdAt: raw.createdAt,
     archivedAt:
       typeof raw.archivedAt === 'number'

@@ -54,5 +54,5 @@ bash scripts/build-android.sh release arm64-v8a,x86_64
 
 - src/、android/、assets/ 是源码；docs/ 是持续更新的使用/开发/架构/隐私说明，截图只使用测试内容。
 - .local/ 只保留工具配置和必要签名；artifacts/ 只保留当前产物。测试输出按任务清理，不堆日期归档、重复交接报告或源码副本。
-- main 为纯本地稳定线；extended/dev 为暂停开发的参考，按需切换，不保留第二套常驻工程。
+- main 为纯本地稳定线；extended/dev 为独立安装的 AI 扩展测试线，按需切换，不保留第二套常驻工程。
 - 宿主运维独立在 server-infra 私有仓库；不把网络、凭据、VM/NAS 文档塞进公开应用仓库。

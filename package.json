@@ -1,14 +1,15 @@
 {
   "name": "lime",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "check": "node scripts/check-repository.mjs && npm run typecheck",
+    "check": "node scripts/check-repository.mjs && npm run typecheck && npm run test:goals",
     "build:apk": "bash scripts/build-android.sh release arm64-v8a",
-    "build:preview": "bash scripts/build-android.sh preview arm64-v8a"
+    "build:preview": "bash scripts/build-android.sh preview arm64-v8a",
+    "test:goals": "node --test tests/habit-goals.test.cjs"
   },
   "dependencies": {
     "@react-navigation/drawer": "^7.14.2",
