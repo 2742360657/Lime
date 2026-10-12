@@ -1,3 +1,5 @@
+import { RecordsModal } from '../records/RecordsModal';
+import { useRoute } from '@react-navigation/native';
 import { database } from '../assistant/database';
 import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useState,useRef } from 'react';
@@ -26,6 +28,10 @@ import { MemoEditor } from '../memos/MemoEditor';
 const UNCATEGORIZED_FILTER = 'uncategorized';
 
 export function MemosScreen() {
+  const route = useRoute();
+  const { recordNonce, recordId } = (route.params ?? {}) as { recordNonce?: string; recordId?: string };
+  const [recordsVisible, setRecordsVisible] = useState(false);
+  useEffect(() => { if (recordNonce) setRecordsVisible(true); }, [recordNonce]);
   const navigation = useNavigation<any>();
   const {
     activeMemos,
@@ -177,6 +183,7 @@ export function MemosScreen() {
     <ScreenScaffold
       panelTitle="备忘录分类"
       panelItems={[
+        { id: 'materials', label: '助手整理的资料', onPress: () => setRecordsVisible(true) },
         { id: 'all', label: `全部备忘录 · ${activeMemos.length}`, selected: filter === 'all', onPress: () => setFilter('all') },
         { id: UNCATEGORIZED_FILTER, label: `未分类 · ${activeMemos.filter((memo) => memo.groupId === null).length}`, selected: filter === UNCATEGORIZED_FILTER, onPress: () => setFilter(UNCATEGORIZED_FILTER) },
         ...orderedGroups.map((group) => ({
@@ -277,6 +284,7 @@ export function MemosScreen() {
           onClose={() => setNewGroupVisible(false)}
           onSubmit={addMemoGroup}
         />
+        <RecordsModal visible={recordsVisible} focusId={recordId} onClose={() => setRecordsVisible(false)} />
         <GroupManagerModal
           visible={manageVisible}
           onClose={() => setManageVisible(false)}

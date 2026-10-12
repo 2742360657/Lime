@@ -41,31 +41,29 @@ describe('local material storage and agent boundaries', () => {
     await expect(domain.acceptProposal(p.id, 1, { actor: 'ui', operationId: randomUUID() })).rejects.toMatchObject({ code: 'SOURCE_CHANGED' });
     expect(await domain.listTasks()).toHaveLength(0); expect((await materials.get(original.id)).uri).toBe(copy.uri);
   });
-  test('selected image uses actual SDK multimodal wire format, proposals require confirmation and source context is not reused', async () => {
+  test('selected image uses actual SDK multimodal wire format, routine results commit and source context is not reused', async () => {
     const image = await materials.save({ ...copy, name: 'synthetic.png', hash: 'b'.repeat(64) }, { ...analysis, kind: 'image', body: '', images: [{ uri: 'file:///synthetic/visual.jpg', label: '截图' }] });
     const session = await store.newSession(), captured = []; let calls = 0;
     const runtime = createAgentRuntime({ ...deps, domain, store, key: async () => 'synthetic-not-a-real-key', materialImages: async refs => { expect(refs[0].id).toBe(image.id); return [{ id: image.id, label: '截图', data: 'AA==' }]; }, fetch: async (_url, init) => {
       captured.push(JSON.parse(init.body)); calls++;
-      return calls === 1 ? sse({ tool_calls: [{ index: 0, id: 'synthetic-call', type: 'function', function: { name: 'change_record', arguments: JSON.stringify({ type: 'task.create', title: '合成截图事项' }) } }] }, 'tool_calls') : sse({ content: '已生成建议，请核对。' });
+      return calls === 1 ? sse({ tool_calls: [{ index: 0, id: 'synthetic-call', type: 'function', function: { name: 'change_record', arguments: JSON.stringify({ type: 'task.create', title: '合成截图事项' }) } }] }, 'tool_calls') : sse({ content: '已保存截图事项。' });
     } });
     await materials.saveDraft(session, [{ id: image.id, revision: 1, kind: 'attachment' }]);
     await runtime.start(session, '新建待办：处理截图', [{ id: image.id, revision: 1, kind: 'attachment' }]);
     const request = (await store.requests(session))[0], result = (await store.results(request.id))[0];
-    expect(result.status).toBe('proposal'); expect(await domain.listTasks()).toHaveLength(0); expect(await store.grants(request.id)).toHaveLength(0);
+    expect(result.status).toBe('saved'); expect(await domain.listTasks()).toHaveLength(1); expect(await store.grants(request.id)).toHaveLength(1);
     const imageBlock = captured[0].messages.flatMap(m => Array.isArray(m.content) ? m.content : []).find(p => p.type === 'image_url');
     expect(imageBlock.image_url.url).toBe('data:image/jpeg;base64,AA=='); expect(JSON.stringify(captured[0])).not.toContain('file:///');
     expect(await materials.draft(session)).toHaveLength(0);
-    const committed = await domain.acceptProposal(result.proposalId, 1, { actor: 'ui', operationId: randomUUID() });
-    expect((await domain.acceptProposal(result.proposalId, 1, { actor: 'ui', operationId: randomUUID() })).entity.id).toBe(committed.entity.id);
     expect(await domain.listTasks()).toHaveLength(1);
     await runtime.start(session, '你好');
-    expect(JSON.stringify(captured.at(-1))).not.toContain('data:image/'); expect(JSON.stringify(captured.at(-1))).not.toContain('已生成建议，请核对。');
+    expect(JSON.stringify(captured.at(-1))).not.toContain('data:image/'); expect(JSON.stringify(captured.at(-1))).not.toContain('已保存截图事项。');
   });
   test('text correction prevents old request retry and stale selection from creating snapshots', async () => {
     const material = await materials.save(copy, analysis), session = await store.newSession(), ref = { id: material.id, revision: 1, kind: 'attachment' };
-    const request = await store.begin(session, '概括材料', [ref], []); await store.finish(request.id, '', 'error', '合成中断');
+    const request = await store.begin(session, '概括材料', [ref]); await store.finish(request.id, '', 'error', '合成中断');
     await materials.revise(material.id, 1, { ...analysis, body: '经核对的新正文' });
-    await expect(store.begin(session, '概括材料', [ref], [])).rejects.toThrow('引用已变化');
+    await expect(store.begin(session, '概括材料', [ref])).rejects.toThrow('引用已变化');
     const captured = [];
     const runtime = createAgentRuntime({ ...deps, store, domain, key: async () => 'synthetic', fetch: async (_u, init) => { captured.push(init); return sse({ content: '不应发送' }); } });
     await runtime.start(session, '', [], request.id); expect(captured).toHaveLength(0); expect((await store.request(request.id)).status).toBe('error');

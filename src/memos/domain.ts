@@ -79,7 +79,7 @@ const metadataOptions = z.strictObject({
   query: z.string().max(120).optional(), groupId: z.string().min(1).max(160).nullable().optional(),
   trashed: z.boolean().optional(), limit: z.number().int().min(1).max(100).optional(),
 });
-// Search metadata only. Unselected memo bodies never enter query responses.
+// Search relevant local content; return bounded metadata, then read exact versions on demand.
 export async function listMemoMetadata(tx: DomainTransaction, value: z.infer<typeof metadataOptions> = {}): Promise<MemoMetadata[]> {
   const parsed = metadataOptions.safeParse(value);
   if (!parsed.success) throw new DomainError('INVALID_ARGUMENT');
@@ -89,8 +89,8 @@ export async function listMemoMetadata(tx: DomainTransaction, value: z.infer<typ
   const query = options.query?.trim();
   if (query) {
     const pattern = `%${query.replace(/[\\%_]/g, character => `\\${character}`)}%`;
-    filters += " AND (d.title LIKE ? ESCAPE '\\' OR g.name LIKE ? ESCAPE '\\')";
-    args.push(pattern, pattern);
+    filters += " AND (d.title LIKE ? ESCAPE '\\' OR d.body LIKE ? ESCAPE '\\' OR g.name LIKE ? ESCAPE '\\')";
+    args.push(pattern, pattern, pattern);
   }
   args.push(options.limit ?? 40);
   return tx.getAll<MemoMetadata>(`SELECT d.id,'memo' AS kind,SUBSTR(d.title,1,300) AS title,g.id AS groupId,g.name AS groupName,d.revision,d.edited_at AS updatedAt,d.deleted_at AS deletedAt

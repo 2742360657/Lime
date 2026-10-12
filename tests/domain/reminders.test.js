@@ -125,7 +125,7 @@ test('bounded rolling window and capacity are explicit; overdue dates do not bec
 test('agent reminder changes remain confirmed proposals, even if a grant row is forged', async () => {
   await db.tx.execute("INSERT INTO local_agent_requests(id,status,source_refs) VALUES('request','running','[]')");
   await db.tx.execute("INSERT INTO local_agent_grants(id,request_id,command_type) VALUES('grant','request','reminder.create')");
-  await expect(domain.executeGranted(once, { actor: 'agent', requestId: 'request', grantId: 'grant' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+  await expect(domain.executeRoutine(once, { actor: 'agent', requestId: 'request' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
   const proposal = await domain.propose(once, { proposalId: 'proposal', requestId: 'request' });
   await domain.acceptProposal(proposal.id, proposal.revision, { actor: 'ui', operationId: 'confirmed' });
   expect(await rules()).toHaveLength(1); expect(os.size).toBe(0);

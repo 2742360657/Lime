@@ -82,7 +82,7 @@ test('pending proposals become inert restored history; accepted results preserve
 });
 
 test('a conflicting source prevents activation of its imported receipt/history and dependent task',async()=>{
-  const doc=projectRow('documents',{id:'document',kind:'diary',title:'合成日记',body:'原文',date:'2026-10-10',group_id:null,sort_order:0,created_at:100,edited_at:100,deleted_at:null,revision:1,deleted:0,updated_at:'2026-10-10T00:00:00Z'});
+  const doc=projectRow('documents',{id:'document',kind:'memo',title:'合成备忘录',body:'原文',date:'2026-10-10',group_id:null,sort_order:0,created_at:100,edited_at:100,deleted_at:null,revision:1,deleted:0,updated_at:'2026-10-10T00:00:00Z'});
   await seed(source,'documents',doc);await seed(target,'documents',{...doc,body:'现有原文'});await seed(source,'tasks',task());
   await seed(source,'local_agent_sessions',{id:'session',title:'测试',created_at:100,updated_at:100});
   const refs=JSON.stringify([{id:'document',revision:1}]);
@@ -97,7 +97,7 @@ test('restorable records reject nullable UI text and malformed drafts before act
   const m=await captureBackup(source);
   m.rows.local_memories=[projectRow('local_memories',{id:'memory',kind:'fact',key:'合成',content:null,forgotten:0,revision:1,created_at:100,updated_at:'2026-10-10T00:00:00Z'})];
   expect(()=>validateManifest(m)).toThrow();
-  m.rows.local_memories=[];m.rows.local_drafts=[projectRow('local_drafts',{id:'draft',document_id:'document',kind:'diary',title:'',body:null,date:'2026-10-10'})];
+  m.rows.local_memories=[];m.rows.local_drafts=[projectRow('local_drafts',{id:'draft',document_id:'document',kind:'memo',title:'',body:null,date:'2026-10-10'})];
   expect(()=>validateManifest(m)).toThrow();
 });
 test('obsolete server source caches are excluded from the current package',async()=>{

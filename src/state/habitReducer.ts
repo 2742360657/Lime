@@ -1,6 +1,6 @@
 import { clampToMinute, toLocalDateKey } from '../utils/date';
 
-import { createCheckinRecord, sortRecords, withUpdatedHabit } from './reducerHelpers';
+import { sortRecords, withUpdatedHabit } from './reducerHelpers';
 import type { HabitAction, HabitState } from './storeTypes';
 
 export function habitReducer(state: HabitState, action: HabitAction): HabitState {
@@ -203,29 +203,6 @@ export function habitReducer(state: HabitState, action: HabitAction): HabitState
         },
       };
     }
-    case 'add-habit':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          habits: [...state.appData.habits, action.habit],
-        },
-      };
-    case 'update-habit':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          habits: withUpdatedHabit(state.appData.habits, action.habitId, (habit) => ({
-            ...habit,
-            name: action.name,
-            groupId: action.groupId,
-            cadence: action.cadence,
-            targetCount: action.targetCount,
-            order: action.order,
-          })),
-        },
-      };
     case 'reorder-habits': {
       const orderMap = new Map(action.habitIds.map((id, index) => [id, index]));
       return {
@@ -297,33 +274,6 @@ export function habitReducer(state: HabitState, action: HabitAction): HabitState
           habits: state.appData.habits.filter((habit) => habit.id !== action.habitId),
         },
       };
-    case 'add-checkin-now':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          habits: withUpdatedHabit(state.appData.habits, action.habitId, (habit) => {
-            return {
-              ...habit,
-              checkins: sortRecords([...habit.checkins, action.record]),
-            };
-          }),
-        },
-      };
-    case 'add-checkin':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          habits: withUpdatedHabit(state.appData.habits, action.habitId, (habit) => ({
-            ...habit,
-            checkins: sortRecords([
-              ...habit.checkins,
-              createCheckinRecord(action.dateKey, action.timestamp, action.note),
-            ]),
-          })),
-        },
-      };
     case 'update-checkin':
       return {
         ...state,
@@ -355,42 +305,6 @@ export function habitReducer(state: HabitState, action: HabitAction): HabitState
             ...habit,
             checkins: habit.checkins.filter((record) => record.id !== action.recordId),
           })),
-        },
-      };
-    case 'add-todo':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          todos: [...state.appData.todos, action.todo],
-        },
-      };
-    case 'update-todo':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          todos: state.appData.todos.map((todo) =>
-            todo.id === action.todoId
-              ? {
-                  ...todo,
-                  title: action.title,
-                  note: action.note,
-                  dueDateKey: action.dueDateKey,
-                  dueTime: action.dueTime,
-                }
-              : todo
-          ),
-        },
-      };
-    case 'set-todo-completed':
-      return {
-        ...state,
-        appData: {
-          ...state.appData,
-          todos: state.appData.todos.map((todo) =>
-            todo.id === action.todoId ? { ...todo, completedAt: action.completedAt } : todo
-          ),
         },
       };
     case 'delete-todo':

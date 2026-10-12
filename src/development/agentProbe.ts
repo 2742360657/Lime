@@ -47,10 +47,10 @@ export async function runAgentProbe() {
     ensure((await domain.listTasks()).length === 1 && (await store.requests(first))[0].status === 'complete');
     await runtime.start(first, '今天练什么');
     ensure((await domain.listActivities()).length === 1);
-    const second = await store.newSession(), request = await store.begin(second, '练完了', [], await domain.listActivities());
-    const activity = (await domain.listActivities())[0], grant = (await store.grants(request.id))[0];
+    const second = await store.newSession(), request = await store.begin(second, '练完了', []);
+    const activity = (await domain.listActivities())[0];
     const completed = { type: 'activity.complete', id: activity.id, expectedRevision: activity.revision, note: '合成完成感受' };
-    await domain.executeGranted(completed, { actor: 'agent', requestId: request.id, grantId: grant.id });
+    await domain.executeRoutine(completed, { actor: 'agent', requestId: request.id });
     await store.progress(request.id, '重启前部分回答');
     await db.close();
     db = new PowerSyncDatabase({ schema: createDatabaseSchema(), database: { dbFilename: filename } });

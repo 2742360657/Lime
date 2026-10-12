@@ -34,7 +34,7 @@ export async function runMaterialProbe() {
     let unsafeContent = false; try { await materialNative.copy(`content://${authority.replace('.fixtures', '.FileSystemFileProvider')}/private.txt`, 'private.txt'); } catch { unsafeContent = true; } ensure(unsafeContent);
     const ref = { id: material.id, revision: 1, kind: 'attachment' as const }, session = await agent.newSession();
     await store.saveDraft(session, [ref]); await store.stage('synthetic-batch', { refs: [ref], errors: [] });
-    const request = await agent.begin(session, '总结合成材料', [ref], []); ensure(!(await agent.grants(request.id)).length);
+    const request = await agent.begin(session, '总结合成材料', [ref]); ensure(!(await agent.grants(request.id)).length);
     const proposal = await domain.propose({ type: 'task.create', title: '合成材料待办' }, { proposalId: Crypto.randomUUID(), requestId: request.id, documentRefs: [ref] });
     const receipt = await domain.acceptProposal(proposal.id, 1, { actor: 'ui', operationId: Crypto.randomUUID() });
     ensure((await domain.acceptProposal(proposal.id, 1, { actor: 'ui', operationId: Crypto.randomUUID() })).entity.id === receipt.entity.id);

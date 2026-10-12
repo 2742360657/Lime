@@ -55,14 +55,14 @@ describe('memos reuse canonical documents with bounded metadata', () => {
     const stored = db.sql.prepare('SELECT * FROM documents WHERE id=?').get(entity.id);
     expect(stored.body).toBe('保留正文'); expect(stored.group_id).toBeNull(); expect(stored.deleted_at).toBeNull(); expect(stored.deleted).toBe(0);
   });
-  test('metadata excludes bodies and searches only literal title/classification, with limits', async () => {
+  test('metadata excludes bodies and searches literal title/content/classification, with limits', async () => {
     await group('g', '出行'); await group('hidden', '私人日记分类', 'diary');
     await mutate({ type: 'memo.create', title: '100%_预算', body: 'UNSELECTED-SYNTHETIC-BODY', groupId: 'g' });
     await mutate({ type: 'memo.create', title: '其它标题', body: '预算在正文' });
     const rows = await db.readTransaction(tx => listMemoMetadata(tx, { query: '%_', limit: 1 }));
     expect(rows).toHaveLength(1); expect(rows[0].title).toBe('100%_预算'); expect(rows[0].groupName).toBe('出行');
     expect(JSON.stringify(rows)).not.toContain('UNSELECTED-SYNTHETIC-BODY'); expect(rows[0]).not.toHaveProperty('body');
-    expect(await db.readTransaction(tx => listMemoMetadata(tx, { query: '预算在正文' }))).toEqual([]);
+    expect(await db.readTransaction(tx => listMemoMetadata(tx, { query: '预算在正文' }))).toHaveLength(1);
     expect(await db.readTransaction(tx => listMemoMetadata(tx, { query: '出行' }))).toHaveLength(1);
     expect(await db.readTransaction(tx => listMemoGroups(tx))).toHaveLength(1);
     await expect(db.readTransaction(tx => listMemoMetadata(tx, { limit: 101 }))).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });

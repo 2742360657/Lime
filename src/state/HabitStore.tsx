@@ -38,7 +38,6 @@ export function HabitProvider({ children }: PropsWithChildren) {
       const next=await database.writeTransaction(async tx=>{
         if (action.type === 'memo-update') await assertMemoUpdate(tx, action.id, action.patch, action.expectedRevision, action.expectedContent);
         const fresh={...current.current,appData:await readBusiness(tx,current.current.appData)};
-        if ((action.type === 'add-checkin-now' || action.type === 'add-checkin') && !fresh.appData.habits.some(h => h.id === action.habitId && h.archivedAt === null)) throw new Error('HABIT_CHANGED');
         const updated=habitReducer(fresh,action);
         await writeBusiness(tx,fresh.appData,updated.appData);
         if (JSON.stringify(fresh.appData.settings) !== JSON.stringify(updated.appData.settings)) await writeAppSettings(tx, updated.appData.settings);
@@ -291,70 +290,16 @@ export function HabitProvider({ children }: PropsWithChildren) {
     dispatch({ type: 'reorder-groups', groupIds });
   }, []);
 
-  const addHabit = useCallback(
-    (input: HabitInput) => {
-      const trimmed = input.name.trim();
-      if (!trimmed) {
-        dispatch({ type: 'set-error', error: '习惯名称不能为空。' });
-        return false;
-      }
+  const addHabit = useCallback(async (input: HabitInput) => {
+    try { await runUiCommand({ type: 'habit.create', ...input }); return true; }
+    catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
-      const normalizedGroupId =
-        input.groupId && state.appData.groups.some((group) => group.id === input.groupId)
-          ? input.groupId
-          : null;
-      const nextOrder = state.appData.habits.filter(
-        (habit) => habit.groupId === normalizedGroupId
-      ).length;
-
-      dispatch({
-        type: 'add-habit',
-        habit: {
-          id: createId(),
-          name: trimmed,
-          groupId: normalizedGroupId,
-          order: nextOrder,
-          cadence: input.cadence,
-          targetCount: Math.max(1, Math.floor(input.targetCount)),
-          createdAt: Date.now(),
-          archivedAt: null,
-          checkins: [],
-        },
-      });
-      return true;
-    },
-    [state.appData.groups, state.appData.habits]
-  );
-
-  const updateHabit = useCallback(
-    (habitId: string, input: HabitInput) => {
-      const trimmed = input.name.trim();
-      if (!trimmed) {
-        dispatch({ type: 'set-error', error: '习惯名称不能为空。' });
-        return false;
-      }
-      const normalizedGroupId =
-        input.groupId && state.appData.groups.some((group) => group.id === input.groupId)
-          ? input.groupId
-          : null;
-      const currentHabit = state.appData.habits.find((habit) => habit.id === habitId);
-      const nextOrder =
-        currentHabit && currentHabit.groupId === normalizedGroupId
-          ? currentHabit.order
-          : state.appData.habits.filter((habit) => habit.groupId === normalizedGroupId).length;
-      dispatch({
-        type: 'update-habit',
-        habitId,
-        name: trimmed,
-        groupId: normalizedGroupId,
-        cadence: input.cadence,
-        targetCount: Math.max(1, Math.floor(input.targetCount)),
-        order: nextOrder,
-      });
-      return true;
-    },
-    [state.appData.groups, state.appData.habits]
-  );
+  const updateHabit = useCallback(async (habitId: string, input: HabitInput, expectedRevision?: number) => {
+    const revision = expectedRevision ?? current.current.appData.habits.find(h => h.id === habitId)?.revision ?? 0;
+    try { await runUiCommand({ type: 'habit.update', id: habitId, expectedRevision: revision, ...input }); return true; }
+    catch (error) { reportCommandError(error); return false; }
+  }, [runUiCommand, reportCommandError]);
 
   const reorderHabits = useCallback((groupId: string | null, habitIds: string[]) => {
     dispatch({ type: 'reorder-habits', groupId, habitIds });

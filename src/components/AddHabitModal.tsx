@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -30,6 +30,8 @@ const CADENCE_OPTIONS: Array<{ id: HabitCadence; label: string }> = [
 export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalProps) {
   const { theme, groups, addHabit, updateHabit } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const saving = useRef(false);
+  const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [cadence, setCadence] = useState<HabitCadence>('daily');
@@ -45,30 +47,34 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
     setTargetCount(String(habit?.targetCount ?? 1));
   }, [habit, visible]);
 
-  const handleSubmit = () => {
-    const numericTarget = Math.max(1, Math.min(999, Number.parseInt(targetCount, 10) || 1));
+  const handleSubmit = async () => {
+    if (saving.current) return;
+    saving.current = true; setBusy(true);
+    try {
+    const numericTarget = Math.max(1, Math.min(9999, Number.parseInt(targetCount, 10) || 1));
     const input: HabitInput = {
       name,
       groupId: selectedGroupId,
       cadence,
       targetCount: numericTarget,
     };
-    const success = habit ? updateHabit(habit.id, input) : addHabit(input);
+    const success = habit ? await updateHabit(habit.id, input, habit.revision) : await addHabit(input);
     if (success) {
       onClose();
     }
+    } finally { saving.current = false; setBusy(false); }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={() => { if (!saving.current) onClose(); }}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
+          <TouchableOpacity disabled={busy} onPress={onClose} style={styles.headerButton}>
             <Text style={styles.headerButtonText}>取消</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{habit ? '编辑习惯' : '新建习惯'}</Text>
-          <TouchableOpacity onPress={handleSubmit} style={[styles.headerButton, styles.saveButton]}>
-            <Text style={styles.saveButtonText}>保存</Text>
+          <TouchableOpacity disabled={busy} onPress={() => void handleSubmit()} style={[styles.headerButton, styles.saveButton]}>
+            <Text style={styles.saveButtonText}>{busy ? '保存中…' : '保存'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -77,7 +83,8 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
             <Text style={styles.label}>习惯名称</Text>
             <TextInput
               autoFocus
-              maxLength={40}
+              editable={!busy}
+              maxLength={80}
               placeholder="习惯名称"
               placeholderTextColor={theme.colors.textMuted}
               value={name}
@@ -94,6 +101,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
                 return (
                   <TouchableOpacity
                     key={option.id}
+                    disabled={busy}
                     onPress={() => setCadence(option.id)}
                     style={[styles.cadenceCard, active && styles.cadenceCardActive]}
                   >
@@ -110,7 +118,8 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
             </View>
             <TextInput
               keyboardType="number-pad"
-              maxLength={3}
+              editable={!busy}
+              maxLength={4}
               value={targetCount}
               onChangeText={setTargetCount}
               selectTextOnFocus
@@ -142,7 +151,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
 
   function GroupOption({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
     return (
-      <TouchableOpacity onPress={onPress} style={[styles.groupChip, selected && styles.groupChipActive]}>
+      <TouchableOpacity disabled={busy} onPress={onPress} style={[styles.groupChip, selected && styles.groupChipActive]}>
         <Text style={[styles.groupChipText, selected && styles.groupChipTextActive]}>{label}</Text>
       </TouchableOpacity>
     );

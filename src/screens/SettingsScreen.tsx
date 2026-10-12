@@ -17,7 +17,6 @@ import { useHabits } from '../state/HabitStore';
 import { AssistantSettingsModal } from '../agent/AssistantSettingsModal';
 import { WeixinIntakeModal } from '../channels/weixin/WeixinIntakeModal';
 import { QqIntakeModal } from '../channels/qq/QqIntakeModal';
-import { RecordsModal } from '../records/RecordsModal';
 import { DailyToolsModal } from '../daily/DailyToolsModal';
 
 export function SettingsScreen() {
@@ -31,7 +30,7 @@ export function SettingsScreen() {
   const [archivedVisible, setArchivedVisible] = useState(false);
   const [assistantVisible, setAssistantVisible] = useState(false);
   const [weixinVisible, setWeixinVisible] = useState(false);
-  const [qqVisible, setQqVisible] = useState(false), [recordsVisible, setRecordsVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
+  const [qqVisible, setQqVisible] = useState(false), [dailyVisible, setDailyVisible] = useState(false);
   const [remindersVisible, setRemindersVisible] = useState(false);
   const route = useRoute();
   const reminderNonce = (route.params as { reminderNonce?: string } | undefined)?.reminderNonce;
@@ -39,9 +38,6 @@ export function SettingsScreen() {
   const dailyNonce = (route.params as { dailyNonce?: string } | undefined)?.dailyNonce;
   useEffect(() => { if (assistantNonce) setAssistantVisible(true); }, [assistantNonce]);
   useEffect(() => { if (dailyNonce) setDailyVisible(true); }, [dailyNonce]);
-  const recordNonce = (route.params as { recordNonce?: string } | undefined)?.recordNonce;
-  const recordId = (route.params as { recordId?: string } | undefined)?.recordId;
-  useEffect(() => { if (recordNonce) setRecordsVisible(true); }, [recordNonce]);
   useEffect(() => { if (reminderNonce) setRemindersVisible(true); }, [reminderNonce]);
 
   const failure = (error: unknown) => error instanceof BackupError ? error.message : '操作未完成，请保留原文件并检查空间、权限或格式。';
@@ -108,7 +104,6 @@ export function SettingsScreen() {
           <SettingRow label="助手配置" value="模型 · 可选人格 · 个人记忆" onPress={() => setAssistantVisible(true)} />
           <SettingRow label="微信收件" value="扫码绑定 · 手动读取 · 本机材料" onPress={() => setWeixinVisible(true)} />
           <SettingRow label="QQ收件" value="扫码绑定 · 前台读取 · 附件重试" onPress={() => setQqVisible(true)} />
-          <SettingRow label="本机资料" value="通用文字与表格 · 来源 · 回收站" onPress={() => setRecordsVisible(true)} />
           <SettingRow label="日用记录与整理" value="活动计划 · 完成打卡 · 选择与撤销" onPress={() => setDailyVisible(true)} />
           <SettingRow label="本地提醒" value="待办到期 · 单次 · 公历生日" onPress={() => setRemindersVisible(true)} />
         </View>
@@ -146,7 +141,6 @@ export function SettingsScreen() {
       <AssistantSettingsModal visible={assistantVisible} onClose={() => setAssistantVisible(false)} />
       <WeixinIntakeModal visible={weixinVisible} onClose={() => setWeixinVisible(false)} />
       <QqIntakeModal visible={qqVisible} onClose={() => setQqVisible(false)} />
-      <RecordsModal focusId={recordId} visible={recordsVisible} onClose={() => setRecordsVisible(false)} />
       <DailyToolsModal visible={dailyVisible} onClose={() => setDailyVisible(false)} />
       <ReminderSettingsModal visible={remindersVisible} onClose={() => setRemindersVisible(false)} />
     </ScreenScaffold>

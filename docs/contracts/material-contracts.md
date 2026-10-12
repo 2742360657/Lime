@@ -23,7 +23,7 @@ Native持久入站批次先保存原件和结果，再通知JS；JS提交SQLite�
 
 ## 模型与来源
 
-SourceRef沿用{id,revision}，附件增加kind:'attachment'；旧日记引用保持兼容。domain、建议确认和runtime在确定性边界检查kind/版本/未归档，模型不能借ID读取未选择的附件。只发送当轮选定文本/分析图片，不发送手机content URI、文件路径或全库。后续轮次不自动重发材料正文/图片及其回答。
+SourceRef沿用{id,revision}，附件增加kind:'attachment'；备忘录引用无kind字段。domain、建议确认和runtime在确定性边界检查kind/版本/未归档，模型不能借ID读取未选择的附件。只发送当轮提供或按版本取得的相关文本/分析图片，不发送手机content URI、文件路径或全库。后续轮次不自动重发材料正文/图片及其回答。
 
 已有AI SDK/DeepSeek provider负责多模态消息序列化，图片内嵌仅本次请求，暂不使用云Files持久上传。来源快照可离线查看正文和对应原件，接受后的待办可回看来源。材料归档不删除原件；物理回收与全对象备份在P5处理。
 

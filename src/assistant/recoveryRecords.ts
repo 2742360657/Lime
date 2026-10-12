@@ -26,8 +26,8 @@ export function portableRow(table:RecordTable,value:unknown):PortableRow {
  const r=obj(value);if(!id(r.id)||![0,1].includes(r.deleted as number)||!integer(r.created_at))return bad();
  if(['document_groups','habit_groups','habits'].includes(table)&&!text(r.name,200,false))return bad();
  if(table!=='checkins'&&!Number.isSafeInteger(r.sort_order))return bad();
- if(table==='documents'&&(!['memo','diary'].includes(String(r.kind))||!text(r.title,300)||!text(r.body,100000)||!date(r.date)||!id(r.group_id,true)||!integer(r.edited_at)||!integer(r.deleted_at,true)))return bad();
- if(table==='document_groups'&&!['memo','diary'].includes(String(r.kind)))return bad();
+ if(table==='documents'&&(r.kind!=='memo'||!text(r.title,300)||!text(r.body,100000)||!date(r.date)||!id(r.group_id,true)||!integer(r.edited_at)||!integer(r.deleted_at,true)))return bad();
+ if(table==='document_groups'&&r.kind!=='memo')return bad();
  if(table==='habits'&&(!['daily','weekly','monthly'].includes(String(r.cadence))||!integer(r.target_count)||Number(r.target_count)<1||Number(r.target_count)>10000||!id(r.group_id,true)||!integer(r.archived_at,true)))return bad();
  if(table==='checkins'&&(!id(r.habit_id)||!date(r.date_key)||!integer(r.timestamp)||!text(r.note,10000)))return bad();
  if(table==='tasks'&&(!text(r.title,300,false)||!text(r.note,10000)||!['open','done'].includes(String(r.status))||!id(r.document_id,true)||!integer(r.completed_at,true)||(r.due_date_key!==null&&!date(r.due_date_key))||(r.due_time!==null&&(!r.due_date_key||typeof r.due_time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(r.due_time)))))return bad();
@@ -36,9 +36,9 @@ export function portableRow(table:RecordTable,value:unknown):PortableRow {
  return result;
 }
 export function portableDraft(value:unknown):PortableDraft {
- const r=obj(value);if(!id(r.id)||!id(r.document_id)||!['diary','memo'].includes(String(r.kind??'diary'))||!text(r.title,300)||!text(r.body,100000)||!date(r.date)||!id(r.group_id??null,true)||!integer(r.base_revision??null,true))return bad();
+ const r=obj(value);if(!id(r.id)||!id(r.document_id)||r.kind!=='memo'||!text(r.title,300)||!text(r.body,100000)||!date(r.date)||!id(r.group_id??null,true)||!integer(r.base_revision??null,true))return bad();
  if(r.base_content!=null){const base=obj(JSON.parse(String(r.base_content)));if(!text(base.title,300)||!text(base.body,100000)||!date(base.date)||!id(base.group_id??null,true))return bad();}
- return {base_content:r.base_content==null?null:String(r.base_content),id:r.id as string,document_id:r.document_id as string,kind:String(r.kind??'diary'),title:r.title as string,body:r.body as string,date:r.date as string,group_id:(r.group_id??null) as string|null,base_revision:(r.base_revision??null) as number|null};
+ return {base_content:r.base_content==null?null:String(r.base_content),id:r.id as string,document_id:r.document_id as string,kind:String(r.kind),title:r.title as string,body:r.body as string,date:r.date as string,group_id:(r.group_id??null) as string|null,base_revision:(r.base_revision??null) as number|null};
 }
 // The caller transaction preserves the recovery source when a copy cannot be committed.
 export async function mergeRecords(tx:Transaction,backup:RecoveryBatch,newId:()=>string,forceCopies=false) {

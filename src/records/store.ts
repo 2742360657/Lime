@@ -56,8 +56,8 @@ export function createRecordQueries(db: DomainDatabase) {
                 params.push(typeKey);
             }
             if (query) {
-                where.push("title LIKE ? ESCAPE '\\'");
-                params.push(literalLike(query));
+                where.push("(title LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\')");
+                params.push(literalLike(query), literalLike(query));
             }
             if (tag) {
                 where.push('EXISTS (SELECT 1 FROM json_each(local_records.tags) WHERE value=?)');
@@ -79,7 +79,7 @@ export function createRecordQueries(db: DomainDatabase) {
                 }>(`SELECT COUNT(*) AS n FROM local_records WHERE ${predicate}`, params))?.n ?? 0;
                 const rows = await tx.getAll<RecordMeta>(`SELECT id,type_key,schema_key,schema_version,title,tags,occurred_at,revision,deleted,created_at FROM local_records WHERE ${predicate}${after} ORDER BY created_at DESC,id ASC LIMIT ?`, [...args, limit + 1]);
                 const records = rows.slice(0, limit), last = records[records.length - 1];
-                return { records, matched, nextCursor: rows.length > limit && last ? { at: last.created_at, id: last.id } : null, scope: '仅类型/标题/标签/时间和版本元信息；正文与表格需本轮明确选择，不代表已授权分析。' };
+                return { records, matched, nextCursor: rows.length > limit && last ? { at: last.created_at, id: last.id } : null, scope: '仅类型/标题/标签/时间和版本元信息；正文与表格可按准确版本读取；有限页不代表全部。' };
             });
         },
         async get(id: string, context: ReadContext) {

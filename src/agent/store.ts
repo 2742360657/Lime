@@ -1,7 +1,6 @@
 import { recordSource, type RecordRow } from '../records/model';
 import { documentRefsSchema } from '../domain/commands';
-import { z } from 'zod';
-import type { DomainDatabase, DocumentRef, Receipt } from '../domain/types';
+import { DomainError, type DomainTransaction, type DomainDatabase, type DocumentRef, type Receipt } from '../domain/types';
 import type { Command } from '../domain/commands';
 
 export const DEFAULT_MODEL = 'deepseek-flash';
@@ -23,16 +22,12 @@ export function validateModel(model: string) {
   return model;
 }
 
-// Conservative application policy over this user's current input only. Material never enters here.
-export function grantedTypes(text: string, refs: DocumentRef[], active: { id: string }[]): { commandType: string; targetId: string | null }[] {
-  if (refs.length || text.length > 1000 || /[“”「」『』"`？?]|不要|别|不想|是否|能不能|假如|如果|例如|转发|通知|原文|还没|没有|不确定|打算/.test(text)) return [];
-  if (/^(?:请|帮我|请帮我)?(?:记住|记下)(?:我|我的)/.test(text)) return [{ commandType: 'memory.remember', targetId: null }];
-  if (/^(?:请|帮我|请帮我)?(?:新建|创建|添加|加|记)(?:一个|一条|个|条)?待办/.test(text)) return [{ commandType: 'task.create', targetId: null }];
-  if (/^(?:请|帮我|请帮我)?(?:新建|创建|添加|写)(?:一个|一条|个|条)?备忘录/.test(text)) return [{ commandType: 'memo.create', targetId: null }];
-  if (/^(?:我)?(?:今天|现在)?(?:练完了|训练完了|训练完成了|训练完成|完成训练)[，。！!\s]*(?:.*)?$/.test(text) && active.length === 1)
-    return [{ commandType: 'activity.complete', targetId: active[0].id }];
-  if (/^(?:我)?(?:今天|现在)(?:该|应该|可以)?(?:练什么|训练什么|练点什么)/.test(text)) return [{ commandType: 'activity.start', targetId: null }];
-  return [];
+async function sourceFor(tx: DomainTransaction, ref: DocumentRef) {
+  const generic = ref.kind === 'record' ? await tx.getOptional<RecordRow>('SELECT * FROM local_records WHERE id=? AND revision=? AND deleted=0',[ref.id,ref.revision]) : null;
+  const source = ref.kind === 'record' ? generic ? recordSource(generic) : null : ref.kind === 'attachment'
+            ? await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>("SELECT id,revision,filename AS title,body,'attachment' AS kind,'' AS date FROM local_materials WHERE id=? AND revision=? AND deleted=0 AND status='ready'", [ref.id, ref.revision])
+            : await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>("SELECT id,revision,title,body,kind,date FROM documents WHERE kind='memo' AND id=? AND revision=? AND deleted=0", [ref.id, ref.revision]);
+  return source;
 }
 
 export function createAgentStore(db: DomainDatabase, deps: Deps) {
@@ -75,7 +70,7 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
     async requests(sessionId: string): Promise<AgentRequest[]> {
       return db.readTransaction(tx => tx.getAll('SELECT * FROM local_agent_requests WHERE session_id=? ORDER BY created_at,id', [sessionId]));
     },
-    async begin(sessionId: string, text: string, refs: DocumentRef[], active: { id: string }[]): Promise<AgentRequest> {
+    async begin(sessionId: string, text: string, refs: DocumentRef[]): Promise<AgentRequest> {
       if (!text.trim() || text.length > 12000 || refs.length > 4 || !documentRefsSchema.safeParse(refs).success)
         throw new Error('请输入消息，最多 12000 字符，引用不超过四篇。');
       const id = deps.id(), now = deps.now();
@@ -87,10 +82,7 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
           const identity = `${ref.kind ?? 'document'}:${ref.id}`;
           if (selected.has(identity)) throw new Error('同一资料只能选择一次。');
           selected.add(identity);
-          const generic = ref.kind === 'record' ? await tx.getOptional<RecordRow>('SELECT * FROM local_records WHERE id=? AND revision=? AND deleted=0',[ref.id,ref.revision]) : null;
-          const source = ref.kind === 'record' ? generic ? recordSource(generic) : null : ref.kind === 'attachment'
-            ? await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>("SELECT id,revision,filename AS title,body,'attachment' AS kind,'' AS date FROM local_materials WHERE id=? AND revision=? AND deleted=0 AND status='ready'", [ref.id, ref.revision])
-            : await tx.getOptional<{ id: string; revision: number; title: string; body: string; kind: string; date: string }>('SELECT id,revision,title,body,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [ref.id, ref.revision]);
+          const source = await sourceFor(tx, ref);
           if (!source) throw new Error('引用已变化，请重新选择。');
           sourceLength += JSON.stringify(source).length;
           if (source.body.length > 32000 || sourceLength > 32000) throw new Error('本轮材料过长，请减少引用或拆分后选择。');
@@ -100,12 +92,33 @@ export function createAgentStore(db: DomainDatabase, deps: Deps) {
         await tx.execute('INSERT INTO local_agent_requests(id,session_id,text,source_refs,status,error,created_at,updated_at) VALUES(?,?,?,?,?,NULL,?,?)', [id, sessionId, request.text, request.source_refs, 'running', now, now]);
         await tx.execute("INSERT INTO local_agent_messages(id,session_id,request_id,role,body,created_at) VALUES(?,?,?,'user',?,?)", [`${id}:u`, sessionId, id, request.text, now]);
         await tx.execute("INSERT INTO local_agent_messages(id,session_id,request_id,role,body,created_at) VALUES(?,?,?,'assistant','',?)", [`${id}:a`, sessionId, id, now + 1]);
-        for (const grant of grantedTypes(request.text, refs, active)) {
-          await tx.execute('INSERT INTO local_agent_grants(id,request_id,command_type,target_id,fingerprint,receipt) VALUES(?,?,?,?,NULL,NULL)', [deps.id(), id, grant.commandType, grant.targetId]);
-        }
         await tx.execute("UPDATE local_agent_sessions SET title=CASE WHEN title='新对话' THEN ? ELSE title END,updated_at=? WHERE id=?", [request.text.slice(0, 22), now, sessionId]);
         await tx.execute('DELETE FROM local_meta WHERE id=?', ['material-draft-' + sessionId]);
         return request;
+      });
+    },
+    async captureSource(requestId: string, ref: DocumentRef): Promise<DocumentRef[]> {
+      if (!documentRefsSchema.safeParse([ref]).success) throw new DomainError('INVALID_ARGUMENT');
+      return db.writeTransaction(async tx => {
+        const request = await tx.getOptional<AgentRequest>('SELECT * FROM local_agent_requests WHERE id=?', [requestId]);
+        const boundary = Number((await tx.getOptional<{ value: string }>("SELECT value FROM local_meta WHERE id='agent-context-boundary'"))?.value ?? 0);
+        if (!request || request.status !== 'running' || request.created_at <= boundary) throw new DomainError('PERMISSION_DENIED');
+        const refs: DocumentRef[] = JSON.parse(request.source_refs);
+        const previous = refs.find(r => r.id === ref.id && r.kind === ref.kind);
+        if (previous && previous.revision !== ref.revision) throw new DomainError('SOURCE_CHANGED');
+        // Attachments are supplied by the user/channel, not enumerated through arbitrary paths.
+        if (ref.kind === 'attachment' && !previous) throw new DomainError('PERMISSION_DENIED');
+        if (!previous && refs.length >= 4) throw new DomainError('INVALID_ARGUMENT');
+        const source = await sourceFor(tx, ref);
+        if (!source) throw new DomainError('SOURCE_CHANGED');
+        if (previous) return refs;
+        const snapshots = await tx.getAll('SELECT document_id AS id,revision,title,body,kind,date FROM local_agent_sources WHERE request_id=?', [requestId]);
+        if (JSON.stringify(source).length + JSON.stringify(snapshots).length > 32000) throw new DomainError('INVALID_ARGUMENT');
+        refs.push(ref);
+        const identity = `${ref.kind ?? 'document'}:${ref.id}`;
+        await tx.execute('INSERT INTO local_agent_sources(id,request_id,document_id,revision,title,body,kind,date) VALUES(?,?,?,?,?,?,?,?)', [`${requestId}:${identity}`, requestId, ref.id, ref.revision, source.title, source.body, source.kind, source.date]);
+        await tx.execute('UPDATE local_agent_requests SET source_refs=? WHERE id=?', [JSON.stringify(refs), requestId]);
+        return refs;
       });
     },
     async request(id: string) {

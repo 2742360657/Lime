@@ -4,7 +4,7 @@ import { weixinTables } from '../channels/weixin/schema';
 import { qqProductTables } from '../channels/qq/productSchema';
 import { dailyTables } from '../daily/schema';
 
-// Canonical fields for the mature diary, memo, task and habit editors.
+// Canonical fields for the memo, task and habit editors.
 export const coreTableColumns = {
   document_groups: { kind: column.text, name: column.text, sort_order: column.integer, created_at: column.integer, revision: column.integer, deleted: column.integer, updated_at: column.text },
   documents: { group_id: column.text, sort_order: column.integer, created_at: column.integer, edited_at: column.integer, deleted_at: column.integer, kind: column.text, title: column.text, body: column.text, date: column.text, revision: column.integer, deleted: column.integer, updated_at: column.text },

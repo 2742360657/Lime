@@ -6,7 +6,6 @@ import { DEFAULT_THEME_ID, getTheme, ThemeId } from '../theme';
 import type {
   AppData,
   AppSettings,
-  CheckinRecord,
   Habit,
   HabitCadence,
   HabitGroup,
@@ -61,24 +60,12 @@ export type HabitAction =
   | { type: 'rename-group'; groupId: string; name: string }
   | { type: 'delete-group'; groupId: string }
   | { type: 'reorder-groups'; groupIds: string[] }
-  | { type: 'add-habit'; habit: Habit }
-  | {
-      type: 'update-habit';
-      habitId: string;
-      name: string;
-      groupId: string | null;
-      cadence: HabitCadence;
-      targetCount: number;
-      order: number;
-    }
   | { type: 'reorder-habits'; groupId: string | null; habitIds: string[] }
   | { type: 'move-habits-to-group'; ids: string[]; groupId: string | null }
   | { type: 'delete-habits'; ids: string[] }
   | { type: 'archive-habit'; habitId: string }
   | { type: 'restore-archived-habit'; habitId: string }
   | { type: 'delete-habit'; habitId: string }
-  | { type: 'add-checkin-now'; habitId: string; record: CheckinRecord }
-  | { type: 'add-checkin'; habitId: string; dateKey: string; timestamp: number; note: string }
   | {
       type: 'update-checkin';
       habitId: string;
@@ -87,16 +74,6 @@ export type HabitAction =
       note: string;
     }
   | { type: 'delete-checkin'; habitId: string; recordId: string }
-  | { type: 'add-todo'; todo: TodoItem }
-  | {
-      type: 'update-todo';
-      todoId: string;
-      title: string;
-      note: string;
-      dueDateKey: string | null;
-      dueTime: string | null;
-    }
-  | { type: 'set-todo-completed'; todoId: string; completedAt: number | null }
   | { type: 'delete-todo'; todoId: string }
   | { type: 'reorder-todos'; todoIds: string[] };
 
@@ -133,8 +110,8 @@ export type HabitContextValue = HabitState & {
   renameGroup: (groupId: string, name: string) => boolean;
   deleteGroup: (groupId: string) => void;
   reorderGroups: (groupIds: string[]) => void;
-  addHabit: (input: HabitInput) => boolean;
-  updateHabit: (habitId: string, input: HabitInput) => boolean;
+  addHabit: (input: HabitInput) => Promise<boolean>;
+  updateHabit: (habitId: string, input: HabitInput, expectedRevision?: number) => Promise<boolean>;
   reorderHabits: (groupId: string | null, habitIds: string[]) => void;
   archiveHabit: (habitId: string) => void;
   restoreArchivedHabit: (habitId: string) => void;

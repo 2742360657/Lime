@@ -64,7 +64,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
   }, [session, store]);
   useEffect(() => {
     let active = true;
-    if (route?.params?.documentId && draftSession === session) void database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND revision=? AND deleted=0', [route.params.documentId, route.params.documentRevision ?? -1]).then(source => {
+    if (route?.params?.documentId && draftSession === session) void database.getOptional<Source>("SELECT id,revision,title,kind,date FROM documents WHERE kind='memo' AND id=? AND revision=? AND deleted=0", [route.params.documentId, route.params.documentRevision ?? -1]).then(source => {
       if (active) { if (source) { setQuoted(previous => [...previous.filter(s => sourceIdentity(s) !== sourceIdentity(source)), source].slice(0, 4)); } else setError('引用已变化，请返回记录重新选择。'); }
     }).catch(() => { if (active) setError('引用暂时无法读取。'); });
     return () => { active = false; };
@@ -77,7 +77,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
       for (const ref of refs) {
         if(ref.kind === 'record'){const r=await domain.getRecord(ref.id,{actor:'ui'});if(r&&!r.deleted)selections.push({id:r.id,revision:ref.revision,kind:'record',title:r.title,date:''});}
         else if (ref.kind === 'attachment') { const m = await materialStore.get(ref.id); if (m && !m.deleted) selections.push({ id: m.id, revision: ref.revision, kind: 'attachment', title: m.filename, date: '' }); }
-        else { const doc = await database.getOptional<Source>('SELECT id,revision,title,kind,date FROM documents WHERE id=? AND deleted=0', [ref.id]); if (doc) selections.push({ ...doc, revision: ref.revision }); }
+        else { const doc = await database.getOptional<Source>("SELECT id,revision,title,kind,date FROM documents WHERE kind='memo' AND id=? AND deleted=0", [ref.id]); if (doc) selections.push({ ...doc, revision: ref.revision }); }
       }
       if (active) { setQuoted(selections); setDraftSession(session); }
     }).catch(() => { if (active) setError('材料选择草稿暂时无法恢复。'); });
@@ -95,7 +95,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
     catch (e) { if (!retryId) { setInput(text); setQuoted(refs); } setError(e instanceof Error ? e.message : '请求未完成，请重试。'); }
   }
   async function pickRecords() {
-    try { setDocuments(await database.getAll<Source>('SELECT id,revision,title,kind,date FROM documents WHERE deleted=0 ORDER BY edited_at DESC,id LIMIT 100')); setPicker(true); }
+    try { setDocuments(await database.getAll<Source>("SELECT id,revision,title,kind,date FROM documents WHERE kind='memo' AND deleted=0 ORDER BY edited_at DESC,id LIMIT 100")); setPicker(true); }
     catch { setError('记录暂时无法读取。'); }
   }
   const button = (label: string, fn: () => void, disabled = false) => <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={fn} style={{ paddingVertical: 8, paddingHorizontal: 8, opacity: disabled ? 0.4 : 1 }}><Text style={{ fontSize: 12, color: c.primary }}>{label}</Text></Pressable>;
@@ -115,7 +115,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
         {button('配置', () => setSettingsVisible(true))}
       </View>
       <ScrollView ref={scroll} style={{ flex: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 12, gap: 12 }} onContentSizeChange={() => { if (state.busy && state.sessionId === session) scroll.current?.scrollToEnd({ animated: false }); }}>
-        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>在这里聊天，查询或操作待办、备忘录、资料、习惯和显式记忆。资料、日记与备忘录正文需选中后才供本轮分析。</Text> : null}
+        {!messages.length ? <Text style={{ fontSize: 13, lineHeight: 21, color: c.textSecondary }}>说出要记下的事、要做的事，或今天的完成情况。助手会查询相关历史并管理习惯、待办和备忘录；结果和来源保存在本机。</Text> : null}
         {messages.map(message => {
           const request = requests.find(r => r.id === message.request_id);
           const generating = state.busy && state.requestId === message.request_id && message.role === 'assistant';
@@ -152,7 +152,7 @@ export function ChatScreen({ route }: { route?: { params?: { documentId?: string
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>{button('关闭', () => { setPicker(false); setSourcePreview(null); })}<Text style={{ fontSize: 14, color: c.textPrimary }}>{sourcePreview ? '本轮原文快照' : '选择记录'}</Text></View>
         <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-          {sourcePreview ? <><Text style={{ fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sourcePreview.title || sourcePreview.date}</Text>{sourcePreview.kind==='record'?<RecordSourceView body={sourcePreview.body??''}/>:<Text selectable style={{ fontSize: 14, lineHeight: 23, color: c.textPrimary }}>{sourcePreview.body}</Text>}</> : documents.map(doc => <Pressable key={doc.id} disabled={quoted.some(s => sourceIdentity(s) === sourceIdentity(doc))} onPress={() => { setQuoted(previous => [...previous, doc].slice(0, 4)); setPicker(false); }} style={{ padding: 10, borderRadius: 8, backgroundColor: c.surface }}><Text style={{ fontSize: 13, color: c.textPrimary }}>{doc.title || doc.date || '无标题'}{quoted.some(s => sourceIdentity(s) === sourceIdentity(doc)) ? ' · 已选' : ''}</Text><Text style={{ marginTop: 4, fontSize: 11, color: c.textMuted }}>{doc.kind === 'diary' ? '日记' : '备忘录'} · {doc.date} · v{doc.revision}</Text></Pressable>)}
+          {sourcePreview ? <><Text style={{ fontSize: 14, fontWeight: '600', color: c.textPrimary }}>{sourcePreview.title || sourcePreview.date}</Text>{sourcePreview.kind==='record'?<RecordSourceView body={sourcePreview.body??''}/>:<Text selectable style={{ fontSize: 14, lineHeight: 23, color: c.textPrimary }}>{sourcePreview.body}</Text>}</> : documents.map(doc => <Pressable key={doc.id} disabled={quoted.some(s => sourceIdentity(s) === sourceIdentity(doc))} onPress={() => { setQuoted(previous => [...previous, doc].slice(0, 4)); setPicker(false); }} style={{ padding: 10, borderRadius: 8, backgroundColor: c.surface }}><Text style={{ fontSize: 13, color: c.textPrimary }}>{doc.title || doc.date || '无标题'}{quoted.some(s => sourceIdentity(s) === sourceIdentity(doc)) ? ' · 已选' : ''}</Text><Text style={{ marginTop: 4, fontSize: 11, color: c.textMuted }}>备忘录 · {doc.date} · v{doc.revision}</Text></Pressable>)}
         </ScrollView>
       </SafeAreaView>
     </Modal>

@@ -1,3 +1,4 @@
+import { isRoutineCommand } from './policy';
 import { mutateRecord, createRecordQueries } from '../records/store';
 import { calculateRecords } from '../records/compute';
 import { recordSource } from '../records/model';
@@ -13,7 +14,7 @@ import { DomainError, type DocumentRef, type DomainDatabase, type DomainTransact
 
 type BaseRow = { id: string; revision: number; deleted?: number };
 export type TaskRow = BaseRow & { title: string; note: string; status: string; due_date_key: string | null; due_time: string | null; completed_at: number | null };
-export type HabitRow = BaseRow & { name: string; archived_at: number | null; cadence: string; target_count: number };
+export type HabitRow = BaseRow & { name: string; archived_at: number | null; cadence: string; target_count: number; group_id: string | null; sort_order: number };
 export type MemoryRow = BaseRow & { kind: 'fact' | 'preference'; key: string; content: string; forgotten: number };
 export type ActivityRow = BaseRow & { kind: string; title: string; note: string; completion_note: string | null; status: string; habit_id: string | null; checkin_id: string | null };
 export type ProposalRow = BaseRow & { command: string; source_refs: string; status: string; request_id: string; operation_id: string | null; receipt: string | null };
@@ -50,7 +51,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
   async function verifyRefs(tx: DomainTransaction, refs: DocumentRef[]) {
     for (const ref of refs) {
       const table = ref.kind === 'attachment' ? 'local_materials' : ref.kind === 'record' ? 'local_records' : 'documents';
-      const source = await tx.getOptional<BaseRow>(`SELECT id,revision,deleted FROM ${table} WHERE id=?`, [ref.id]);
+      const source = await tx.getOptional<BaseRow>(`SELECT id,revision,deleted FROM ${table} WHERE id=?${table === 'documents' ? " AND kind='memo'" : ''}`, [ref.id]);
       if (!source || source.deleted || source.revision !== ref.revision) throw new DomainError('SOURCE_CHANGED');
     }
   }
@@ -124,6 +125,18 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
         const row = await target<TaskRow>(tx, 'tasks', cmd.id, cmd.expectedRevision);
         await tx.execute('UPDATE tasks SET deleted=1,revision=revision+1,updated_at=? WHERE id=?', [updated, row.id]);
         return changed('task', row.id, row.revision + 1);
+      }
+      case 'habit.create':
+      case 'habit.update': {
+        const row = cmd.type === 'habit.update' ? await activeHabit(tx, cmd.id, cmd.expectedRevision) : null;
+        if (cmd.groupId !== null && !await tx.getOptional('SELECT id FROM habit_groups WHERE id=? AND deleted=0', [cmd.groupId])) throw new DomainError('NOT_FOUND');
+        if (row && row.name === cmd.name && row.cadence === cmd.cadence && row.target_count === cmd.targetCount && row.group_id === cmd.groupId) return changed('habit', row.id, row.revision, true);
+        if (row && row.revision >= Number.MAX_SAFE_INTEGER) throw new DomainError('INVALID_ARGUMENT');
+        const order = row && row.group_id === cmd.groupId ? row.sort_order : (await tx.getOptional<{ next: number }>('SELECT COALESCE(MAX(sort_order),-1)+1 AS next FROM habits WHERE deleted=0 AND archived_at IS NULL AND group_id IS ?', [cmd.groupId]))?.next ?? 0;
+        const id = row?.id ?? deps.id();
+        if (row) await tx.execute('UPDATE habits SET name=?,cadence=?,target_count=?,group_id=?,sort_order=?,revision=revision+1,updated_at=? WHERE id=?', [cmd.name, cmd.cadence, cmd.targetCount, cmd.groupId, order, updated, id]);
+        else await tx.execute('INSERT INTO habits(id,name,cadence,target_count,group_id,sort_order,created_at,archived_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,?,?,NULL,1,0,?)', [id, cmd.name, cmd.cadence, cmd.targetCount, cmd.groupId, order, now, updated]);
+        return changed('habit', id, (row?.revision ?? 0) + 1);
       }
       case 'habit.checkin': {
         await activeHabit(tx, cmd.id, cmd.expectedRevision);
@@ -205,20 +218,23 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
       const fingerprint = await deps.digest(canonicalJson({ command, origin: 'ui' }));
       return db.writeTransaction(tx => commit(tx, command, operationId, fingerprint));
     },
-    async executeGranted(value: unknown, context: { actor: 'agent'; requestId: string; grantId: string }): Promise<Receipt> {
+    async executeRoutine(value: unknown, context: { actor: 'agent'; requestId: string }): Promise<Receipt> {
       if (context?.actor !== 'agent') throw new DomainError('PERMISSION_DENIED');
-      const command = parse(value), requestId = validId(context.requestId), grantId = validId(context.grantId);
-      const fingerprint = await deps.digest(canonicalJson({ command, origin: `grant:${grantId}` }));
+      const command = parse(value), requestId = validId(context.requestId);
+      if (!isRoutineCommand(command)) throw new DomainError('PERMISSION_DENIED');
+      const hash = await deps.digest(canonicalJson(command)), operationId = validId(`${requestId}:${hash}`);
+      const fingerprint = await deps.digest(canonicalJson({ command, origin: `request:${requestId}` }));
       return db.writeTransaction(async tx => {
-        const grant = await tx.getOptional<{ request_id: string; command_type: string; target_id: string | null; fingerprint: string | null; receipt: string | null }>('SELECT * FROM local_agent_grants WHERE id=?', [grantId]);
-        const request = await tx.getOptional<{ status: string; source_refs: string }>('SELECT status,source_refs FROM local_agent_requests WHERE id=?', [requestId]);
-        // Destructive/general modifications have no automatic grant even if a forged row appears.
-        if (!grant || grant.request_id !== requestId || grant.command_type !== command.type || !request || request.status !== 'running' || request.source_refs !== '[]' ||
-          !['task.create', 'memo.create', 'memory.remember', 'activity.start', 'activity.complete'].includes(command.type) ||
-          (command.type === 'activity.complete' && (!grant.target_id || grant.target_id !== command.id))) throw new DomainError('PERMISSION_DENIED');
-        if (grant.fingerprint && grant.fingerprint !== fingerprint) throw new DomainError('PERMISSION_DENIED');
-        const receipt = await commit(tx, command, grantId, fingerprint);
-        await tx.execute('UPDATE local_agent_grants SET fingerprint=?,receipt=? WHERE id=?', [fingerprint, JSON.stringify(receipt), grantId]);
+        const request = await tx.getOptional<{ status: string; source_refs: string; created_at: number }>('SELECT status,source_refs,created_at FROM local_agent_requests WHERE id=?', [requestId]);
+        const boundary = Number((await tx.getOptional<{ value: string }>("SELECT value FROM local_meta WHERE id='agent-context-boundary'"))?.value ?? 0);
+        if (!request || request.status !== 'running' || request.created_at <= boundary) throw new DomainError('PERMISSION_DENIED');
+        const existing = await tx.getOptional('SELECT id FROM local_agent_grants WHERE id=? AND request_id=?', [operationId, requestId]);
+        const count = await tx.getOptional<{ n: number }>('SELECT COUNT(*) AS n FROM local_agent_grants WHERE request_id=?', [requestId]);
+        if (!existing && (count?.n ?? 0) >= 8) throw new DomainError('PERMISSION_DENIED');
+        const refs = checkedRefs(JSON.parse(request.source_refs));
+        const receipt = await commit(tx, command, operationId, fingerprint, refs);
+        // Same transaction as the business change: retries and crash recovery use durable receipts.
+        await tx.execute('INSERT OR REPLACE INTO local_agent_grants(id,request_id,command_type,target_id,fingerprint,receipt) VALUES(?,?,?,?,?,?)', [operationId, requestId, command.type, 'id' in command ? command.id : null, fingerprint, JSON.stringify(receipt)]);
         return receipt;
       });
     },
@@ -233,6 +249,7 @@ export function createDomain(db: DomainDatabase, deps: Deps) {
     async listHabits(options: { limit?: number } = {}): Promise<HabitRow[]> {
       return db.readTransaction(tx => tx.getAll<HabitRow>('SELECT * FROM habits WHERE deleted=0 AND archived_at IS NULL ORDER BY sort_order,id LIMIT ?', [limit(options.limit)]));
     },
+    async listHabitGroups() { return db.readTransaction(tx => tx.getAll<{id: string; name: string; revision: number}>('SELECT id,name,revision FROM habit_groups WHERE deleted=0 ORDER BY sort_order,id LIMIT 100')); },
     async listReminders(options: { limit?: number } = {}): Promise<ReminderRow[]> {
       return db.readTransaction(tx => tx.getAll<ReminderRow>('SELECT * FROM local_reminder_rules ORDER BY enabled DESC,updated_at DESC,id LIMIT ?', [limit(options.limit)]));
     },

@@ -103,13 +103,11 @@ export function RecordsModal({ visible, onClose, onPick, remaining = 4, focusId 
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 10 }}>
     {form ? <>
       <TextInput accessibilityLabel="资料标题" value={draft.title} editable={!busy} maxLength={200} onChangeText={title => setDraft(old => ({ ...old, title }))} placeholder="标题" placeholderTextColor={c.textMuted} style={input}/>
-      <TextInput accessibilityLabel="资料类型" value={draft.typeKey} editable={!busy} maxLength={80} onChangeText={typeKey => setDraft(old => ({ ...old, typeKey }))} placeholder="自行描述类别" placeholderTextColor={c.textMuted} style={input}/>
       <TextInput accessibilityLabel="资料标签" value={draft.tags} editable={!busy} maxLength={976} onChangeText={tags => setDraft(old => ({ ...old, tags }))} placeholder="标签，用顿号分隔" placeholderTextColor={c.textMuted} style={input}/>
       <TextInput accessibilityLabel="资料发生日期" value={draft.date} editable={!busy} maxLength={10} onChangeText={date => setDraft(old => ({ ...old, date }))} placeholder="发生日期 YYYY-MM-DD（可空，上海时间）" placeholderTextColor={c.textMuted} style={input}/>
       <TextInput accessibilityLabel="资料正文" value={draft.body} editable={!busy} multiline maxLength={20000} onChangeText={body => setDraft(old => ({ ...old, body }))} placeholder="原文或备注" placeholderTextColor={c.textMuted} style={input}/>
-      <View style={{ flexDirection: 'row' }}>{button('文字资料' + (draft.schemaKey === 'text' ? ' ✓' : ''), () => setDraft(old => ({ ...old, schemaKey: 'text' })))}{button('表格资料' + (draft.schemaKey === 'table' ? ' ✓' : ''), () => setDraft(old => ({ ...old, schemaKey: 'table' })))}</View>
       {draft.schemaKey === 'table' ? <>
-        <Text style={muted}>定义这份资料的列与数值单位。留空表示缺失，不自动补零；数值支持最多12位小数，不限定分制或业务范围。</Text>
+        <Text style={muted}>核对识别出的内容；留空表示缺失。列与单位来自原件，无需定义字段。</Text>
         <RecordTableEditor value={draft.table} disabled={busy} onChange={table => setDraft(old => ({ ...old, table }))}/>
       </> : null}
       <View style={{ flexDirection: 'row' }}>{button('保存资料', () => void perform(async (isCurrent) => { const command = commandSchema.parse({ type: current ? 'record.update' as const : 'record.create' as const, typeKey: draft.typeKey, schemaKey: draft.schemaKey, title: draft.title, body: draft.body, payload: draft.schemaKey === 'table' ? draft.table : {}, tags: draft.tags.split('、').map(s => s.trim()).filter(Boolean), occurredAt: !draft.date.trim() ? null : draft.occurredAt !== null && shanghaiDate(draft.occurredAt) === draft.date.trim() ? draft.occurredAt : shanghaiTimestamp(draft.date.trim(), '00:00'), ...(current ? { id: current.id, expectedRevision: current.revision } : {}) }); const receipt = await domain.execute(command, { actor: 'ui', operationId: retry.current.operation(command) }); retry.current.committed(); if (isCurrent()) {
@@ -138,10 +136,10 @@ export function RecordsModal({ visible, onClose, onPick, remaining = 4, focusId 
         } }))}{onPick && !current.deleted ? button('选给助手', () => { onPick({ id: current.id, revision: current.revision, kind: 'record', title: current.title, date: '' }); onClose(); }, remaining <= 0) : null}</View>
       <RecordSources id={current.id} kind="record"/>
     </> : <>
-      <Text style={muted}>用文字或表格保存各种资料，类别和列由内容决定。保存不自动调用模型；在助手中明确选中后才处理正文或计算。</Text>
+      <Text style={muted}>查看助手整理的资料和原件来源，可更正内容。新的信息直接写备忘录或交给助手理解。</Text>
       <TextInput accessibilityLabel="资料标题关键词" value={query} onChangeText={setQuery} editable={!busy} maxLength={120} placeholder="标题关键词" placeholderTextColor={c.textMuted} style={input}/>
       <TextInput accessibilityLabel="资料类型筛选" value={typeKey} onChangeText={setTypeKey} editable={!busy} maxLength={80} placeholder="类型（留空查询全部）" placeholderTextColor={c.textMuted} style={input}/>
-      <View style={{ flexDirection: 'row' }}>{button('新增资料', () => { setCurrent(null); setDraft(blank()); setForm(true); })}{button(trash ? '查看有效资料' : '查看资料回收站', () => setTrash(!trash))}{button('刷新资料', () => void loadRef.current())}</View>
+      <View style={{ flexDirection: 'row' }}>{button(trash ? '查看有效资料' : '查看资料回收站', () => setTrash(!trash))}{button('刷新资料', () => void loadRef.current())}</View>
       {page ? <Text style={muted}>当前匹配 {page.matched} 条，已显示 {records.length} 条{page.nextCursor ? '，还有后续页。' : '。'}</Text> : null}
       {records.map(row => <View key={row.id}>{button(row.title + ' · ' + row.type_key, () => void perform(async (isCurrent) => { const value = await domain.getRecord(row.id, { actor: 'ui' }); if (isCurrent())
             setCurrent(value); }))}</View>)}

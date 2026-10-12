@@ -35,9 +35,9 @@ export async function runBackupProbe() {
   try {
     await source.init();await target.init();
     const store=createMaterialStore(source,deps),agent=createAgentStore(source,deps),domain=createDomain(source,deps),daily=createDailyService(source,deps);
-    const diary=deps.id(),habit=deps.id(),now=Date.now(),stamp=new Date(now).toISOString();
-    await source.execute('INSERT INTO documents(id,kind,title,body,date,group_id,sort_order,created_at,edited_at,deleted_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,NULL,0,?,?,NULL,1,0,?)',[diary,'diary','合成日记','合成日记原文','2026-10-10',now,now,stamp]);
-    await source.execute('INSERT INTO local_drafts(id,kind,title,body,date,group_id,document_id,base_revision,base_content) VALUES(?,?,?,?,?,NULL,?,1,?)',[deps.id(),'diary','合成草稿','尚未保存的草稿','2026-10-10',diary,JSON.stringify({title:'合成日记',body:'合成日记原文',date:'2026-10-10',group_id:null})]);
+    const memo=deps.id(),habit=deps.id(),now=Date.now(),stamp=new Date(now).toISOString();
+    await source.execute('INSERT INTO documents(id,kind,title,body,date,group_id,sort_order,created_at,edited_at,deleted_at,revision,deleted,updated_at) VALUES(?,?,?,?,?,NULL,0,?,?,NULL,1,0,?)',[memo,'memo','合成备忘录','合成备忘录原文','2026-10-10',now,now,stamp]);
+    await source.execute('INSERT INTO local_drafts(id,kind,title,body,date,group_id,document_id,base_revision,base_content) VALUES(?,?,?,?,?,NULL,?,1,?)',[deps.id(),'memo','合成草稿','尚未保存的草稿','2026-10-10',memo,JSON.stringify({title:'合成备忘录',body:'合成备忘录原文',date:'2026-10-10',group_id:null})]);
     await source.execute('INSERT INTO habits(id,name,group_id,cadence,target_count,sort_order,created_at,archived_at,revision,deleted,updated_at) VALUES(?,?,NULL,?,1,0,?,NULL,1,0,?)',[habit,'合成习惯','daily',now,stamp]);
     const activity=await domain.execute({type:'activity.start',kind:'training',title:'合成训练',habitId:habit},{actor:'ui',operationId:deps.id()});
     await domain.execute({type:'activity.complete',id:activity.entity.id,expectedRevision:1,note:'合成训练已结束'},{actor:'ui',operationId:deps.id()});
@@ -49,7 +49,7 @@ export async function runBackupProbe() {
       materials.push(await store.save(copy,analysis));
     }
     const refs=materials.map(m=>({id:m.id,revision:m.revision,kind:'attachment' as const}));
-    const session=await agent.newSession(),request=await agent.begin(session,'合成备份资料',refs,[]);
+    const session=await agent.newSession(),request=await agent.begin(session,'合成备份资料',refs);
     const command={type:'task.create' as const,title:'合成恢复待办',note:'',dueDateKey:null,dueTime:null};
     const proposal=await domain.propose(command,{proposalId:deps.id(),requestId:request.id,documentRefs:refs});
     const receipt=await domain.acceptProposal(proposal.id,1,{actor:'ui',operationId:deps.id()});
@@ -118,7 +118,7 @@ export async function runBackupProbe() {
     const restored=await restoreBackup(target,manifest,options);ensure(restored.added>0&&restored.conflicts===0);
     let targetAgent=createAgentStore(target,deps),targetDomain=createDomain(target,deps);
     ensure((await targetAgent.settings()).persona?.enabled===0);
-    ensure((await target.getOptional<{body:string}>('SELECT body FROM documents WHERE id=?',[diary]))?.body==='合成日记原文'&&(await target.getAll('SELECT id FROM local_drafts')).length===1);
+    ensure((await target.getOptional<{body:string}>('SELECT body FROM documents WHERE id=?',[memo]))?.body==='合成备忘录原文'&&(await target.getAll('SELECT id FROM local_drafts')).length===1);
     phase='current-inert-history';
     const targetDaily=createDailyService(target,deps);
     ensure((await target.getOptional<{body:string;group_id:string;revision:number}>('SELECT body,group_id,revision FROM documents WHERE id=?',[memoReceipt.entity.id]))?.body===memoCommand.body);

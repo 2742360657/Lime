@@ -12,7 +12,7 @@ export async function prepareMaterialUiFixture() {
   const material = await materialStore.save(copy, await materialNative.parse(copy.uri, copy.name));
   const session = await agentStore.newSession();
   const refs = [{ id: material.id, revision: material.revision, kind: 'attachment' as const }];
-  const request = await agentStore.begin(session, '合成材料建议验收', refs, []);
+  const request = await agentStore.begin(session, '合成材料建议验收', refs);
   const command = { type: 'task.create' as const, title: 'Synthetic material task-' + Crypto.randomUUID().slice(0, 8), note: 'Synthetic fixture only' };
   const proposal = await domain.propose(command, { proposalId: Crypto.randomUUID(), requestId: request.id, documentRefs: refs });
   await agentStore.putResult(Crypto.randomUUID(), request.id, { command: { ...command, dueDateKey: null, dueTime: null }, status: 'proposal', proposalId: proposal.id });

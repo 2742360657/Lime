@@ -1,3 +1,4 @@
+import {loadRecordSources} from './sources';
 import {RecordSourceView} from '../records/TableView';
 import { MaterialViewer } from '../materials/MaterialViewer';
 import {useEffect,useRef,useState} from 'react';
@@ -20,12 +21,8 @@ export function RecordSources({id:recordId,kind}:{id:string;kind:'task'|'memo'|'
   setExpanded(true);setBusy(true);setMessage('');
   const current=generation.current;
   try {
-    const matching=await database.getAll<{id:string;request_id:string;receipt:string}>("SELECT id,request_id,receipt FROM local_proposals p WHERE status='accepted' AND receipt IS NOT NULL AND json_extract(receipt,'$.entity.kind')=? AND json_extract(receipt,'$.entity.id')=? AND EXISTS(SELECT 1 FROM local_agent_sources s WHERE s.request_id=p.request_id) ORDER BY created_at DESC LIMIT 10",[kind,recordId]);
-    const sources:Sources['sources']=[];
-    for(const p of matching) {
-     const snapshots=await database.getAll<{id:string;title:string;body:string;revision:number;date:string;kind:string;document_id:string}>('SELECT * FROM local_agent_sources WHERE request_id=?',[p.request_id]);
-     for(const s of snapshots)if(!sources.some(old=>old.id===s.id))sources.push({id:s.id,filename:s.title||s.date||'引用记录',status:'saved',parser:null,source_kind:s.kind==='attachment'?'attachment':s.kind==='record'?'record':'document',revision:s.revision,text:s.body,truncated:false,material_id:s.kind==='attachment'?s.document_id:undefined});
-    }
+    const snapshots=await loadRecordSources(database,kind,recordId);
+    const sources:Sources['sources']=snapshots.map(s=>({id:s.id,filename:s.title||s.date||'引用记录',status:'saved',parser:null,source_kind:s.kind==='attachment'?'attachment':s.kind==='record'?'record':'document',revision:s.revision,text:s.body,truncated:false,material_id:s.kind==='attachment'?s.document_id:undefined}));
     if(current!==generation.current)return;
     if(sources.length){setData({proposals:[],sources});setMessage('本机保存的最近10次引用原文快照。');}
     else setMessage('本机没有保存这条记录的历史来源。');

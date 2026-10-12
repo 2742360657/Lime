@@ -1,59 +1,37 @@
-> 现有代码契约快照：后续需按[当前产品定义](../product-scope.md)修订；不作为自主处理模式的既定交互要求。
+# 本地业务命令契约
 
-# P2 本地业务命令契约
+更新：2026-10-12。需求依据：[产品定义](../product-scope.md)。
 
-本批为 P2-A：命令层与普通页面接入。聊天运行时、Key、人格导入在 P2-B 接入；本文件不是助手已上线的说明。
+`src/domain`复用本机SQLite业务表，模型只调用受限工具。严格Zod校验拒绝额外身份、SQL、表名与文件路径字段。调用身份由应用构造，UI通过execute提交；助手通过executeRoutine提交日常命令，其他操作生成具体预览。
 
-## 边界
+## 命令与影响
 
-`src/domain` 是产品业务接口，不是通用 Agent 框架。复用现有 SQLite 表和页面；用 Zod 同时定义运行时校验与 TypeScript 类型。模型未来只能访问封装后的工具，不能传 SQL、表名、文件路径或调用方身份。
-
-调用方由应用建立：`ui` 是人工页面操作；`agent` 是助手工具执行。读取日记/备忘录必须具有应用传入的 `{id,revision}` 授权引用，不能由模型自行声明授权。UI 可读取本机记录，助手不会因此获得全库原文权限。任务、习惯、显式记忆和未完成活动可在聊天相关查询中使用；查询有数量限制，不自动扫描日记。
-
-首版 Agent 写入走可编辑建议。`propose` 只保存候选，不修改业务数据；人工确认时通过 `acceptProposal` 提交指定建议的指定版本。编辑建议产生新版本，旧确认不能提交。今后的明确自然语言快捷执行需要单独实现可信意图授权，不用模型自报“用户已授权”代替检查。
-
-## 写命令
-
-所有命令由严格 schema 校验，多余字段拒绝。ID 保留旧数据的非 UUID 格式；新 ID 由应用生成。日期是合法 `YYYY-MM-DD`，时间是 `HH:mm`，没有日期不能独立保存截止时间。
-
-| type | 必填及可选参数 | 行为 |
+| 对象 | 普通自主操作 | 保留人工预览/入口 |
 |---|---|---|
-| `task.create` | title；note、dueDateKey、dueTime | 新建一个待办，ID/顺序由事务确定 |
-| `task.update` | id、expectedRevision、title；note、dueDateKey、dueTime | 完整更新可编辑字段；不清除来源链接 |
-| `task.complete` | id、expectedRevision、completed | 完成或恢复；相同状态不增加版本 |
-| `task.trash` | id、expectedRevision | 单条软删除，无永久删除接口 |
-| `habit.checkin` | id、expectedRevision；timestamp、dateKey、note | 新增一次打卡；日期必须与本机时间戳一致，归档/删除习惯拒绝 |
-| `memory.remember` | kind=fact/preference、key、content | 只保存明确事实或偏好；相同有效 key 不静默覆盖 |
-| `memory.correct` | id、expectedRevision、content | 更正一个显式记忆 |
-| `memory.forget` | id、expectedRevision | 清空内容并标记忘记；不再进入查询/上下文 |
-| `activity.start` | kind、title；note、habitId | 保存通用未完成活动；可关联一个有效习惯 |
-| `activity.complete` | id、expectedRevision；note | 完成活动；有关联习惯时，完成与一次打卡在同一事务中 |
-| `activity.cancel` | id、expectedRevision | 取消活动，不打卡 |
+| 待办 | create/update/complete，包括改期与恢复未完成 | trash；永久删除没有模型接口 |
+| 习惯 | create/update/checkin | 归档、恢复、历史打卡编辑/撤销沿用手动页面 |
+| 备忘录 | create | update/trash整段改写或删除需目标原文版本预览；restore只在手动回收站 |
+| 广泛资料 | record.create内部留存 | update/trash核对读取版本；restore手动 |
+| 记忆 | remember/correct | forget；忘记后清空并切断旧上下文 |
+| 活动 | start/complete，关联习惯时事务内一次打卡 | cancel |
+| 提醒 | create/update | cancel；规则保存不等于系统排程或送达 |
 
-任务标题/备注保持现有编辑器的 80/300 字符限制。活动和记忆不是日记推断结果；没有全库分析、向量服务或训练专用表。训练在 P2 通过通用活动承接，详细统计在 P5。
+习惯create必填name/cadence/targetCount，groupId默认null；update另需id/expectedRevision并完整传入可编辑字段。名称1–80字符，周期daily/weekly/monthly，目标1–9999整数。分组必须有效；事务确定组内顺序，调整保留创建时间、打卡和无变化的顺序。相同字段不增加版本。手动编辑器和助手使用同一命令。
 
-## 事务与回执
+待办标题80字符、备注300字符；备忘录保留原换行，标题300/正文100000字符。日期合法YYYY-MM-DD；时间HH:mm，截止时间须有日期。打卡日期与本机时间戳一致，感受保存在note，不建立专用跑步字段。已归档/删除习惯拒绝新增和调整。
 
-`execute(command, {operationId, actor:'ui'})` 的 operationId 由应用为一次操作生成，重试保持不变。校验后的参数规范化、SHA-256 指纹及成功回执一起保存；相同 ID/相同命令返回 `replayed`，相同 ID/不同参数返回 `OPERATION_ID_REUSED`。回执先于目标版本检查，因此成功提交后重复发送不会因旧版本再写一次。
+## 提交、来源与防重
 
-业务更改、相关打卡、建议状态和回执必须原子提交。数据库错误抛出，不能转换成成功。返回 `{operationId, disposition: committed/replayed/unchanged, entity:{kind,id,revision}, related?}`；回执不保存整段原文/记忆正文，忘记后不能从回执恢复内容。停止模型生成不会撤销已提交的操作。
+UI使用应用生成的operationId。助手使用运行中requestId和规范化命令的SHA-256决定操作ID；无需特定自然语言口令或模型自报授权。固定允许列表在应用代码，删除/整段改写等不能因材料指令升级。每轮最多8项自主提交，额度持久化，停止/重试不能重置。
 
-更改已有目标必须匹配 expectedRevision，删除/归档目标不能被旧命令复活。活动已经完成后，换一个 operationId 再完成会返回 `ACTIVITY_CLOSED`，不再新增打卡；相同 operationId 可读回原成功回执。
+业务写入、local_operations回执及请求操作记录在同一事务。末尾失败全部回滚。相同命令重试返回replayed，成功回执先于来源/目标版本检查；新提交核对所有本轮来源版本。回执只保存实体/版本/状态，不包含原文。结果缓存失败或进程中断可从回执恢复；失败结果不阻止后来重试。
 
-`DomainError.code` 包括 INVALID_ARGUMENT、NOT_FOUND、VERSION_CONFLICT、PERMISSION_DENIED、OPERATION_ID_REUSED、ALREADY_EXISTS、ACTIVITY_CLOSED、SOURCE_CHANGED、PROPOSAL_CLOSED。字段不明/日期不合法不能自动猜测后写入。模型层负责询问，domain 负责拒绝不合法状态。
+已有目标需expectedRevision；旧编辑器保留输入并报冲突。活动完成与关联打卡原子提交，已完成活动不能以新操作重复打卡。
 
-## 读取与建议
+## 读取与预览
 
-- `listTasks/listHabits/listMemories/listActivities` 返回明确版本及有限记录，排除删除/忘记项；习惯列表不会自动附上全部历史。
-- `readDocument({id,revision},context)` 返回该版本完整原文；无引用或版本变化拒绝。`listCheckins` 用 habitId 和日期范围读取有限历史。
-- `propose(command, {requestId, documentRefs})` 校验命令与当前来源版本，仅保存候选。来源内文字是数据，不能获得操作身份。P2来源限定documents；当前P3已扩展local_materials附件引用，kind/版本校验与原文授权规则见[材料契约](material-contracts.md)。
-- `editProposal(id,expectedRevision,command)` 仅人工调用；`acceptProposal(id,expectedRevision,operationId)` 仅人工调用，重新核对来源/目标版本。重复确认同一建议返回原回执，不重复写。
-- 来源变化时不套用旧建议；人工需重新选择材料再生成。拒绝建议时清空候选命令内容，保留最小状态。
+查询返回有限结果、ID和版本。备忘录/资料关键词搜索可匹配正文，列表不直接返回完整正文。read_document可按相关准确版本取得内容，应用captureSource记录本轮来源快照和引用；不要求手选历史。每轮最多4份、合计32000字符，附件须来自本轮提供的材料。日记不属于可读业务来源。
 
-## 普通页面迁移范围
+propose只保存候选。备忘录/资料改写、删除必须带本轮已经读取的目标版本。editProposal/acceptProposal/rejectProposal仅UI调用，核对建议版本、来源和目标；重复确认回放已提交结果。拒绝清空候选命令；来源变化时不套用旧预览。
 
-本批先切换任务的查建改完成/软删除，以及习惯的新增打卡。现有分类、排序、历史打卡编辑/撤销、日记/备忘录编辑继续走已经有事务的旧业务层；不会为了改目录一次重写所有页面。模型没有这些尚未开放的命令。
-
-页面持有读取时的目标 revision；编辑期间被其他操作改动则保留输入并提示重新核对。保存、完成提示及关闭编辑器发生在真实提交之后。其余消费者在后续阶段逐项切换，不能宣称全仓所有操作已统一。
-
-新增 `local_operations/local_memories/local_activities/local_proposals` 全部 local-only，旧业务表不改字段或 ID；旧库搬运固定原 P1 表集合，不把将来的 Agent 对象反写历史库。当前基础记录导出不包含这些新对象，P5 扩展完整导出。
+普通分类、排序、批量整理、历史编辑与恢复继续复用已有事务逻辑。SQLite local-only，当前完整备份v4；没有旧数据库或旧导出格式迁移。

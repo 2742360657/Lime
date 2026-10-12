@@ -134,7 +134,7 @@ test.each([
 test('selected record proposals remain editable; source snapshots survive edits without granting later reads', async () => {
   const selected = ref(await execute(tableRecord()));
   const store = createAgentStore(db, deps), session = await store.newSession();
-  const request = await store.begin(session, '根据这份资料整理', [selected], []);
+  const request = await store.begin(session, '根据这份资料整理', [selected]);
   expect(await store.grants(request.id)).toEqual([]);
   const command = { ...tableRecord(), type: 'record.update', id: selected.id, expectedRevision: selected.revision, body: '候选' };
   await expect(domain.propose(command, { requestId: request.id, proposalId: 'denied', documentRefs: [] })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
@@ -153,16 +153,16 @@ test('same-ID different source kinds retain independent snapshots; duplicate sou
   const selected = ref(await execute(tableRecord()));
   await db.execute("INSERT INTO documents(id,kind,title,body,date,revision,deleted) VALUES(?,'memo','合成','另一份原文','2026-10-12',1,0)", [selected.id]);
   const store = createAgentStore(db, deps), session = await store.newSession();
-  const request = await store.begin(session, '比较两份资料', [selected, { id: selected.id, revision: 1 }], []);
+  const request = await store.begin(session, '比较两份资料', [selected, { id: selected.id, revision: 1 }]);
   expect(await db.getAll('SELECT * FROM local_agent_sources WHERE request_id=?', [request.id])).toHaveLength(2);
-  await expect(store.begin(session, '重复来源', [selected, selected], [])).rejects.toThrow('一次');
+  await expect(store.begin(session, '重复来源', [selected, selected])).rejects.toThrow('一次');
   expect(await store.requests(session)).toHaveLength(1);
 });
 
 test('current backup round-trips generic records and history, isolates version conflicts and rolls back late failures', async () => {
   const original = await execute(tableRecord());
   const store = createAgentStore(db, deps), session = await store.newSession();
-  const request = await store.begin(session, '合成记录', [ref(original)], []);
+  const request = await store.begin(session, '合成记录', [ref(original)]);
   await store.finish(request.id, '合成回答', 'complete', null);
   const m = validateManifest(await captureBackup(db));
   expect(m.version).toBe(4); expect(m.rows.local_records).toHaveLength(1); expect(m.rows.local_grades).toBeUndefined();

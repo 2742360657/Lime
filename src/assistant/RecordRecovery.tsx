@@ -8,7 +8,7 @@ import {useHabits} from '../state/HabitStore';
 export function RecordRecovery() {
  const {theme}=useHabits(),c=theme.colors;
  const {data:conflicts}=useQuery<{id:string;snapshots:string}>('SELECT id,snapshots FROM local_conflicts ORDER BY created_at DESC');
- const {data:drafts}=useQuery<PortableDraft>('SELECT * FROM local_drafts');
+ const {data:drafts}=useQuery<PortableDraft>("SELECT * FROM local_drafts WHERE kind='memo'");
  async function restoreConflict(id:string) {
   try {await database.writeTransaction(async tx=>{
    const current=await tx.getOptional<{snapshots:string}>('SELECT snapshots FROM local_conflicts WHERE id=?',[id]);if(!current)return;
@@ -25,8 +25,8 @@ export function RecordRecovery() {
  }
  async function restoreDraft(id:string) {
   try {await database.writeTransaction(async tx=>{
-   const d=await tx.getOptional<PortableDraft>('SELECT * FROM local_drafts WHERE id=?',[id]);if(!d)return;
-   const now=Date.now(),rows=emptyRows();rows.documents=[portableRow('documents',{id:d.document_id,kind:d.kind??'diary',title:d.title,body:d.body,date:d.date,group_id:d.group_id??null,sort_order:0,created_at:now,edited_at:now,deleted_at:null,deleted:0})];
+   const d=await tx.getOptional<PortableDraft>("SELECT * FROM local_drafts WHERE id=? AND kind='memo'",[id]);if(!d)return;
+   const now=Date.now(),rows=emptyRows();rows.documents=[portableRow('documents',{id:d.document_id,kind:d.kind,title:d.title,body:d.body,date:d.date,group_id:d.group_id??null,sort_order:0,created_at:now,edited_at:now,deleted_at:null,deleted:0})];
    await mergeRecords(tx,{rows,drafts:[],recovery:[]},Crypto.randomUUID,true);
    await tx.execute('DELETE FROM local_drafts WHERE id=?',[id]);
   });Alert.alert('草稿已保存为新记录','原有记录未覆盖。');}

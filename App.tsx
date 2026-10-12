@@ -24,7 +24,6 @@ import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
 import { DatabaseProvider } from './src/storage/DatabaseProvider';
 import { AgentProvider } from './src/agent/AgentProvider';
 import { ChatScreen } from './src/screens/ChatScreen';
-import { DiaryScreen } from './src/screens/DiaryScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MemosScreen } from './src/screens/MemosScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -39,7 +38,6 @@ const navigationRef = createNavigationContainerRef<Record<string, object>>();
 
 const SCREENS: Record<string, React.ComponentType<any>> = {
   assistant: ChatScreen,
-  diary: DiaryScreen,
   today: TodayScreen,
   tasks: TasksScreen,
   habits: HomeScreen,

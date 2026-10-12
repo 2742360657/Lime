@@ -41,7 +41,7 @@ export async function runDailyProbe() {
     phase = 'memo-authorization';
     const memo = await domain.execute({ type: 'memo.create', title: '合成原始标题', body: ' 原始合成正文\r\n', groupId: groupOld }, { ...ui, operationId: deps.id() });
     const session = await agent.newSession(), ref = { id: memo.entity.id, revision: 1 };
-    const request = await agent.begin(session, '合成选择备忘录修改，不调用模型。', [ref], []);
+    const request = await agent.begin(session, '合成选择备忘录修改，不调用模型。', [ref]);
     const change = { type: 'memo.update' as const, id: memo.entity.id, expectedRevision: 1, title: '合成修改标题', body: ' 修改后的合成正文\r\n', groupId: groupOld };
     ensure(await rejects(() => domain.propose(change, { proposalId: deps.id(), requestId: request.id }), 'PERMISSION_DENIED'));
     ensure(await rejects(() => domain.readDocument(ref, { actor: 'agent', documentRefs: [] }), 'PERMISSION_DENIED'));
