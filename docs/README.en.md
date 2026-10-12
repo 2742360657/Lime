@@ -4,7 +4,7 @@ An offline Android app for **habits, tasks and memos**. No account or server req
 
 [Download APK](https://github.com/2742360657/Lime/releases/latest) · [Chinese guide](../README.md) · [Development](development.md)
 
-- Habits: daily/weekly/monthly goals, groups, check-ins, history and archiving.
+- Habits: optional daily/weekly/monthly goals or free recording, groups, check-ins, history and archiving.
 - Tasks: dates and times, date buckets, sorting and completion.
 - Memos: autosave, categories, search and a recoverable trash bin.
 - Today overview, six color themes, local profile and JSON backup/restore.
@@ -15,4 +15,4 @@ The main release has no network permission, advertising or analytics. File shari
 
 For development, use Node 22, JDK 17 and Android SDK 36: `npm ci`, `npm run check`, then `npm start`. `npm run build:preview` creates a standalone development-signed APK. Agents should read [AGENTS.md](../AGENTS.md).
 
-main is the maintained offline app. extended/dev preserves the paused AI/messaging experiment and is not included in current releases. Licensed under [MIT](../LICENSE).
+main is the maintained offline app. extended/dev contains a separately installable AI/messaging test edition; it is not included in the offline APK. See the [AI edition](ai-edition.md). Licensed under [MIT](../LICENSE).
