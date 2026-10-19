@@ -11,7 +11,7 @@ import {
 import { loadAppDataFromDisk, saveAppDataToDisk } from '../storage/habitStorage';
 import { getTheme, ThemeId } from '../theme';
 import type { AppData, Memo } from '../types/habit';
-import { clampToMinute, getTodayKey } from '../utils/date';
+import { clampToMinute } from '../utils/date';
 import { createId } from '../utils/id';
 import { isValidHabitTarget } from '../utils/habitTarget';
 
@@ -325,13 +325,13 @@ export function HabitProvider({ children }: PropsWithChildren) {
 
   const addCheckinNow = useCallback((habitId: string) => {
     const timestamp = clampToMinute(Date.now());
-    const record = createCheckinRecord(getTodayKey(), timestamp, '');
+    const record = createCheckinRecord(timestamp, '');
     dispatch({ type: 'add-checkin-now', habitId, record });
     return record.id;
   }, []);
 
-  const addCheckin = useCallback((habitId: string, dateKey: string, timestamp: number, note: string) => {
-    dispatch({ type: 'add-checkin', habitId, dateKey, timestamp, note });
+  const addCheckin = useCallback((habitId: string, timestamp: number, note: string) => {
+    dispatch({ type: 'add-checkin', habitId, timestamp, note });
   }, []);
 
   const updateCheckin = useCallback(

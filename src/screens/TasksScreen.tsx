@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_LAYOUT } from '../theme/animation';
 
 import { AccordionSection } from '../components/AccordionSection';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -70,6 +71,12 @@ export function TasksScreen() {
   };
   const dismissUndo = useCallback(() => setUndoTodoId(null), []);
 
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterSelectMode = (id: string) => {
+    setSelectedIds([id]);
+    setSelectMode(true);
+  };
+
   const toggleId = (list: string[], id: string) =>
     list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 
@@ -117,13 +124,7 @@ export function TasksScreen() {
         groupId: todoGroupKey(todo, buckets),
         label: todo.title,
         subtitle: formatTodoDue(todo),
-        leading: (
-          <SelectCircle
-            checked={selectedIds.includes(todo.id)}
-            accessibilityLabel={`选择 ${todo.title}`}
-            onPress={() => setSelectedIds((current) => toggleId(current, todo.id))}
-          />
-        ),
+        leading: <SelectCircle checked={selectedIds.includes(todo.id)} accessibilityLabel={`选择 ${todo.title}`} />,
       })),
     [buckets, completedTodos, selectedIds]
   );
@@ -132,19 +133,57 @@ export function TasksScreen() {
     return (
       <MultiSelectBoard
         title="整理待办"
+        hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
         onClose={() => { setSelectMode(false); setSelectedIds([]); }}
         items={boardItems}
         groups={boardGroups}
         selectedIds={selectedIds}
         onSetSelection={setSelectedIds}
         onCommit={(ordered) => {
-          ordered.forEach((entry) => {
-            const todo = todos.find((item) => item.id === entry.id);
-            if (todo && todoGroupKey(todo, buckets) !== entry.groupId && entry.groupId !== 'completed') {
-              moveTodosToBucket([entry.id], bucketToDueDateKey(entry.groupId));
-            }
-          });
-          reorderTodos(ordered.map((entry) => entry.id));
+          const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
+          // 只有拖到别的分组才意味着改截止时间，组内拖动就是纯排序。
+          const moves = ordered
+            .map((entry) => {
+              const todo = todos.find((item) => item.id === entry.id);
+              if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
+                return null;
+              }
+              if (todoGroupKey(todo, buckets) === entry.groupId) {
+                return null;
+              }
+              return { id: entry.id, title: todo.title, groupId: entry.groupId };
+            })
+            .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
+
+          if (moves.length === 0) {
+            reorderOnly();
+            return;
+          }
+
+          const labelOf = (groupId: string) =>
+            boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
+          const detail =
+            moves.length === 1
+              ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
+              : `${moves.length} 项待办会跟着分组改截止时间。`;
+
+          Alert.alert(
+            '要改截止时间吗？',
+            `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
+            [
+              { text: '只排序', style: 'cancel', onPress: reorderOnly },
+              {
+                text: '改时间',
+                onPress: () => {
+                  moves.forEach((move) => {
+                    moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
+                  });
+                  reorderOnly();
+                },
+              },
+            ],
+            { cancelable: true, onDismiss: reorderOnly }
+          );
         }}
         onDelete={(ids) => {
           ids.forEach((id) => deleteTodo(id));
@@ -173,7 +212,7 @@ export function TasksScreen() {
       panelItems={sidebarItems}
       fab={selectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
     >
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
           {openTodos.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>暂时没有未完成待办</Text>
@@ -195,7 +234,7 @@ export function TasksScreen() {
                       todo={todo}
                       onToggle={handleToggle}
                       onPress={openEditor}
-                      onLongPress={() => setSelectMode(true)}
+                      onLongPress={() => enterSelectMode(todo.id)}
                     />
                   ))}
                 </Animated.View>
@@ -217,7 +256,7 @@ export function TasksScreen() {
                     todo={todo}
                     onToggle={handleToggle}
                     onPress={openEditor}
-                    onLongPress={() => setSelectMode(true)}
+                    onLongPress={() => enterSelectMode(todo.id)}
                   />
                 ))}
               </Animated.View>
@@ -252,7 +291,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 130, gap: 22 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 22 },
     list: { gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,

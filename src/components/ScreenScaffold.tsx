@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 
 import type { NavigationTarget, PanelItem } from '../navigation/types';
@@ -27,6 +28,7 @@ export type ScreenScaffoldProps = {
 export function ScreenScaffold({ panelTitle, panelItems, fab, children }: ScreenScaffoldProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<{ navigate: (name: NavigationTarget) => void; openDrawer: () => void }>();
   const route = useRoute();
   useRegisterPanel(route.name, panelTitle, panelItems);
@@ -44,7 +46,12 @@ export function ScreenScaffold({ panelTitle, panelItems, fab, children }: Screen
         {children}
         {fab ? <FloatingAddButton label={fab.label} onPress={fab.onPress} /> : null}
       </Animated.View>
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { height: 76 + insets.bottom, paddingBottom: 10 + insets.bottom },
+        ]}
+      >
         {GLOBAL_NAV_ITEMS.map((item) => {
           const selected = route.name === item.id;
           return (

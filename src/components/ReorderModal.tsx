@@ -3,15 +3,13 @@ import {
   Animated,
   Modal,
   PanResponder,
-  Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar as NativeStatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useHabits } from '../state/HabitStore';
 
@@ -222,7 +220,6 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0,
       backgroundColor: theme.colors.background,
     },
     header: {

@@ -94,6 +94,51 @@ export function getTodayKey() {
   return toLocalDateKey(Date.now());
 }
 
+/** 打卡的一天从 04:00 开始：00:00–03:59 仍属于前一天。 */
+export const CHECKIN_DAY_START_HOUR = 4;
+const CHECKIN_DAY_SHIFT_MS = CHECKIN_DAY_START_HOUR * 60 * 60 * 1000;
+
+/** 把时间戳换算成它所属的打卡日期（04:00 切日）。 */
+export function toCheckinDateKey(timestamp: number) {
+  return toLocalDateKey(timestamp - CHECKIN_DAY_SHIFT_MS);
+}
+
+/** 打卡视角的“现在”：凌晨 4 点前仍把它当作前一天。 */
+export function getCheckinReferenceDate(reference = new Date()) {
+  return new Date(reference.getTime() - CHECKIN_DAY_SHIFT_MS);
+}
+
+export function getCheckinTodayKey() {
+  return toCheckinDateKey(Date.now());
+}
+
+export function isFutureCheckinDateKey(dateKey: string) {
+  return compareDateKeys(dateKey, getCheckinTodayKey()) > 0;
+}
+
+/**
+ * 构造归属于某一天的时间戳。凌晨 04:00 前是这一天的深夜，
+ * 因此落到次日凌晨，保证 toCheckinDateKey 仍然回到 dateKey。
+ */
+export function buildTimestampForCheckinDay(dateKey: string, hour: number, minute: number) {
+  const base = buildTimestampForDateTime(dateKey, hour, minute);
+  if (base === null) {
+    return null;
+  }
+  if (hour >= CHECKIN_DAY_START_HOUR) {
+    return base;
+  }
+  const next = new Date(base);
+  next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
+/** 记录行的时间：凌晨 00:00–03:59 标成“次日”，避免和当天上午混淆。 */
+export function formatCheckinTime(timestamp: number) {
+  const time = formatTime(timestamp);
+  return new Date(timestamp).getHours() < CHECKIN_DAY_START_HOUR ? `次日 ${time}` : time;
+}
+
 export function addDaysToDateKey(dateKey: string, days: number) {
   const [year, month, day] = dateKey.split('-').map(Number);
   return toLocalDateKey(new Date(year, month - 1, day + days, 12, 0, 0, 0).getTime());

@@ -1,4 +1,4 @@
-import { clampToMinute, toLocalDateKey } from '../utils/date';
+import { clampToMinute, toCheckinDateKey } from '../utils/date';
 
 import { createCheckinRecord, sortRecords, withUpdatedHabit } from './reducerHelpers';
 import type { HabitAction, HabitState } from './storeTypes';
@@ -319,7 +319,7 @@ export function habitReducer(state: HabitState, action: HabitAction): HabitState
             ...habit,
             checkins: sortRecords([
               ...habit.checkins,
-              createCheckinRecord(action.dateKey, action.timestamp, action.note),
+              createCheckinRecord(action.timestamp, action.note),
             ]),
           })),
         },
@@ -332,16 +332,18 @@ export function habitReducer(state: HabitState, action: HabitAction): HabitState
           habits: withUpdatedHabit(state.appData.habits, action.habitId, (habit) => ({
             ...habit,
             checkins: sortRecords(
-              habit.checkins.map((record) =>
-                record.id === action.recordId
-                  ? {
-                      ...record,
-                      timestamp: clampToMinute(action.timestamp),
-                      dateKey: toLocalDateKey(action.timestamp),
-                      note: action.note.trim(),
-                    }
-                  : record
-              )
+              habit.checkins.map((record) => {
+                if (record.id !== action.recordId) {
+                  return record;
+                }
+                const timestamp = clampToMinute(action.timestamp);
+                return {
+                  ...record,
+                  timestamp,
+                  dateKey: toCheckinDateKey(timestamp),
+                  note: action.note.trim(),
+                };
+              })
             ),
           })),
         },

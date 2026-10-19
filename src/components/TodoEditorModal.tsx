@@ -1,11 +1,9 @@
 import { Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
-  Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar as NativeStatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -229,7 +227,6 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
-      paddingTop: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0,
       backgroundColor: theme.colors.background,
     },
     header: {

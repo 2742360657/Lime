@@ -1,9 +1,11 @@
 import { Alert } from 'react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { useBackHandler } from '../navigation/back';
 import { useHabits } from '../state/HabitStore';
+import { SCREEN_ENTERING } from '../theme/animation';
 import { DraggableList, DragGroup, DragItem } from './DraggableList';
 import { GroupPickerModal } from './GroupPickerModal';
 
@@ -23,6 +25,8 @@ type MultiSelectBoardProps = {
   onMoveToGroup?: (ids: string[], groupId: string | null) => void;
   moveTitle?: string;
   deleteLabel?: string;
+  /** 整理模式的操作说明，展示在标题栏下方。 */
+  hint?: string;
 };
 
 /**
@@ -42,6 +46,7 @@ export function MultiSelectBoard({
   onMoveToGroup,
   moveTitle = '移动到分组',
   deleteLabel = '删除',
+  hint = '点按条目选中 · 按住右侧把手拖动排序',
 }: MultiSelectBoardProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -52,6 +57,10 @@ export function MultiSelectBoard({
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allSelected = items.length > 0 && selected.size === items.length;
   const canMove = !!groupOptions && !!onMoveToGroup;
+
+  const toggleSelected = (id: string) => {
+    onSetSelection(selected.has(id) ? selectedIds.filter((entry) => entry !== id) : [...selectedIds, id]);
+  };
 
   const handleDelete = () => {
     if (selectedIds.length === 0) {
@@ -64,7 +73,7 @@ export function MultiSelectBoard({
   };
 
   return (
-    <View style={styles.board}>
+    <Animated.View entering={SCREEN_ENTERING} style={styles.board}>
       <View style={styles.toolbar}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="完成整理" onPress={onClose} style={styles.action}>
           <Text style={styles.actionText}>完成</Text>
@@ -80,7 +89,6 @@ export function MultiSelectBoard({
         </TouchableOpacity>
         <Text style={styles.toolbarTitle} numberOfLines={1}>
           {title}
-          {selectedIds.length > 0 ? ` · 已选 ${selectedIds.length}` : ''}
         </Text>
         {canMove ? (
           <TouchableOpacity
@@ -100,10 +108,16 @@ export function MultiSelectBoard({
         </TouchableOpacity>
       </View>
 
+      <Text style={styles.hint}>
+        {selectedIds.length > 0 ? `已选 ${selectedIds.length} · ` : ''}
+        {hint}
+      </Text>
+
       <DraggableList
         groups={groups}
         items={items}
         onCommit={onCommit}
+        onToggleSelect={toggleSelected}
         emptyText="没有可整理的条目"
         contentPaddingBottom={160}
       />
@@ -120,20 +134,26 @@ export function MultiSelectBoard({
           onSubmit={(groupId) => onMoveToGroup?.(selectedIds, groupId)}
         />
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    board: { flex: 1 },
+    board: { flex: 1, backgroundColor: theme.colors.background },
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       paddingHorizontal: 20,
       paddingTop: 10,
-      paddingBottom: 12,
+      paddingBottom: 8,
+    },
+    hint: {
+      paddingHorizontal: 20,
+      paddingBottom: 10,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
     },
     circle: {
       width: 26,
@@ -161,7 +181,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   });
 }
 
-/** 多选页条目左侧的选择圆圈。 */
+/** 多选页条目左侧的选择圆圈。传了 onPress 才可点，否则只作为选中状态指示。 */
 export function SelectCircle({
   checked,
   accessibilityLabel,
@@ -169,19 +189,30 @@ export function SelectCircle({
 }: {
   checked: boolean;
   accessibilityLabel: string;
-  onPress: () => void;
+  onPress?: () => void;
 }) {
   const { theme } = useHabits();
   const styles = useMemo(() => createCircleStyles(theme), [theme]);
+  const circleStyle = [styles.circle, checked && styles.circleOn];
+  const tick = checked ? <Text style={styles.tick}>✓</Text> : null;
+
+  if (!onPress) {
+    return (
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={circleStyle}>
+        {tick}
+      </View>
+    );
+  }
+
   return (
     <TouchableOpacity
       accessibilityRole="checkbox"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked }}
       onPress={onPress}
-      style={[styles.circle, checked && styles.circleOn]}
+      style={circleStyle}
     >
-      {checked ? <Text style={styles.tick}>✓</Text> : null}
+      {tick}
     </TouchableOpacity>
   );
 }

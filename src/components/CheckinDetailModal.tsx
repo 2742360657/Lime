@@ -12,7 +12,7 @@ import {
 
 import { useHabits } from '../state/HabitStore';
 import { CheckinRecord } from '../types/habit';
-import { formatDateLabel, formatTime, isFutureDateKey } from '../utils/date';
+import { formatCheckinTime, formatDateLabel, isFutureCheckinDateKey } from '../utils/date';
 import { getCheckinRecordsByDate } from '../utils/habit';
 import { CheckinRecordEditorModal } from './CheckinRecordEditorModal';
 
@@ -45,14 +45,14 @@ export function CheckinDetailModal({
     [allHabits, habitId]
   );
   const records = habit && dateKey ? getCheckinRecordsByDate(habit, dateKey) : [];
-  const editable = !readonly && !!dateKey && !isFutureDateKey(dateKey);
+  const editable = !readonly && !!dateKey && !isFutureCheckinDateKey(dateKey);
 
   const handleDelete = (record: CheckinRecord) => {
     if (!habit) {
       return;
     }
 
-    Alert.alert('删除记录', `确认删除 ${formatTime(record.timestamp)} 这条记录吗？`, [
+    Alert.alert('删除记录', `确认删除 ${formatCheckinTime(record.timestamp)} 这条记录吗？`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -86,7 +86,7 @@ export function CheckinDetailModal({
               <View style={styles.banner}>
                 <Text style={styles.bannerText}>已归档 · 只读</Text>
               </View>
-            ) : isFutureDateKey(dateKey ?? '') ? (
+            ) : isFutureCheckinDateKey(dateKey ?? '') ? (
               <View style={styles.banner}>
                 <Text style={styles.bannerText}>未来日期不可编辑</Text>
               </View>
@@ -105,7 +105,7 @@ export function CheckinDetailModal({
                 records.map((record) => (
                   <View key={record.id} style={styles.recordRow}>
                     <View style={styles.recordMeta}>
-                      <Text style={styles.recordTime}>{formatTime(record.timestamp)}</Text>
+                      <Text style={styles.recordTime}>{formatCheckinTime(record.timestamp)}</Text>
                       <Text style={styles.recordNote}>{record.note || '无备注'}</Text>
                     </View>
                     {editable ? (
@@ -145,7 +145,7 @@ export function CheckinDetailModal({
             if (editorState?.mode === 'edit') {
               updateCheckin(habit.id, editorState.record.id, timestamp, note);
             } else {
-              addCheckin(habit.id, dateKey, timestamp, note);
+              addCheckin(habit.id, timestamp, note);
             }
 
             setEditorState(null);

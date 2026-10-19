@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
@@ -28,7 +28,6 @@ export function HabitCard({
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const progress = getHabitProgress(habit);
-  const lastLongPress = useRef(0);
 
   return (
     <Animated.View
@@ -41,12 +40,10 @@ export function HabitCard({
         style={styles.infoPressable}
         delayLongPress={360}
         onLongPress={onLongPress ? () => {
-          lastLongPress.current = Date.now();
+          Vibration.vibrate(12);
           onLongPress(habit);
         } : undefined}
-        onPress={() => {
-          if (Date.now() - lastLongPress.current > 700) onOpenDetails(habit.id);
-        }}
+        onPress={() => onOpenDetails(habit.id)}
       >
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={1}>

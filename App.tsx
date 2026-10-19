@@ -4,19 +4,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
-  Platform,
-  SafeAreaView,
-  StatusBar as NativeStatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
 import { AppNavigator } from './src/components/AppNavigator';
-import { useBackHandler, useSystemBack } from './src/navigation/back';
+import { useBackHandler } from './src/navigation/back';
 import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MemosScreen } from './src/screens/MemosScreen';
@@ -54,9 +57,8 @@ function clearExitArm() {
 function AppShell() {
   const { isLoading, error, clearError, theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
-
-  useSystemBack();
 
   useEffect(() => {
     if (!error) {
@@ -106,9 +108,8 @@ function AppShell() {
   useEffect(() => () => clearExitArm(), []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="dark" />
-      <View style={styles.statusBarSpacer} />
       <View style={styles.app}>
         {isLoading ? (
           <View style={styles.loadingState}>
@@ -123,7 +124,10 @@ function AppShell() {
       </View>
 
       {exitPromptVisible ? (
-        <View style={styles.promptOverlay} pointerEvents="box-none">
+        <View
+          style={[styles.promptOverlay, { paddingBottom: 92 + insets.bottom }]}
+          pointerEvents="box-none"
+        >
           <View style={styles.promptCard}>
             <Text style={styles.promptTitle}>再按一次返回退出酸橙</Text>
             <Text style={styles.promptHint}>也可以点下面继续留在应用里。</Text>
@@ -145,9 +149,11 @@ function AppShell() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <HabitProvider>
-        <AppShell />
-      </HabitProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <HabitProvider>
+          <AppShell />
+        </HabitProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
@@ -155,11 +161,6 @@ export default function App() {
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
-    // 用真实占位代替 paddingTop，避免绝对定位子元素参照被撑开的 padding box。
-    statusBarSpacer: {
-      height: Platform.OS === 'android' ? NativeStatusBar.currentHeight ?? 0 : 0,
-      backgroundColor: theme.colors.background,
-    },
     app: { flex: 1, backgroundColor: theme.colors.background },
     loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
     loadingText: { fontSize: 14, color: theme.colors.textSecondary },

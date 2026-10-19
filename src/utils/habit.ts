@@ -1,5 +1,5 @@
 import { CheckinRecord, Habit } from '../types/habit';
-import { getDaysInMonth, getTodayKey } from './date';
+import { getCheckinReferenceDate, getCheckinTodayKey, getDaysInMonth } from './date';
 
 function sortCheckinRecords(left: CheckinRecord, right: CheckinRecord) {
   if (left.timestamp !== right.timestamp) {
@@ -16,7 +16,7 @@ export function getCheckinRecordsByDate(habit: Habit, dateKey: string) {
 }
 
 export function getTodayCheckins(habit: Habit) {
-  return getCheckinRecordsByDate(habit, getTodayKey());
+  return getCheckinRecordsByDate(habit, getCheckinTodayKey());
 }
 
 export function getTodayCount(habit: Habit) {
@@ -24,22 +24,24 @@ export function getTodayCount(habit: Habit) {
 }
 
 function getPeriodRange(habit: Habit, reference = new Date()) {
+  // 打卡按 04:00 切日，所以周期也要先落到归属日再算周一/月初。
+  const referenceDate = getCheckinReferenceDate(reference);
   if (habit.cadence === 'daily') {
-    const key = `${reference.getFullYear()}-${String(reference.getMonth() + 1).padStart(2, '0')}-${String(reference.getDate()).padStart(2, '0')}`;
+    const key = `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, '0')}-${String(referenceDate.getDate()).padStart(2, '0')}`;
     return { startKey: key, endKey: key };
   }
 
   if (habit.cadence === 'weekly') {
-    const mondayOffset = (reference.getDay() + 6) % 7;
-    const monday = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate() - mondayOffset, 12);
+    const mondayOffset = (referenceDate.getDay() + 6) % 7;
+    const monday = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate() - mondayOffset, 12);
     const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 12);
     const toKey = (date: Date) =>
       `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return { startKey: toKey(monday), endKey: toKey(sunday) };
   }
 
-  const year = reference.getFullYear();
-  const month = reference.getMonth();
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
   return {
     startKey: `${year}-${String(month + 1).padStart(2, '0')}-01`,
     endKey: `${year}-${String(month + 1).padStart(2, '0')}-${String(getDaysInMonth(year, month)).padStart(2, '0')}`,

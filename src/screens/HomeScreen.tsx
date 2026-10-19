@@ -12,6 +12,7 @@ import { HabitActionModal } from '../components/HabitActionModal';
 import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { UndoToast } from '../components/UndoToast';
@@ -75,6 +76,12 @@ export function HomeScreen() {
     setUndoState({ habitId, recordId });
   };
   const dismissUndo = useCallback(() => setUndoState(null), []);
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterSelectMode = (id: string) => {
+    setSelectedIds([id]);
+    setSelectMode(true);
+  };
+
   const toggleId = (list: string[], id: string) =>
     list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 
@@ -93,11 +100,7 @@ export function HomeScreen() {
           subtitle:
             habit.cadence === 'daily' ? '每天' : habit.cadence === 'weekly' ? '每周' : '每月',
           leading: (
-            <SelectCircle
-              checked={selectedIds.includes(habit.id)}
-              accessibilityLabel={`选择 ${habit.name}`}
-              onPress={() => setSelectedIds((current) => toggleId(current, habit.id))}
-            />
+            <SelectCircle checked={selectedIds.includes(habit.id)} accessibilityLabel={`选择 ${habit.name}`} />
           ),
         })),
     [habits, selectedIds]
@@ -115,6 +118,7 @@ export function HomeScreen() {
     return (
       <MultiSelectBoard
         title="整理习惯"
+        hint="点按习惯选中 · 拖动右侧把手排序或换分组"
         onClose={() => { setSelectMode(false); setSelectedIds([]); }}
         items={boardItems}
         groups={boardGroups}
@@ -164,7 +168,7 @@ export function HomeScreen() {
       fab={{ label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
     >
       <View style={styles.screen}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
           {habits.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>还没有习惯</Text>
@@ -198,7 +202,7 @@ export function HomeScreen() {
                             onAddCheckin={handleAddCheckin}
                             onOpenDetails={setHistoryHabitId}
                             onOpenActions={setActionHabit}
-                            onLongPress={() => setSelectMode(true)}
+                            onLongPress={() => enterSelectMode(habit.id)}
                           />
                         ))}
                       </Animated.View>
@@ -253,7 +257,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
     scrollView: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 130, gap: 20 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 20 },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,

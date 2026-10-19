@@ -77,7 +77,7 @@ export type HabitAction =
   | { type: 'restore-archived-habit'; habitId: string }
   | { type: 'delete-habit'; habitId: string }
   | { type: 'add-checkin-now'; habitId: string; record: CheckinRecord }
-  | { type: 'add-checkin'; habitId: string; dateKey: string; timestamp: number; note: string }
+  | { type: 'add-checkin'; habitId: string; timestamp: number; note: string }
   | {
       type: 'update-checkin';
       habitId: string;
@@ -139,7 +139,7 @@ export type HabitContextValue = HabitState & {
   restoreArchivedHabit: (habitId: string) => void;
   deleteHabit: (habitId: string) => void;
   addCheckinNow: (habitId: string) => string;
-  addCheckin: (habitId: string, dateKey: string, timestamp: number, note: string) => void;
+  addCheckin: (habitId: string, timestamp: number, note: string) => void;
   updateCheckin: (habitId: string, recordId: string, timestamp: number, note: string) => void;
   deleteCheckin: (habitId: string, recordId: string) => void;
   setThemeId: (themeId: ThemeId) => void;
