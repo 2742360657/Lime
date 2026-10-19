@@ -20,7 +20,7 @@ import {
   Memo,
   MemoGroup,
 } from '../types/habit';
-import { buildFallbackTimestamp, clampToMinute, toLocalDateKey } from '../utils/date';
+import { buildFallbackTimestamp, clampToMinute, toCheckinDateKey } from '../utils/date';
 import { createId } from '../utils/id';
 import { normalizeHabitTarget } from '../utils/habitTarget';
 
@@ -38,7 +38,7 @@ function isThemeId(value: unknown): value is ThemeId {
 function migrateTimestampToRecord(timestamp: number): CheckinRecord {
   return {
     id: createId(),
-    dateKey: toLocalDateKey(timestamp),
+    dateKey: toCheckinDateKey(timestamp),
     timestamp,
     note: '',
     createdAt: timestamp,
@@ -150,7 +150,7 @@ function sanitizeHabit(candidate: unknown, fallbackOrder = 0): Habit | null {
     .filter((record): record is CheckinRecord => record !== null)
     .map((record) => ({
       ...record,
-      dateKey: toLocalDateKey(record.timestamp),
+      dateKey: toCheckinDateKey(record.timestamp),
       timestamp: clampToMinute(record.timestamp),
       note: record.note.trim(),
     }));

@@ -13,9 +13,11 @@ import {
 import { useHabits } from '../state/HabitStore';
 import {
   buildFallbackTimestamp,
-  buildTimestampForDateTime,
+  buildTimestampForCheckinDay,
+  getCheckinTodayKey,
   getHourMinuteFromTimestamp,
   parseFlexibleTimeInput,
+  toCheckinDateKey,
 } from '../utils/date';
 
 type CheckinRecordEditorModalProps = {
@@ -64,8 +66,15 @@ export function CheckinRecordEditorModal({
       return;
     }
     const [hour, minute] = normalized.split(':').map(Number);
-    const timestamp = buildTimestampForDateTime(dateKey, hour, minute);
-    if (timestamp === null) return;
+    const timestamp = buildTimestampForCheckinDay(dateKey, hour, minute);
+    if (timestamp === null || toCheckinDateKey(timestamp) !== dateKey) {
+      Alert.alert('时间不在所选日期内', '请确认日期和时间的组合，例如 04:00 之后属于当天。');
+      return;
+    }
+    if (timestamp > Date.now() && toCheckinDateKey(timestamp) === getCheckinTodayKey()) {
+      Alert.alert('时间还没到', '打卡时间不能晚于现在。');
+      return;
+    }
 
     onSubmit(timestamp, note);
     onClose();
@@ -106,6 +115,8 @@ export function CheckinRecordEditorModal({
               </TouchableOpacity>
             ))}
           </View>
+
+          <Text style={styles.hint}>凌晨 00:00–03:59 属于所选日期的深夜（次日凌晨）。</Text>
 
           <View style={styles.noteField}>
             <Text style={styles.noteLabel}>备注</Text>
@@ -170,6 +181,12 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       backgroundColor: theme.colors.primarySoft,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    hint: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
     },
     quickRow: {
       flexDirection: 'row',

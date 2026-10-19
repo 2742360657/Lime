@@ -1,5 +1,5 @@
 import { CheckinRecord, Habit } from '../types/habit';
-import { clampToMinute } from '../utils/date';
+import { clampToMinute, toCheckinDateKey } from '../utils/date';
 import { createId } from '../utils/id';
 
 export function sortRecords(records: CheckinRecord[]) {
@@ -12,11 +12,13 @@ export function sortRecords(records: CheckinRecord[]) {
   });
 }
 
-export function createCheckinRecord(dateKey: string, timestamp: number, note: string): CheckinRecord {
+/** 记录日期由时间戳统一推导（04:00 切日），避免 dateKey 和时间不一致。 */
+export function createCheckinRecord(timestamp: number, note: string): CheckinRecord {
+  const normalizedTimestamp = clampToMinute(timestamp);
   return {
     id: createId(),
-    dateKey,
-    timestamp: clampToMinute(timestamp),
+    dateKey: toCheckinDateKey(normalizedTimestamp),
+    timestamp: normalizedTimestamp,
     note: note.trim(),
     createdAt: Date.now(),
   };

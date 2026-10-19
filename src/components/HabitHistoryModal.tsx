@@ -12,10 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useHabits } from '../state/HabitStore';
 import {
-  compareDateKeys,
   formatMonthLabel,
   formatYearLabel,
-  getTodayKey,
+  getCheckinReferenceDate,
+  isFutureCheckinDateKey,
 } from '../utils/date';
 import {
   buildDateCountMap,
@@ -45,7 +45,7 @@ export function HabitHistoryModal({
 }: HabitHistoryModalProps) {
   const { allHabits, theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const today = new Date();
+  const today = getCheckinReferenceDate();
   const [viewMode, setViewMode] = useState<ViewMode>(lastHistoryViewMode);
   const [focusYear, setFocusYear] = useState(today.getFullYear());
   const [focusMonthIndex, setFocusMonthIndex] = useState(today.getMonth());
@@ -59,7 +59,7 @@ export function HabitHistoryModal({
 
   useEffect(() => {
     if (visible) {
-      const now = new Date();
+      const now = getCheckinReferenceDate();
       setViewMode(lastHistoryViewMode);
       setFocusYear(now.getFullYear());
       setFocusMonthIndex(now.getMonth());
@@ -67,7 +67,7 @@ export function HabitHistoryModal({
     }
   }, [visible, habitId]);
 
-  const canPressDay = (dateKey: string) => compareDateKeys(dateKey, getTodayKey()) <= 0;
+  const canPressDay = (dateKey: string) => !isFutureCheckinDateKey(dateKey);
   const changeViewMode = (mode: ViewMode) => {
     lastHistoryViewMode = mode;
     setViewMode(mode);
@@ -190,6 +190,7 @@ export function HabitHistoryModal({
                   canPressDay={canPressDay}
                   onPressDay={(dateKey) => setSelectedDateKey(dateKey)}
                 />
+                <Text style={styles.hint}>每天 04:00 后算新的一天，凌晨的记录计入前一天。</Text>
               </View>
             )}
           </View>
@@ -276,6 +277,13 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     content: {
       gap: 14,
+    },
+    hint: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      paddingTop: 4,
     },
     periodHeader: {
       flexDirection: 'row',

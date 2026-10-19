@@ -6,10 +6,11 @@
     "start": "expo start",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "check": "node scripts/check-repository.mjs && npm run typecheck && npm run test:goals",
+    "check": "node scripts/check-repository.mjs && npm run typecheck && npm run test:goals && npm run test:checkin",
     "build:apk": "bash scripts/build-android.sh release arm64-v8a",
     "build:preview": "bash scripts/build-android.sh preview arm64-v8a",
-    "test:goals": "node --test tests/habit-goals.test.cjs"
+    "test:goals": "node --test tests/habit-goals.test.cjs",
+    "test:checkin": "node --test tests/checkin-day.test.cjs"
   },
   "dependencies": {
     "@react-navigation/drawer": "^7.14.2",

@@ -15,7 +15,7 @@ import { TodoRow } from '../components/TodoRow';
 import { UndoToast } from '../components/UndoToast';
 import { useHabits } from '../state/HabitStore';
 import { TodoItem } from '../types/habit';
-import { getTodayKey } from '../utils/date';
+import { getCheckinTodayKey } from '../utils/date';
 import { getHabitProgress, getHabitSummary } from '../utils/habit';
 import {
   bucketToDueDateKey,
@@ -324,7 +324,7 @@ export function TodayScreen() {
         />
         <CheckinDetailModal
           habitId={detailHabitId}
-          dateKey={detailHabitId ? getTodayKey() : null}
+          dateKey={detailHabitId ? getCheckinTodayKey() : null}
           visible={detailHabitId !== null}
           onClose={() => setDetailHabitId(null)}
         />
