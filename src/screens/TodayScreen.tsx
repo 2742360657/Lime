@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { LIST_LAYOUT } from '../theme/animation';
 
 import { AccordionSection } from '../components/AccordionSection';
+import { AddHabitModal } from '../components/AddHabitModal';
 import { CheckinDetailModal } from '../components/CheckinDetailModal';
 import { HabitCard } from '../components/HabitCard';
 import { ItemActionSheet } from '../components/ItemActionSheet';
@@ -49,11 +50,13 @@ export function TodayScreen() {
     moveHabitsToGroup,
     reorderHabits,
     deleteHabits,
+    archiveHabit,
   } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [detailHabitId, setDetailHabitId] = useState<string | null>(null);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState>(null);
   const [todoSelectMode, setTodoSelectMode] = useState(false);
   const [habitSelectMode, setHabitSelectMode] = useState(false);
@@ -370,6 +373,11 @@ export function TodayScreen() {
             setEditingTodo(null);
           }}
         />
+        <AddHabitModal
+          habit={editingHabitId ? habits.find((habit) => habit.id === editingHabitId) ?? null : null}
+          visible={editingHabitId !== null}
+          onClose={() => setEditingHabitId(null)}
+        />
         <CheckinDetailModal
           habitId={detailHabitId}
           dateKey={detailHabitId ? getCheckinTodayKey() : null}
@@ -395,6 +403,8 @@ export function TodayScreen() {
           actions={[
             { label: '今天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('today')); } } },
             { label: '明天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('tomorrow')); } } },
+            { label: '未来 7 天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('soon')); } } },
+            { label: '稍后', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('later')); } } },
             { label: '无日期', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('no-date')); } } },
             { label: '自定义时间…', onPress: () => { if (dueTodo) { openEditor(dueTodo); } } },
           ]}
@@ -414,10 +424,42 @@ export function TodayScreen() {
         <ItemActionSheet
           visible={actionHabit !== null}
           title={actionHabit?.name ?? ''}
-          subtitle="长按后可以看历史或进整理"
+          subtitle="长按后可以改信息、看历史或进整理"
           actions={[
+            { label: '编辑习惯', onPress: () => { if (actionHabit) { setEditingHabitId(actionHabit.id); } } },
             { label: '查看历史', onPress: () => { if (actionHabit) { setDetailHabitId(actionHabit.id); } } },
             { label: '多选整理', onPress: () => { if (actionHabit) { enterHabitSelect(actionHabit.id); } } },
+            {
+              label: '归档习惯',
+              onPress: () => {
+                const habit = actionHabit;
+                if (!habit) {
+                  return;
+                }
+                Alert.alert(
+                  '归档习惯',
+                  `归档“${habit.name}”后，它会从打卡页移除，并在设置页的归档习惯中只读查看。`,
+                  [
+                    { text: '取消', style: 'cancel' },
+                    { text: '确认归档', onPress: () => archiveHabit(habit.id) },
+                  ]
+                );
+              },
+            },
+            {
+              label: '删除习惯',
+              danger: true,
+              onPress: () => {
+                const habit = actionHabit;
+                if (!habit) {
+                  return;
+                }
+                Alert.alert('确认删除习惯', `删除“${habit.name}”后，相关全部打卡历史会一并清除，且无法恢复。`, [
+                  { text: '取消', style: 'cancel' },
+                  { text: '确认删除', style: 'destructive', onPress: () => deleteHabits([habit.id]) },
+                ]);
+              },
+            },
           ]}
           onClose={() => setActionHabitId(null)}
         />
