@@ -346,7 +346,12 @@ function MemoEditor({
   const [groupId, setGroupId] = useState<string | null>(initialGroupId);
   const [pickerVisible, setPickerVisible] = useState(false);
   const initialRef = useRef({ title: memo.title, body: memo.body, groupId: memo.groupId });
-  const dirty = title !== memo.title || body !== memo.body || groupId !== memo.groupId;
+  // 与打开编辑器时的快照比较：自动保存会同步更新 memo，拿 memo 比对会让“有改动”在
+  // 600ms 自动保存后永远变成 false，返回时便不再询问是否保存。
+  const dirty =
+    title !== initialRef.current.title ||
+    body !== initialRef.current.body ||
+    groupId !== initialRef.current.groupId;
   const hasContent = title.trim() !== '' || body.trim() !== '';
 
   // 输入停顿后自动写回，避免切走应用时丢掉正在编辑的内容。
