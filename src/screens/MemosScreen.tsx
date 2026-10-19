@@ -103,6 +103,12 @@ export function MemosScreen() {
     [orderedGroups]
   );
 
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterSelectMode = (id: string) => {
+    setSelectedIds([id]);
+    setSelectMode(true);
+  };
+
   const toggleId = (ids: string[], id: string) =>
     ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
 
@@ -142,6 +148,7 @@ export function MemosScreen() {
     return (
       <MultiSelectBoard
         title="整理备忘录"
+        hint="点按备忘录选中 · 拖到其他分类即可移动"
         onClose={() => { setSelectMode(false); setSelectedIds([]); }}
         items={list.map((memo) => ({
           id: memo.id,
@@ -149,11 +156,7 @@ export function MemosScreen() {
           label: memo.title || '未命名备忘录',
           subtitle: memo.body.trim().slice(0, 40) || '暂无正文',
           leading: (
-            <SelectCircle
-              checked={selectedIds.includes(memo.id)}
-              accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`}
-              onPress={() => setSelectedIds((current) => toggleId(current, memo.id))}
-            />
+            <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
           ),
         }))}
         groups={[
@@ -263,7 +266,7 @@ export function MemosScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`打开 ${memo.title || '未命名备忘录'}`}
                   onPress={() => setEditingId(memo.id)}
-                  onLongPress={() => setSelectMode(true)}
+                  onLongPress={() => enterSelectMode(memo.id)}
                   delayLongPress={360}
                   style={styles.card}
                 >

@@ -76,6 +76,12 @@ export function HomeScreen() {
     setUndoState({ habitId, recordId });
   };
   const dismissUndo = useCallback(() => setUndoState(null), []);
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterSelectMode = (id: string) => {
+    setSelectedIds([id]);
+    setSelectMode(true);
+  };
+
   const toggleId = (list: string[], id: string) =>
     list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 
@@ -94,11 +100,7 @@ export function HomeScreen() {
           subtitle:
             habit.cadence === 'daily' ? '每天' : habit.cadence === 'weekly' ? '每周' : '每月',
           leading: (
-            <SelectCircle
-              checked={selectedIds.includes(habit.id)}
-              accessibilityLabel={`选择 ${habit.name}`}
-              onPress={() => setSelectedIds((current) => toggleId(current, habit.id))}
-            />
+            <SelectCircle checked={selectedIds.includes(habit.id)} accessibilityLabel={`选择 ${habit.name}`} />
           ),
         })),
     [habits, selectedIds]
@@ -116,6 +118,7 @@ export function HomeScreen() {
     return (
       <MultiSelectBoard
         title="整理习惯"
+        hint="点按习惯选中 · 拖动右侧把手排序或换分组"
         onClose={() => { setSelectMode(false); setSelectedIds([]); }}
         items={boardItems}
         groups={boardGroups}
@@ -199,7 +202,7 @@ export function HomeScreen() {
                             onAddCheckin={handleAddCheckin}
                             onOpenDetails={setHistoryHabitId}
                             onOpenActions={setActionHabit}
-                            onLongPress={() => setSelectMode(true)}
+                            onLongPress={() => enterSelectMode(habit.id)}
                           />
                         ))}
                       </Animated.View>

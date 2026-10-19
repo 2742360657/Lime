@@ -3,6 +3,7 @@ import {
   Animated,
   LayoutChangeEvent,
   PanResponder,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -35,21 +36,32 @@ type DraggableListProps = {
   items: DragItem[];
   /** 松手后回调最终顺序；`groupId` 已反映跨分组移动的结果。 */
   onCommit: (ordered: Array<{ id: string; groupId: string }>) => void;
+  /** 点按整行时切换选中。不传则整行不可点。 */
+  onToggleSelect?: (id: string) => void;
   emptyText?: string;
   contentPaddingBottom?: number;
 };
 
 const GROUP_ROW_HEIGHT = 46;
 const ITEM_ROW_HEIGHT = 62;
+/** 手指移动超过这个距离才算“拖动”，轻触把手只会切换选中。 */
+const DRAG_THRESHOLD = 6;
+const SHIFT_DURATION = 140;
+
+const rowKey = (row: { kind: 'group' | 'item'; id: string }) => `${row.kind}:${row.id}`;
 
 /**
- * 垂直拖动排序列表：长按右侧两条横线后可拖动。
- * 拖动中只有被拖起的那一行跟随手指，松手时一次性落位，避免实时重排造成的抖动。
+ * 垂直拖动排序列表。
+ *
+ * - 点按整行切换选中；按住右侧把手并移动超过 6px 才开始拖动，避免误触重排。
+ * - 拖动时其余行实时让出位置，能提前看到落点；目标分组会高亮。
+ * - 松手一次性落位，避免实时重排造成的抖动。
  */
 export function DraggableList({
   groups,
   items,
   onCommit,
+  onToggleSelect,
   emptyText = '这里还没有内容',
   contentPaddingBottom = 140,
 }: DraggableListProps) {
@@ -58,6 +70,7 @@ export function DraggableList({
 
   const [orderedItems, setOrderedItems] = useState<DragItem[]>(items);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dropGroupId, setDropGroupId] = useState<string | null>(null);
   const [heights, setHeights] = useState<Record<string, number>>({});
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
@@ -71,6 +84,23 @@ export function DraggableList({
   const dropIndexRef = useRef<number | null>(null);
   const groupAcceptsRef = useRef(new Map<string, boolean>());
   groupAcceptsRef.current = new Map(groups.map((group) => [group.id, group.acceptsDrop !== false]));
+  /** 每条行相对基础位置的让位偏移。 */
+  const shiftsRef = useRef(new Map<string, Animated.Value>());
+  const previewIdsRef = useRef('');
+
+  const shiftFor = (key: string) => {
+    let value = shiftsRef.current.get(key);
+    if (!value) {
+      value = new Animated.Value(0);
+      shiftsRef.current.set(key, value);
+    }
+    return value;
+  };
+
+  const resetShifts = () => {
+    previewIdsRef.current = '';
+    shiftsRef.current.forEach((value) => value.setValue(0));
+  };
 
   // 外部数据变化时同步（拖动过程中不打断）。
   const lastItemsRef = useRef(items);
@@ -82,25 +112,49 @@ export function DraggableList({
     }
   }
 
-  const rows = useMemo<Row[]>(() => {
-    const next: Row[] = [];
-    let cursor = 0;
-    for (const group of groups) {
-      const groupItems = orderedItems.filter((item) => item.groupId === group.id);
-      const groupHeight = heights[`group:${group.id}`] ?? GROUP_ROW_HEIGHT;
-      next.push({ kind: 'group', id: group.id, title: group.title, y: cursor, height: groupHeight });
-      cursor += groupHeight;
-      for (const item of groupItems) {
-        const height = heights[`item:${item.id}`] ?? ITEM_ROW_HEIGHT;
-        next.push({ kind: 'item', id: item.id, item, y: cursor, height });
-        cursor += height;
+  const layoutRows = useCallback(
+    (source: DragItem[]): Row[] => {
+      const next: Row[] = [];
+      let cursor = 0;
+      for (const group of groups) {
+        const groupItems = source.filter((item) => item.groupId === group.id);
+        const groupHeight = heights[`group:${group.id}`] ?? GROUP_ROW_HEIGHT;
+        next.push({ kind: 'group', id: group.id, title: group.title, y: cursor, height: groupHeight });
+        cursor += groupHeight;
+        for (const item of groupItems) {
+          const height = heights[`item:${item.id}`] ?? ITEM_ROW_HEIGHT;
+          next.push({ kind: 'item', id: item.id, item, y: cursor, height });
+          cursor += height;
+        }
       }
-    }
-    return next;
-  }, [groups, orderedItems, heights]);
+      return next;
+    },
+    [groups, heights]
+  );
 
+  const rows = useMemo<Row[]>(() => layoutRows(orderedItems), [layoutRows, orderedItems]);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+
+  /** 把其余行移动到预览位置，实时让出被拖条目的落点。 */
+  const previewShift = useCallback(
+    (next: DragItem[]) => {
+      const baseRows = rowsRef.current;
+      const nextRows = layoutRows(next);
+      const baseY = new Map(baseRows.map((row) => [rowKey(row), row.y]));
+      const keys = new Set<string>([...baseY.keys(), ...nextRows.map((row) => rowKey(row))]);
+      keys.forEach((key) => {
+        const from = baseY.get(key) ?? 0;
+        const target = nextRows.find((row) => rowKey(row) === key)?.y ?? from;
+        Animated.timing(shiftFor(key), {
+          toValue: target - from,
+          duration: SHIFT_DURATION,
+          useNativeDriver: true,
+        }).start();
+      });
+    },
+    [layoutRows]
+  );
 
   /** 根据被拖行中心位置，算出它应该插入到第几个条目（不含自身）。 */
   const dropIndexFor = useCallback((centerY: number, draggedId: string) => {
@@ -140,6 +194,22 @@ export function DraggableList({
     [onCommit]
   );
 
+  /** 依据当前落点生成预览顺序。 */
+  const buildPreview = useCallback((itemId: string, centerY: number) => {
+    const moved = orderedRef.current.find((item) => item.id === itemId);
+    if (!moved) {
+      return null;
+    }
+    const without = orderedRef.current.filter((item) => item.id !== itemId);
+    const rawIndex = dropIndexRef.current ?? dropIndexFor(centerY, itemId);
+    const index = Math.max(0, Math.min(without.length, rawIndex));
+    const targetGroupId = targetGroupFor(centerY);
+    const acceptsDrop = targetGroupId ? groupAcceptsRef.current.get(targetGroupId) !== false : false;
+    const next = [...without];
+    next.splice(index, 0, { ...moved, groupId: acceptsDrop && targetGroupId ? targetGroupId : moved.groupId });
+    return next;
+  }, [dropIndexFor, targetGroupFor]);
+
   const startDrag = useCallback(
     (itemId: string, pageY: number) => {
       const row = rowsRef.current.find((entry) => entry.kind === 'item' && entry.id === itemId);
@@ -164,34 +234,34 @@ export function DraggableList({
       dragTop.setValue(top);
       dragCenterRef.current = top + draggedHeightRef.current / 2;
       dropIndexRef.current = dropIndexFor(dragCenterRef.current, itemId);
+
+      const next = buildPreview(itemId, dragCenterRef.current);
+      if (next) {
+        const signature = next.map((item) => `${item.id}@${item.groupId}`).join('|');
+        if (signature !== previewIdsRef.current) {
+          previewIdsRef.current = signature;
+          setDropGroupId(next.find((item) => item.id === itemId)?.groupId ?? null);
+          previewShift(next);
+        }
+      }
     },
-    [dragTop, dropIndexFor]
+    [buildPreview, dragTop, dropIndexFor, previewShift]
   );
 
   const endDrag = useCallback(
     (itemId: string) => {
       Animated.timing(lift, { toValue: 0, duration: 120, useNativeDriver: true }).start();
-      setActiveId(null);
-      setScrollEnabled(true);
 
       const centerY = dragCenterRef.current;
-      const targetGroupId = targetGroupFor(centerY);
-      const moved = orderedRef.current.find((item) => item.id === itemId);
-      if (!moved) {
-        return;
-      }
-
-      const without = orderedRef.current.filter((item) => item.id !== itemId);
-      const rawIndex = dropIndexRef.current ?? dropIndexFor(centerY, itemId);
-      const index = Math.max(0, Math.min(without.length, rawIndex));
-
-      const acceptsDrop = targetGroupId ? groupAcceptsRef.current.get(targetGroupId) !== false : false;
-      const nextGroupId = acceptsDrop && targetGroupId ? targetGroupId : moved.groupId;
-
-      without.splice(index, 0, { ...moved, groupId: nextGroupId });
-      commit(without);
+      const next = buildPreview(itemId, centerY) ?? orderedRef.current;
+      setActiveId(null);
+      setScrollEnabled(true);
+      setDropGroupId(null);
+      resetShifts();
+      dropIndexRef.current = null;
+      commit(next);
     },
-    [commit, dragTop, dropIndexFor, targetGroupFor]
+    [buildPreview, commit, lift]
   );
 
   const handleLayout = useCallback((key: string, event: LayoutChangeEvent) => {
@@ -213,26 +283,37 @@ export function DraggableList({
         <View style={{ height: totalHeight }}>
           {rows.map((row) => {
             if (row.kind === 'group') {
+              const isDropTarget = activeId !== null && dropGroupId === row.id;
               return (
-                <View
-                  key={`group:${row.id}`}
+                <Animated.View
+                  key={rowKey(row)}
                   onLayout={(event) => handleLayout(`group:${row.id}`, event)}
-                  style={[styles.groupRow, { top: row.y }]}
+                  style={[
+                    styles.groupRow,
+                    { top: row.y, transform: [{ translateY: shiftFor(rowKey(row)) }] },
+                  ]}
                 >
-                  <Text style={styles.groupTitle}>{row.title}</Text>
-                  <Text style={styles.groupCount}>
+                  <Text style={[styles.groupTitle, isDropTarget && styles.groupTitleActive]}>{row.title}</Text>
+                  <Text style={[styles.groupCount, isDropTarget && styles.groupTitleActive]}>
                     {orderedItems.filter((item) => item.groupId === row.id).length}
                   </Text>
-                </View>
+                </Animated.View>
               );
             }
 
             const active = row.id === activeId;
             return (
               <Animated.View
-                key={row.id}
+                key={rowKey(row)}
                 onLayout={(event) => handleLayout(`item:${row.id}`, event)}
-                style={[styles.itemSlot, { top: active ? dragTop : row.y, zIndex: active ? 2 : 1 }]}
+                style={[
+                  styles.itemSlot,
+                  {
+                    top: active ? dragTop : row.y,
+                    zIndex: active ? 3 : 1,
+                    transform: active ? undefined : [{ translateY: shiftFor(rowKey(row)) }],
+                  },
+                ]}
               >
                 <DragHandleRow
                   item={row.item}
@@ -241,6 +322,7 @@ export function DraggableList({
                   onStart={startDrag}
                   onMove={moveDrag}
                   onEnd={endDrag}
+                  onToggleSelect={onToggleSelect}
                   styles={styles}
                   theme={theme}
                 />
@@ -260,6 +342,7 @@ function DragHandleRow({
   onStart,
   onMove,
   onEnd,
+  onToggleSelect,
   styles,
   theme,
 }: {
@@ -269,12 +352,15 @@ function DragHandleRow({
   onStart: (id: string, pageY: number) => void;
   onMove: (id: string, pageY: number) => void;
   onEnd: (id: string, pageY: number) => void;
+  onToggleSelect?: (id: string) => void;
   styles: ReturnType<typeof createStyles>;
   theme: ReturnType<typeof useHabits>['theme'];
 }) {
   const itemId = item.id;
   const activeRef = useRef(active);
   activeRef.current = active;
+  const startedRef = useRef(false);
+  const startYRef = useRef(0);
 
   const responder = useMemo(
     () =>
@@ -284,16 +370,38 @@ function DragHandleRow({
         onMoveShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (event) => onStart(itemId, event.nativeEvent.pageY),
-        onPanResponderMove: (event) => {
-          if (activeRef.current) {
-            onMove(itemId, event.nativeEvent.pageY);
-          }
+        onPanResponderGrant: (event) => {
+          startedRef.current = false;
+          startYRef.current = event.nativeEvent.pageY;
         },
-        onPanResponderRelease: (event) => onEnd(itemId, event.nativeEvent.pageY),
-        onPanResponderTerminate: (event) => onEnd(itemId, event.nativeEvent.pageY),
+        onPanResponderMove: (event) => {
+          const pageY = event.nativeEvent.pageY;
+          if (!startedRef.current) {
+            if (Math.abs(pageY - startYRef.current) < DRAG_THRESHOLD) {
+              return;
+            }
+            startedRef.current = true;
+            onStart(itemId, pageY);
+          }
+          onMove(itemId, pageY);
+        },
+        onPanResponderRelease: () => {
+          if (startedRef.current) {
+            onEnd(itemId, 0);
+          } else {
+            // 轻触把手：当作选中，不触发重排。
+            onToggleSelect?.(itemId);
+          }
+          startedRef.current = false;
+        },
+        onPanResponderTerminate: () => {
+          if (startedRef.current) {
+            onEnd(itemId, 0);
+          }
+          startedRef.current = false;
+        },
       }),
-    [itemId, onEnd, onMove, onStart]
+    [itemId, onEnd, onMove, onStart, onToggleSelect]
   );
 
   return (
@@ -304,13 +412,21 @@ function DragHandleRow({
         { transform: [{ scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.02] }) }] },
       ]}
     >
-      {item.leading}
-      <View style={styles.rowText}>
-        <Text numberOfLines={1} style={styles.rowLabel}>
-          {item.label}
-        </Text>
-        {item.subtitle ? <Text style={styles.rowSubtitle}>{item.subtitle}</Text> : null}
-      </View>
+      <Pressable
+        accessibilityRole={onToggleSelect ? 'checkbox' : undefined}
+        accessibilityLabel={item.label}
+        disabled={!onToggleSelect}
+        onPress={() => onToggleSelect?.(itemId)}
+        style={styles.tapArea}
+      >
+        {item.leading}
+        <View style={styles.rowText}>
+          <Text numberOfLines={1} style={styles.rowLabel}>
+            {item.label}
+          </Text>
+          {item.subtitle ? <Text style={styles.rowSubtitle}>{item.subtitle}</Text> : null}
+        </View>
+      </Pressable>
       <View
         accessibilityRole="adjustable"
         accessibilityLabel={`拖动 ${item.label}`}
@@ -339,6 +455,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       paddingHorizontal: 4,
     },
     groupTitle: { fontSize: 15, fontWeight: '800', color: theme.colors.textSecondary },
+    groupTitleActive: { color: theme.colors.primary },
     groupCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textMuted },
     itemSlot: { position: 'absolute', left: 0, right: 0, zIndex: 1 },
     row: {
@@ -358,6 +475,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       backgroundColor: theme.colors.primarySoft,
       ...theme.shadow,
     },
+    tapArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowText: { flex: 1, gap: 3 },
     rowLabel: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
     rowSubtitle: { fontSize: 11, color: theme.colors.textSecondary },

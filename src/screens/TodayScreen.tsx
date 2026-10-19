@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_LAYOUT } from '../theme/animation';
@@ -22,6 +22,7 @@ import {
   buildTodoBuckets,
   compareTodosSmart,
   todoGroupKey,
+  TODO_COMPLETED_BUCKET_ID,
 } from '../utils/todo';
 
 type UndoState =
@@ -93,6 +94,17 @@ export function TodayScreen() {
     }
   };
 
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterTodoSelect = (id: string) => {
+    setSelectedTodoIds([id]);
+    setTodoSelectMode(true);
+  };
+
+  const enterHabitSelect = (id: string) => {
+    setSelectedHabitIds([id]);
+    setHabitSelectMode(true);
+  };
+
   const toggleId = (list: string[], id: string) =>
     list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 
@@ -130,13 +142,7 @@ export function TodayScreen() {
           groupId: todo ? todoGroupKey(todo, allBuckets) : 'no-date',
           label: todo?.title ?? '',
           subtitle: todo ? undefined : undefined,
-          leading: (
-            <SelectCircle
-              checked={selectedTodoIds.includes(id)}
-              accessibilityLabel={`选择 ${todo?.title ?? ''}`}
-              onPress={() => setSelectedTodoIds((current) => toggleId(current, id))}
-            />
-          ),
+          leading: <SelectCircle checked={selectedTodoIds.includes(id)} accessibilityLabel={`选择 ${todo?.title ?? ''}`} />,
         };
       }),
     [allBuckets, selectedTodoIds, todayTodoIds, todos]
@@ -157,13 +163,7 @@ export function TodayScreen() {
         groupId: habit.groupId ?? 'ungrouped',
         label: habit.name,
         subtitle: getHabitProgress(habit).label,
-        leading: (
-          <SelectCircle
-            checked={selectedHabitIds.includes(habit.id)}
-            accessibilityLabel={`选择 ${habit.name}`}
-            onPress={() => setSelectedHabitIds((current) => toggleId(current, habit.id))}
-          />
-        ),
+        leading: <SelectCircle checked={selectedHabitIds.includes(habit.id)} accessibilityLabel={`选择 ${habit.name}`} />,
       })),
     [orderedHabits, selectedHabitIds]
   );
@@ -172,19 +172,56 @@ export function TodayScreen() {
     return (
       <MultiSelectBoard
         title="整理待办"
+        hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
         onClose={() => { setTodoSelectMode(false); setSelectedTodoIds([]); }}
         items={boardItems}
         groups={boardGroups}
         selectedIds={selectedTodoIds}
         onSetSelection={setSelectedTodoIds}
         onCommit={(ordered) => {
-          ordered.forEach((entry) => {
-            const todo = todos.find((item) => item.id === entry.id);
-            if (todo && todoGroupKey(todo, allBuckets) !== entry.groupId && entry.groupId !== 'completed') {
-              moveTodosToBucket([entry.id], bucketToDueDateKey(entry.groupId));
-            }
-          });
-          reorderTodos(ordered.map((entry) => entry.id));
+          const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
+          const moves = ordered
+            .map((entry) => {
+              const todo = todos.find((item) => item.id === entry.id);
+              if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
+                return null;
+              }
+              if (todoGroupKey(todo, allBuckets) === entry.groupId) {
+                return null;
+              }
+              return { id: entry.id, title: todo.title, groupId: entry.groupId };
+            })
+            .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
+
+          if (moves.length === 0) {
+            reorderOnly();
+            return;
+          }
+
+          const labelOf = (groupId: string) =>
+            boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
+          const detail =
+            moves.length === 1
+              ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
+              : `${moves.length} 项待办会跟着分组改截止时间。`;
+
+          Alert.alert(
+            '要改截止时间吗？',
+            `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
+            [
+              { text: '只排序', style: 'cancel', onPress: reorderOnly },
+              {
+                text: '改时间',
+                onPress: () => {
+                  moves.forEach((move) => {
+                    moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
+                  });
+                  reorderOnly();
+                },
+              },
+            ],
+            { cancelable: true, onDismiss: reorderOnly }
+          );
         }}
         onDelete={(ids) => {
           ids.forEach((id) => deleteTodo(id));
@@ -209,6 +246,7 @@ export function TodayScreen() {
     return (
       <MultiSelectBoard
         title="整理习惯"
+        hint="点按习惯选中 · 拖动右侧把手排序或换分组"
         onClose={() => { setHabitSelectMode(false); setSelectedHabitIds([]); }}
         items={habitBoardItems}
         groups={habitGroups}
@@ -261,7 +299,7 @@ export function TodayScreen() {
               >
                 <Animated.View layout={LIST_LAYOUT} style={styles.list}>
                   {bucket.todos.map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setTodoSelectMode(true)} compact />
+                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => enterTodoSelect(todo.id)} compact />
                   ))}
                 </Animated.View>
               </AccordionSection>
@@ -275,7 +313,7 @@ export function TodayScreen() {
               >
                 <Animated.View layout={LIST_LAYOUT} style={styles.list}>
                   {noDateTodos.slice(0, 3).map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setTodoSelectMode(true)} compact />
+                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => enterTodoSelect(todo.id)} compact />
                   ))}
                 </Animated.View>
               </AccordionSection>
@@ -302,7 +340,7 @@ export function TodayScreen() {
                     habit={habit}
                     compact
                     onOpenDetails={setDetailHabitId}
-                    onLongPress={() => setHabitSelectMode(true)}
+                    onLongPress={() => enterHabitSelect(habit.id)}
                     onAddCheckin={(habitId) => {
                       const recordId = addCheckinNow(habitId);
                       setUndoState({ kind: 'checkin', habitId, recordId });

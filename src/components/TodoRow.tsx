@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, Vibration } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
@@ -21,7 +21,6 @@ export function TodoRow({ todo, onToggle, onPress, onLongPress, compact = false 
   const styles = useMemo(() => createStyles(theme), [theme]);
   const completed = todo.completedAt !== null;
   const overdue = !completed && isTodoOverdue(todo);
-  const lastLongPress = useRef(0);
 
   return (
     <Animated.View
@@ -40,12 +39,10 @@ export function TodoRow({ todo, onToggle, onPress, onLongPress, compact = false 
       <TouchableOpacity
         delayLongPress={360}
         onLongPress={onLongPress ? () => {
-          lastLongPress.current = Date.now();
+          Vibration.vibrate(12);
           onLongPress(todo);
         } : undefined}
-        onPress={() => {
-          if (Date.now() - lastLongPress.current > 700) onPress(todo);
-        }}
+        onPress={() => onPress(todo)}
         style={styles.content}
       >
         <Text numberOfLines={1} style={[styles.title, completed && styles.titleDone]}>

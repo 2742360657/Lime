@@ -15,6 +15,12 @@ export function TrashScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const enterSelectMode = (id: string) => {
+    setSelectedIds([id]);
+    setSelectMode(true);
+  };
+
   const toggleId = (ids: string[], id: string) =>
     ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
 
@@ -25,6 +31,7 @@ export function TrashScreen() {
     return (
       <MultiSelectBoard
         title="整理回收站"
+        hint="点按选中后批量删除，删除后不可恢复"
         onClose={() => { setSelectMode(false); setSelectedIds([]); }}
         items={trashedMemos.map((memo) => ({
           id: memo.id,
@@ -32,11 +39,7 @@ export function TrashScreen() {
           label: memo.title || '未命名备忘录',
           subtitle: `原分类：${groupTitle(memo.groupId)}`,
           leading: (
-            <SelectCircle
-              checked={selectedIds.includes(memo.id)}
-              accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`}
-              onPress={() => setSelectedIds((current) => toggleId(current, memo.id))}
-            />
+            <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
           ),
         }))}
         groups={[{ id: '__trash__', title: '回收站', acceptsDrop: false }]}
@@ -99,7 +102,7 @@ export function TrashScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`恢复 ${memo.title || '未命名备忘录'}`}
                   onPress={() => restoreMemos([memo.id])}
-                  onLongPress={() => setSelectMode(true)}
+                  onLongPress={() => enterSelectMode(memo.id)}
                   delayLongPress={360}
                   style={styles.row}
                 >
