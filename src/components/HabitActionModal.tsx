@@ -11,6 +11,8 @@ type HabitActionModalProps = {
   onClose: () => void;
   onEdit: (habitId: string) => void;
   onOpenHistory: (habitId: string) => void;
+  /** 进入多选整理，并预选这一条。 */
+  onOrganize?: (habitId: string) => void;
 };
 
 export function HabitActionModal({
@@ -19,6 +21,7 @@ export function HabitActionModal({
   onClose,
   onEdit,
   onOpenHistory,
+  onOrganize,
 }: HabitActionModalProps) {
   const { theme, archiveHabit, deleteHabit } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -76,6 +79,15 @@ export function HabitActionModal({
                   onClose();
                 }}
               />
+              {onOrganize ? (
+                <ActionButton
+                  label="多选整理"
+                  onPress={() => {
+                    onOrganize(habit.id);
+                    onClose();
+                  }}
+                />
+              ) : null}
               <ActionButton label="归档" danger onPress={handleArchive} />
               <ActionButton label="删除习惯" danger onPress={handleDelete} />
             </View>

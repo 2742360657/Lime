@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_LAYOUT } from '../theme/animation';
 
 import { AccordionSection } from '../components/AccordionSection';
-import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { ItemActionSheet } from '../components/ItemActionSheet';
+import { OrganizePanel } from '../components/OrganizePanel';
+import { SelectCircle } from '../components/SelectCircle';
 import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
@@ -72,7 +74,16 @@ export function TasksScreen() {
   const dismissUndo = useCallback(() => setUndoTodoId(null), []);
 
   /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const [actionTodoId, setActionTodoId] = useState<string | null>(null);
+  const actionTodo = todos.find((todo) => todo.id === actionTodoId) ?? null;
+  const [dueTodoId, setDueTodoId] = useState<string | null>(null);
+  const dueTodo = todos.find((todo) => todo.id === dueTodoId) ?? null;
+
+  const scrollYRef = useRef(0);
+  const [organizeScrollY, setOrganizeScrollY] = useState(0);
+
   const enterSelectMode = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedIds([id]);
     setSelectMode(true);
   };
@@ -129,82 +140,6 @@ export function TasksScreen() {
     [buckets, completedTodos, selectedIds]
   );
 
-  if (selectMode) {
-    return (
-      <MultiSelectBoard
-        title="整理待办"
-        hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
-        onClose={() => { setSelectMode(false); setSelectedIds([]); }}
-        items={boardItems}
-        groups={boardGroups}
-        selectedIds={selectedIds}
-        onSetSelection={setSelectedIds}
-        onCommit={(ordered) => {
-          const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
-          // 只有拖到别的分组才意味着改截止时间，组内拖动就是纯排序。
-          const moves = ordered
-            .map((entry) => {
-              const todo = todos.find((item) => item.id === entry.id);
-              if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
-                return null;
-              }
-              if (todoGroupKey(todo, buckets) === entry.groupId) {
-                return null;
-              }
-              return { id: entry.id, title: todo.title, groupId: entry.groupId };
-            })
-            .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
-
-          if (moves.length === 0) {
-            reorderOnly();
-            return;
-          }
-
-          const labelOf = (groupId: string) =>
-            boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
-          const detail =
-            moves.length === 1
-              ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
-              : `${moves.length} 项待办会跟着分组改截止时间。`;
-
-          Alert.alert(
-            '要改截止时间吗？',
-            `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
-            [
-              { text: '只排序', style: 'cancel', onPress: reorderOnly },
-              {
-                text: '改时间',
-                onPress: () => {
-                  moves.forEach((move) => {
-                    moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
-                  });
-                  reorderOnly();
-                },
-              },
-            ],
-            { cancelable: true, onDismiss: reorderOnly }
-          );
-        }}
-        onDelete={(ids) => {
-          ids.forEach((id) => deleteTodo(id));
-          setSelectedIds([]);
-          setSelectMode(false);
-        }}
-        groupOptions={[
-          { id: 'today', label: '今天' },
-          { id: 'tomorrow', label: '明天' },
-          { id: 'soon', label: '未来 7 天' },
-          { id: 'later', label: '稍后' },
-          { id: null, label: '无日期' },
-        ]}
-        onMoveToGroup={(ids, groupId) =>
-          moveTodosToBucket(ids, bucketToDueDateKey(groupId ?? 'no-date'))
-        }
-        moveTitle="移动到日期分组"
-      />
-    );
-  }
-
   return (
     <View style={styles.screen}>
       <ScreenScaffold
@@ -212,7 +147,81 @@ export function TasksScreen() {
       panelItems={sidebarItems}
       fab={selectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
     >
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
+        {selectMode ? (
+          <OrganizePanel
+            title="整理待办"
+            hint="点按待办选中 · 按住右侧把手拖动排序，拖到别的分组会先确认是否改截止时间"
+            initialScrollY={organizeScrollY}
+            onClose={() => { setSelectMode(false); setSelectedIds([]); }}
+            items={boardItems}
+            groups={boardGroups}
+            selectedIds={selectedIds}
+            onSetSelection={setSelectedIds}
+            onCommit={(ordered) => {
+              const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
+              // 只有拖到别的分组才意味着改截止时间，组内拖动就是纯排序。
+              const moves = ordered
+                .map((entry) => {
+                  const todo = todos.find((item) => item.id === entry.id);
+                  if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
+                    return null;
+                  }
+                  if (todoGroupKey(todo, buckets) === entry.groupId) {
+                    return null;
+                  }
+                  return { id: entry.id, title: todo.title, groupId: entry.groupId };
+                })
+                .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
+
+              if (moves.length === 0) {
+                reorderOnly();
+                return;
+              }
+
+              const labelOf = (groupId: string) =>
+                boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
+              const detail =
+                moves.length === 1
+                  ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
+                  : `${moves.length} 项待办会跟着分组改截止时间。`;
+
+              Alert.alert(
+                '要改截止时间吗？',
+                `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
+                [
+                  { text: '只排序', style: 'cancel', onPress: reorderOnly },
+                  {
+                    text: '改时间',
+                    onPress: () => {
+                      moves.forEach((move) => {
+                        moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
+                      });
+                      reorderOnly();
+                    },
+                  },
+                ],
+                { cancelable: true, onDismiss: reorderOnly }
+              );
+            }}
+            onDelete={(ids) => {
+              ids.forEach((id) => deleteTodo(id));
+              setSelectedIds([]);
+              setSelectMode(false);
+            }}
+            groupOptions={[
+              { id: 'today', label: '今天' },
+              { id: 'tomorrow', label: '明天' },
+              { id: 'soon', label: '未来 7 天' },
+              { id: 'later', label: '稍后' },
+              { id: null, label: '无日期' },
+            ]}
+            onMoveToGroup={(ids, groupId) =>
+              moveTodosToBucket(ids, bucketToDueDateKey(groupId ?? 'no-date'))
+            }
+            moveTitle="移动到日期分组"
+          />
+        ) : (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
           {openTodos.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>暂时没有未完成待办</Text>
@@ -234,7 +243,8 @@ export function TasksScreen() {
                       todo={todo}
                       onToggle={handleToggle}
                       onPress={openEditor}
-                      onLongPress={() => enterSelectMode(todo.id)}
+                      onLongPress={() => setActionTodoId(todo.id)}
+                      onPickDue={(item) => setDueTodoId(item.id)}
                     />
                   ))}
                 </Animated.View>
@@ -256,14 +266,40 @@ export function TasksScreen() {
                     todo={todo}
                     onToggle={handleToggle}
                     onPress={openEditor}
-                    onLongPress={() => enterSelectMode(todo.id)}
+                    onLongPress={() => setActionTodoId(todo.id)}
                   />
                 ))}
               </Animated.View>
             </AccordionSection>
           ) : null}
         </ScrollView>
+        )}
 
+        <ItemActionSheet
+          visible={dueTodo !== null}
+          title={dueTodo?.title ?? ''}
+          subtitle="不改内容，只改截止时间"
+          actions={[
+            { label: '今天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('today')); } } },
+            { label: '明天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('tomorrow')); } } },
+            { label: '未来 7 天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('soon')); } } },
+            { label: '稍后', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('later')); } } },
+            { label: '无日期', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('no-date')); } } },
+            { label: '自定义时间…', onPress: () => { if (dueTodo) { openEditor(dueTodo); } } },
+          ]}
+          onClose={() => setDueTodoId(null)}
+        />
+        <ItemActionSheet
+          visible={actionTodo !== null}
+          title={actionTodo?.title ?? ''}
+          subtitle="长按后可以改信息、进整理或删掉它"
+          actions={[
+            { label: '编辑信息', onPress: () => { if (actionTodo) { openEditor(actionTodo); } } },
+            { label: '多选整理', onPress: () => { if (actionTodo) { enterSelectMode(actionTodo.id); } } },
+            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) { deleteTodo(actionTodo.id); } } },
+          ]}
+          onClose={() => setActionTodoId(null)}
+        />
         <TodoEditorModal
           visible={editorVisible}
           todo={editingTodo}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   LayoutChangeEvent,
@@ -40,6 +40,10 @@ type DraggableListProps = {
   onToggleSelect?: (id: string) => void;
   emptyText?: string;
   contentPaddingBottom?: number;
+  /** 打开整理时保持原来的滚动位置。 */
+  initialScrollY?: number;
+  /** 拖到列表上下边缘时自动滚动，长列表也能一次拖到底。 */
+  autoScroll?: boolean;
 };
 
 const GROUP_ROW_HEIGHT = 46;
@@ -47,6 +51,9 @@ const ITEM_ROW_HEIGHT = 62;
 /** 手指移动超过这个距离才算“拖动”，轻触把手只会切换选中。 */
 const DRAG_THRESHOLD = 6;
 const SHIFT_DURATION = 140;
+/** 自动滚动的触发边距与速度（像素）。 */
+const AUTO_SCROLL_ZONE = 90;
+const AUTO_SCROLL_STEP = 18;
 
 const rowKey = (row: { kind: 'group' | 'item'; id: string }) => `${row.kind}:${row.id}`;
 
@@ -55,7 +62,7 @@ const rowKey = (row: { kind: 'group' | 'item'; id: string }) => `${row.kind}:${r
  *
  * - 点按整行切换选中；按住右侧把手并移动超过 6px 才开始拖动，避免误触重排。
  * - 拖动时其余行实时让出位置，能提前看到落点；目标分组会高亮。
- * - 松手一次性落位，避免实时重排造成的抖动。
+ * - 拖到上下边缘自动滚动；松手一次性落位，避免实时重排造成的抖动。
  */
 export function DraggableList({
   groups,
@@ -64,6 +71,8 @@ export function DraggableList({
   onToggleSelect,
   emptyText = '这里还没有内容',
   contentPaddingBottom = 140,
+  initialScrollY = 0,
+  autoScroll = false,
 }: DraggableListProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -87,6 +96,19 @@ export function DraggableList({
   /** 每条行相对基础位置的让位偏移。 */
   const shiftsRef = useRef(new Map<string, Animated.Value>());
   const previewIdsRef = useRef('');
+
+  const scrollRef = useRef<ScrollView>(null);
+  const wrapperRef = useRef<View>(null);
+  /** 列表在屏幕坐标里的顶部位置，用来把 pageY 换算成内容坐标。 */
+  const listTopRef = useRef(0);
+  const scrollYRef = useRef(initialScrollY);
+  const viewportHeightRef = useRef(0);
+
+  useEffect(() => {
+    wrapperRef.current?.measureInWindow((_x, y) => {
+      listTopRef.current = y;
+    });
+  }, []);
 
   const shiftFor = (key: string) => {
     let value = shiftsRef.current.get(key);
@@ -210,13 +232,43 @@ export function DraggableList({
     return next;
   }, [dropIndexFor, targetGroupFor]);
 
+  const scrollBy = useCallback((delta: number) => {
+    const next = Math.max(0, scrollYRef.current + delta);
+    scrollYRef.current = next;
+    scrollRef.current?.scrollTo({ y: next, animated: false });
+    return next;
+  }, []);
+
+  /** 手指靠近上下边缘时滚动列表，并把被拖行一起带着走。 */
+  const autoScrollFor = useCallback(
+    (contentY: number) => {
+      if (!autoScroll || viewportHeightRef.current === 0) {
+        return 0;
+      }
+      const viewportTop = scrollYRef.current;
+      const viewportBottom = viewportTop + viewportHeightRef.current;
+      if (contentY < viewportTop + AUTO_SCROLL_ZONE) {
+        return scrollBy(-AUTO_SCROLL_STEP) - viewportTop;
+      }
+      if (contentY > viewportBottom - AUTO_SCROLL_ZONE) {
+        return scrollBy(AUTO_SCROLL_STEP) - viewportTop;
+      }
+      return 0;
+    },
+    [autoScroll, scrollBy]
+  );
+
   const startDrag = useCallback(
     (itemId: string, pageY: number) => {
+      wrapperRef.current?.measureInWindow((_x, y) => {
+        listTopRef.current = y;
+      });
       const row = rowsRef.current.find((entry) => entry.kind === 'item' && entry.id === itemId);
       if (!row) {
         return;
       }
-      grabOffsetRef.current = pageY - row.y;
+      const contentY = pageY - listTopRef.current + scrollYRef.current;
+      grabOffsetRef.current = contentY - row.y;
       draggedHeightRef.current = row.height;
       dragCenterRef.current = row.y + row.height / 2;
       dropIndexRef.current = null;
@@ -230,7 +282,9 @@ export function DraggableList({
 
   const moveDrag = useCallback(
     (itemId: string, pageY: number) => {
-      const top = Math.max(0, pageY - grabOffsetRef.current);
+      const contentY = pageY - listTopRef.current + scrollYRef.current;
+      const scrolled = autoScrollFor(contentY);
+      const top = Math.max(0, contentY - scrolled - grabOffsetRef.current);
       dragTop.setValue(top);
       dragCenterRef.current = top + draggedHeightRef.current / 2;
       dropIndexRef.current = dropIndexFor(dragCenterRef.current, itemId);
@@ -245,7 +299,7 @@ export function DraggableList({
         }
       }
     },
-    [buildPreview, dragTop, dropIndexFor, previewShift]
+    [autoScrollFor, buildPreview, dragTop, dropIndexFor, previewShift]
   );
 
   const endDrag = useCallback(
@@ -272,66 +326,85 @@ export function DraggableList({
   const totalHeight = rows.length > 0 ? rows[rows.length - 1].y + rows[rows.length - 1].height : 0;
 
   return (
-    <ScrollView
-      scrollEnabled={scrollEnabled}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: contentPaddingBottom }}
+    <View
+      ref={wrapperRef}
+      style={styles.wrapper}
+      onLayout={() => {
+        wrapperRef.current?.measureInWindow((_x, y) => {
+          listTopRef.current = y;
+        });
+      }}
     >
-      {rows.length === 0 ? (
-        <Text style={styles.empty}>{emptyText}</Text>
-      ) : (
-        <View style={{ height: totalHeight }}>
-          {rows.map((row) => {
-            if (row.kind === 'group') {
-              const isDropTarget = activeId !== null && dropGroupId === row.id;
+      <ScrollView
+        ref={scrollRef}
+        scrollEnabled={scrollEnabled}
+        showsVerticalScrollIndicator={false}
+        contentOffset={{ x: 0, y: initialScrollY }}
+        contentContainerStyle={{ paddingBottom: contentPaddingBottom }}
+        onScroll={(event) => {
+          scrollYRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+        onLayout={(event) => {
+          viewportHeightRef.current = Math.round(event.nativeEvent.layout.height);
+        }}
+      >
+        {rows.length === 0 ? (
+          <Text style={styles.empty}>{emptyText}</Text>
+        ) : (
+          <View style={{ height: totalHeight }}>
+            {rows.map((row) => {
+              if (row.kind === 'group') {
+                const isDropTarget = activeId !== null && dropGroupId === row.id;
+                return (
+                  <Animated.View
+                    key={rowKey(row)}
+                    onLayout={(event) => handleLayout(`group:${row.id}`, event)}
+                    style={[
+                      styles.groupRow,
+                      { top: row.y, transform: [{ translateY: shiftFor(rowKey(row)) }] },
+                    ]}
+                  >
+                    <Text style={[styles.groupTitle, isDropTarget && styles.groupTitleActive]}>{row.title}</Text>
+                    <Text style={[styles.groupCount, isDropTarget && styles.groupTitleActive]}>
+                      {orderedItems.filter((item) => item.groupId === row.id).length}
+                    </Text>
+                  </Animated.View>
+                );
+              }
+
+              const active = row.id === activeId;
               return (
                 <Animated.View
                   key={rowKey(row)}
-                  onLayout={(event) => handleLayout(`group:${row.id}`, event)}
+                  onLayout={(event) => handleLayout(`item:${row.id}`, event)}
                   style={[
-                    styles.groupRow,
-                    { top: row.y, transform: [{ translateY: shiftFor(rowKey(row)) }] },
+                    styles.itemSlot,
+                    {
+                      top: active ? dragTop : row.y,
+                      zIndex: active ? 3 : 1,
+                      transform: active ? undefined : [{ translateY: shiftFor(rowKey(row)) }],
+                    },
                   ]}
                 >
-                  <Text style={[styles.groupTitle, isDropTarget && styles.groupTitleActive]}>{row.title}</Text>
-                  <Text style={[styles.groupCount, isDropTarget && styles.groupTitleActive]}>
-                    {orderedItems.filter((item) => item.groupId === row.id).length}
-                  </Text>
+                  <DragHandleRow
+                    item={row.item}
+                    active={active}
+                    lift={lift}
+                    onStart={startDrag}
+                    onMove={moveDrag}
+                    onEnd={endDrag}
+                    onToggleSelect={onToggleSelect}
+                    styles={styles}
+                    theme={theme}
+                  />
                 </Animated.View>
               );
-            }
-
-            const active = row.id === activeId;
-            return (
-              <Animated.View
-                key={rowKey(row)}
-                onLayout={(event) => handleLayout(`item:${row.id}`, event)}
-                style={[
-                  styles.itemSlot,
-                  {
-                    top: active ? dragTop : row.y,
-                    zIndex: active ? 3 : 1,
-                    transform: active ? undefined : [{ translateY: shiftFor(rowKey(row)) }],
-                  },
-                ]}
-              >
-                <DragHandleRow
-                  item={row.item}
-                  active={active}
-                  lift={lift}
-                  onStart={startDrag}
-                  onMove={moveDrag}
-                  onEnd={endDrag}
-                  onToggleSelect={onToggleSelect}
-                  styles={styles}
-                  theme={theme}
-                />
-              </Animated.View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
+            })}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -443,6 +516,7 @@ function DragHandleRow({
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
+    wrapper: { flex: 1 },
     empty: { padding: 18, fontSize: 13, color: theme.colors.textSecondary },
     groupRow: {
       position: 'absolute',

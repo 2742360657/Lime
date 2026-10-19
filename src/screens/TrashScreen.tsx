@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { ItemActionSheet } from '../components/ItemActionSheet';
+import { OrganizePanel } from '../components/OrganizePanel';
+import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationTarget } from '../navigation/types';
@@ -16,7 +18,14 @@ export function TrashScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const [actionMemoId, setActionMemoId] = useState<string | null>(null);
+  const actionMemo = trashedMemos.find((memo) => memo.id === actionMemoId) ?? null;
+
+  const scrollYRef = useRef(0);
+  const [organizeScrollY, setOrganizeScrollY] = useState(0);
+
   const enterSelectMode = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedIds([id]);
     setSelectMode(true);
   };
@@ -26,35 +35,6 @@ export function TrashScreen() {
 
   const groupTitle = (groupId: string | null) =>
     memoGroups.find((group) => group.id === groupId)?.name ?? '未分类';
-
-  if (selectMode) {
-    return (
-      <MultiSelectBoard
-        title="整理回收站"
-        hint="点按选中后批量删除，删除后不可恢复"
-        onClose={() => { setSelectMode(false); setSelectedIds([]); }}
-        items={trashedMemos.map((memo) => ({
-          id: memo.id,
-          groupId: '__trash__',
-          label: memo.title || '未命名备忘录',
-          subtitle: `原分类：${groupTitle(memo.groupId)}`,
-          leading: (
-            <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
-          ),
-        }))}
-        groups={[{ id: '__trash__', title: '回收站', acceptsDrop: false }]}
-        selectedIds={selectedIds}
-        onSetSelection={setSelectedIds}
-        onCommit={() => {}}
-        onDelete={(ids) => {
-          purgeMemos(ids);
-          setSelectedIds([]);
-          setSelectMode(false);
-        }}
-        deleteLabel="彻底删除"
-      />
-    );
-  }
 
   return (
     <ScreenScaffold
@@ -74,7 +54,39 @@ export function TrashScreen() {
       ]}
     >
       <View style={styles.screen}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {selectMode ? (
+          <OrganizePanel
+            title="整理回收站"
+            hint="点按选中后可彻底删除，删除后不可恢复"
+            initialScrollY={organizeScrollY}
+            onClose={() => { setSelectMode(false); setSelectedIds([]); }}
+            items={trashedMemos.map((memo) => ({
+              id: memo.id,
+              groupId: '__trash__',
+              label: memo.title || '未命名备忘录',
+              subtitle: `原分类：${groupTitle(memo.groupId)}`,
+              leading: (
+                <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
+              ),
+            }))}
+            groups={[{ id: '__trash__', title: '回收站', acceptsDrop: false }]}
+            selectedIds={selectedIds}
+            onSetSelection={setSelectedIds}
+            onCommit={() => {}}
+            onDelete={(ids) => {
+              purgeMemos(ids);
+              setSelectedIds([]);
+              setSelectMode(false);
+            }}
+            deleteLabel="彻底删除"
+          />
+        ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
+        >
           <View style={styles.header}>
             <Text style={styles.count}>{trashedMemos.length} 条已删除</Text>
             {trashedMemos.length > 0 ? (
@@ -102,7 +114,7 @@ export function TrashScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`恢复 ${memo.title || '未命名备忘录'}`}
                   onPress={() => restoreMemos([memo.id])}
-                  onLongPress={() => enterSelectMode(memo.id)}
+                  onLongPress={() => setActionMemoId(memo.id)}
                   delayLongPress={360}
                   style={styles.row}
                 >
@@ -121,6 +133,19 @@ export function TrashScreen() {
             </View>
           )}
         </ScrollView>
+        )}
+
+        <ItemActionSheet
+          visible={actionMemo !== null}
+          title={actionMemo?.title || '未命名备忘录'}
+          subtitle="长按后可以恢复、进整理或彻底删除"
+          actions={[
+            { label: '恢复这条', onPress: () => { if (actionMemo) { restoreMemos([actionMemo.id]); } } },
+            { label: '多选整理', onPress: () => { if (actionMemo) { enterSelectMode(actionMemo.id); } } },
+            { label: '彻底删除', danger: true, onPress: () => { if (actionMemo) { purgeMemos([actionMemo.id]); } } },
+          ]}
+          onClose={() => setActionMemoId(null)}
+        />
       </View>
     </ScreenScaffold>
   );

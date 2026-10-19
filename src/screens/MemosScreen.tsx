@@ -12,7 +12,9 @@ import {
 
 import { GroupManagerModal } from '../components/GroupManagerModal';
 import { GroupPickerModal } from '../components/GroupPickerModal';
-import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { ItemActionSheet } from '../components/ItemActionSheet';
+import { OrganizePanel } from '../components/OrganizePanel';
+import { SelectCircle } from '../components/SelectCircle';
 import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
@@ -104,7 +106,14 @@ export function MemosScreen() {
   );
 
   /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const [actionMemoId, setActionMemoId] = useState<string | null>(null);
+  const actionMemo = list.find((memo) => memo.id === actionMemoId) ?? null;
+
+  const scrollYRef = useRef(0);
+  const [organizeScrollY, setOrganizeScrollY] = useState(0);
+
   const enterSelectMode = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedIds([id]);
     setSelectMode(true);
   };
@@ -144,52 +153,6 @@ export function MemosScreen() {
     }
   };
 
-  if (selectMode) {
-    return (
-      <MultiSelectBoard
-        title="整理备忘录"
-        hint="点按备忘录选中 · 拖到其他分类即可移动"
-        onClose={() => { setSelectMode(false); setSelectedIds([]); }}
-        items={list.map((memo) => ({
-          id: memo.id,
-          groupId: memo.groupId ?? UNCATEGORIZED_FILTER,
-          label: memo.title || '未命名备忘录',
-          subtitle: memo.body.trim().slice(0, 40) || '暂无正文',
-          leading: (
-            <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
-          ),
-        }))}
-        groups={[
-          { id: UNCATEGORIZED_FILTER, title: '未分类', acceptsDrop: true },
-          ...orderedGroups.map((group) => ({ id: group.id, title: group.name, acceptsDrop: true })),
-        ]}
-        selectedIds={selectedIds}
-        onSetSelection={setSelectedIds}
-        onCommit={(ordered) => {
-          ordered.forEach((entry) => {
-            moveMemosToGroup(
-              [entry.id],
-              entry.groupId === UNCATEGORIZED_FILTER ? null : entry.groupId
-            );
-          });
-          for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
-            reorderMemos(groupId === UNCATEGORIZED_FILTER ? null : groupId,
-              ordered.filter((entry) => entry.groupId === groupId).map((entry) => entry.id));
-          }
-        }}
-        onDelete={(ids) => {
-          trashMemos(ids);
-          setSelectedIds([]);
-          setSelectMode(false);
-        }}
-        groupOptions={groupOptions}
-        onMoveToGroup={moveMemosToGroup}
-        moveTitle="移动到分类"
-        deleteLabel="删除"
-      />
-    );
-  }
-
   return (
     <ScreenScaffold
       panelTitle="备忘录分类"
@@ -226,11 +189,58 @@ export function MemosScreen() {
         />
       ) : null}
       <View style={styles.screen}>
+        {selectMode ? (
+          <OrganizePanel
+            title="整理备忘录"
+            hint="点按备忘录选中 · 按住右侧把手拖动排序，拖到别的分类即可移动"
+            initialScrollY={organizeScrollY}
+            onClose={() => { setSelectMode(false); setSelectedIds([]); }}
+            items={list.map((memo) => ({
+              id: memo.id,
+              groupId: memo.groupId ?? UNCATEGORIZED_FILTER,
+              label: memo.title || '未命名备忘录',
+              subtitle: memo.body.trim().slice(0, 40) || '暂无正文',
+              leading: (
+                <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
+              ),
+            }))}
+            groups={[
+              { id: UNCATEGORIZED_FILTER, title: '未分类', acceptsDrop: true },
+              ...orderedGroups.map((group) => ({ id: group.id, title: group.name, acceptsDrop: true })),
+            ]}
+            selectedIds={selectedIds}
+            onSetSelection={setSelectedIds}
+            onCommit={(ordered) => {
+              ordered.forEach((entry) => {
+                const memo = list.find((item) => item.id === entry.id);
+                if (!memo) {
+                  return;
+                }
+                if ((memo.groupId ?? UNCATEGORIZED_FILTER) !== entry.groupId) {
+                  moveMemosToGroup([entry.id], entry.groupId === UNCATEGORIZED_FILTER ? null : entry.groupId);
+                }
+              });
+              for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
+                reorderMemos(groupId === UNCATEGORIZED_FILTER ? null : groupId,
+                  ordered.filter((entry) => entry.groupId === groupId).map((entry) => entry.id));
+              }
+            }}
+            onDelete={(ids) => {
+              trashMemos(ids);
+              setSelectedIds([]);
+              setSelectMode(false);
+            }}
+            groupOptions={groupOptions}
+            onMoveToGroup={moveMemosToGroup}
+            moveTitle="移动到分类"
+            deleteLabel="删除"
+          />
+        ) : (
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)}
+          onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }}
           scrollEventThrottle={16}
         >
           <TextInput
@@ -266,7 +276,7 @@ export function MemosScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`打开 ${memo.title || '未命名备忘录'}`}
                   onPress={() => setEditingId(memo.id)}
-                  onLongPress={() => enterSelectMode(memo.id)}
+                  onLongPress={() => setActionMemoId(memo.id)}
                   delayLongPress={360}
                   style={styles.card}
                 >
@@ -285,7 +295,19 @@ export function MemosScreen() {
             </Animated.View>
           )}
         </ScrollView>
+        )}
 
+        <ItemActionSheet
+          visible={actionMemo !== null}
+          title={actionMemo?.title || '未命名备忘录'}
+          subtitle="长按后可以改内容、进整理或移入回收站"
+          actions={[
+            { label: '编辑内容', onPress: () => { if (actionMemo) { setEditingId(actionMemo.id); } } },
+            { label: '多选整理', onPress: () => { if (actionMemo) { enterSelectMode(actionMemo.id); } } },
+            { label: '移入回收站', danger: true, onPress: () => { if (actionMemo) { trashMemos([actionMemo.id]); } } },
+          ]}
+          onClose={() => setActionMemoId(null)}
+        />
         <TextEntryModal
           visible={newGroupVisible}
           title="新建分类"
