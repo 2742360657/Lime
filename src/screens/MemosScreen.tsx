@@ -20,6 +20,7 @@ import { useBackHandler } from '../navigation/back';
 import type { NavigationTarget } from '../navigation/types';
 import { useNavigation } from '@react-navigation/native';
 import Animated from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
 import { useHabits } from '../state/HabitStore';
@@ -190,22 +191,14 @@ export function MemosScreen() {
       ]}
       fab={selectMode ? null : { label: '新建备忘录', onPress: createMemo }}
     >
-      {/* 编辑器用原生 Modal + slide 转场，与待办/习惯的编辑器保持一致；
-          onRequestClose 让系统返回键先走「保存/放弃」确认，而不是直接回首页。 */}
       {editingMemo ? (
-        <Modal
-          visible
-          animationType="slide"
-          onRequestClose={() => setEditingId(null)}
-        >
-          <MemoEditor
-            memo={editingMemo}
-            initialGroupId={editingMemo.groupId}
-            groupOptions={groupOptions}
-            onClose={() => setEditingId(null)}
-            onChange={(patch) => updateMemo(editingMemo.id, patch)}
-          />
-        </Modal>
+        <MemoEditor
+          memo={editingMemo}
+          initialGroupId={editingMemo.groupId}
+          groupOptions={groupOptions}
+          onClose={() => setEditingId(null)}
+          onChange={(patch) => updateMemo(editingMemo.id, patch)}
+        />
       ) : null}
       <View style={styles.screen}>
         <ScrollView
@@ -300,7 +293,7 @@ function formatMemoTime(timestamp: number) {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-/** 新建/编辑页：只有标题、分类和正文，返回时询问是否保存。 */
+/** 新建/编辑页：只有标题、分类和正文；返回时先确认保存，右上角也提供保存入口。 */
 function MemoEditor({
   memo,
   initialGroupId,
@@ -323,6 +316,7 @@ function MemoEditor({
   const dirty = title !== memo.title || body !== memo.body || groupId !== memo.groupId;
   const hasContent = title.trim() !== '' || body.trim() !== '';
 
+  // 输入停顿后自动写回，避免切走应用时丢掉正在编辑的内容。
   useEffect(() => {
     if (!dirty || !hasContent) {
       return;
@@ -337,14 +331,23 @@ function MemoEditor({
     onChange({ title, body, groupId });
   }, [body, groupId, onChange, title]);
 
+  const handleSave = useCallback(() => {
+    if (!hasContent) {
+      Alert.alert('还没有内容', '标题和正文都是空的，先写点内容再保存。');
+      return;
+    }
+    persist();
+    onClose();
+  }, [hasContent, onClose, persist]);
+
   const handleBack = useCallback(() => {
     if (!dirty) {
-      // 新建且没有任何内容：直接丢弃，不留下空条目。
+      // 没有改动：直接退出，不打断用户。
       onClose();
       return true;
     }
     if (!hasContent) {
-      Alert.alert('放弃这条备忘录？', '标题和正文都是空的，返回后将不会保存。', [
+      Alert.alert('放弃这条备忘录？', '标题和正文都是空的，返回后不会保存这次修改。', [
         { text: '继续编辑', style: 'cancel' },
         { text: '放弃', style: 'destructive', onPress: onClose },
       ]);
@@ -352,87 +355,94 @@ function MemoEditor({
     }
     Alert.alert('保存这条备忘录？', '返回前可以先保存当前内容。', [
       { text: '不保存', style: 'destructive', onPress: onClose },
-      {
-        text: '保存',
-        onPress: () => {
-          persist();
-          onClose();
-        },
-      },
+      { text: '保存', onPress: handleSave },
     ]);
     return true;
-  }, [dirty, hasContent, onClose, persist]);
+  }, [dirty, handleSave, hasContent, onClose]);
 
   // 编辑态优先消费系统返回，避免直接退出应用。
+  // 原生 Modal 的返回键由 onRequestClose 接管，所以两个入口都要走 handleBack。
   useBackHandler(handleBack);
 
   const groupLabel = groupOptions.find((option) => option.id === groupId)?.label ?? '未分类';
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.editorContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="返回备忘录列表"
-          onPress={handleBack}
-          hitSlop={12}
-          style={styles.backLink}
+    <Modal visible animationType="slide" onRequestClose={handleBack}>
+      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+        <View style={styles.editorHeader}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="返回备忘录列表"
+            onPress={handleBack}
+            hitSlop={12}
+            style={styles.backLink}
+          >
+            <Text style={styles.backLinkText}>‹ 返回</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="保存备忘录"
+            onPress={handleSave}
+            hitSlop={8}
+            style={styles.saveButton}
+          >
+            <Text style={styles.saveButtonText}>保存</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.editorContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.backLinkText}>‹ 返回</Text>
-        </TouchableOpacity>
+          <TextInput
+            accessibilityLabel="备忘录标题"
+            placeholder="标题"
+            placeholderTextColor={theme.colors.textMuted}
+            value={title}
+            onChangeText={setTitle}
+            style={styles.titleInput}
+          />
 
-        <TextInput
-          accessibilityLabel="备忘录标题"
-          placeholder="标题"
-          placeholderTextColor={theme.colors.textMuted}
-          value={title}
-          onChangeText={setTitle}
-          style={styles.titleInput}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="选择分类"
+            onPress={() => setPickerVisible(true)}
+            style={styles.groupField}
+          >
+            <Text style={styles.groupFieldLabel}>分类</Text>
+            <Text style={styles.groupFieldValue}>{groupLabel}</Text>
+          </TouchableOpacity>
+
+          <TextInput
+            accessibilityLabel="备忘录正文"
+            placeholder="开始记录…"
+            placeholderTextColor={theme.colors.textMuted}
+            value={body}
+            onChangeText={setBody}
+            multiline
+            textAlignVertical="top"
+            style={styles.bodyInput}
+          />
+        </ScrollView>
+
+        <GroupPickerModal
+          visible={pickerVisible}
+          title="选择分类"
+          selectedGroupId={groupId}
+          options={groupOptions}
+          nullLabel="未分类"
+          onClose={() => setPickerVisible(false)}
+          onSubmit={(next) => setGroupId(next)}
         />
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="选择分类"
-          onPress={() => setPickerVisible(true)}
-          style={styles.groupField}
-        >
-          <Text style={styles.groupFieldLabel}>分类</Text>
-          <Text style={styles.groupFieldValue}>{groupLabel}</Text>
-        </TouchableOpacity>
-
-        <TextInput
-          accessibilityLabel="备忘录正文"
-          placeholder="开始记录…"
-          placeholderTextColor={theme.colors.textMuted}
-          value={body}
-          onChangeText={setBody}
-          multiline
-          textAlignVertical="top"
-          style={styles.bodyInput}
-        />
-      </ScrollView>
-
-      <GroupPickerModal
-        visible={pickerVisible}
-        title="选择分类"
-        selectedGroupId={groupId}
-        options={groupOptions}
-        nullLabel="未分类"
-        onClose={() => setPickerVisible(false)}
-        onSubmit={(next) => setGroupId(next)}
-      />
-    </View>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    screenOuter: { flex: 1 },
-    screen: { flex: 1 },
+    screen: { flex: 1, backgroundColor: theme.colors.background },
     content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 16 },
     search: {
       color: theme.colors.textPrimary,
@@ -466,9 +476,24 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
     emptyHint: { fontSize: 12, color: theme.colors.textSecondary },
-    backLink: { alignSelf: 'flex-start', paddingVertical: 4, paddingRight: 12 },
+    editorHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 6,
+      paddingBottom: 6,
+    },
+    backLink: { paddingVertical: 8, paddingRight: 12 },
     backLinkText: { fontSize: 15, fontWeight: '700', color: theme.colors.primary },
-    editorContent: { padding: 20, gap: 14, paddingBottom: 80 },
+    saveButton: {
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      backgroundColor: theme.colors.primary,
+    },
+    saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
+    editorContent: { paddingHorizontal: 20, paddingTop: 8, gap: 14, paddingBottom: 40 },
     titleInput: {
       fontSize: 22,
       fontWeight: '800',
