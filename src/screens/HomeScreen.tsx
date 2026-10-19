@@ -12,6 +12,7 @@ import { HabitActionModal } from '../components/HabitActionModal';
 import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { UndoToast } from '../components/UndoToast';
@@ -253,7 +254,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
     scrollView: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 130, gap: 20 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 20 },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,

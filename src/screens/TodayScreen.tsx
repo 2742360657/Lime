@@ -8,6 +8,7 @@ import { AccordionSection } from '../components/AccordionSection';
 import { CheckinDetailModal } from '../components/CheckinDetailModal';
 import { HabitCard } from '../components/HabitCard';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -348,7 +349,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 130, gap: 22 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 22 },
     list: { gap: 8 },
     emptyText: { fontSize: 13, color: theme.colors.textSecondary },
     emptyCard: {

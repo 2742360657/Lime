@@ -6,6 +6,7 @@ import { LIST_LAYOUT } from '../theme/animation';
 
 import { AccordionSection } from '../components/AccordionSection';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -252,7 +253,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 130, gap: 22 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 22 },
     list: { gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,

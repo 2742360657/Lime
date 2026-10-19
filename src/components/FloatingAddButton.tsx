@@ -3,7 +3,11 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { useHabits } from '../state/HabitStore';
 
-const SIZE = 76;
+export const FAB_SIZE = 64;
+export const FAB_RIGHT = 20;
+export const FAB_BOTTOM = 20;
+/** 列表底部需要预留的空白：按钮顶部再留 24 的呼吸区。 */
+export const FAB_CLEARANCE = FAB_BOTTOM + FAB_SIZE + 24;
 
 /** 右下角悬浮新建按钮；与页面上其它按钮保持一致的可点性。 */
 export function FloatingAddButton({ label, onPress }: { label: string; onPress: () => void }) {
@@ -39,16 +43,16 @@ export function FloatingAddButton({ label, onPress }: { label: string; onPress: 
 const styles = StyleSheet.create({
   button: {
     position: 'absolute',
-    right: 22,
-    bottom: 104,
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
+    right: FAB_RIGHT,
+    bottom: FAB_BOTTOM,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
   },
-  circle: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, alignItems: 'center', justifyContent: 'center' },
+  circle: { width: FAB_SIZE, height: FAB_SIZE, borderRadius: FAB_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   plusIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   plusHorizontal: { position: 'absolute', width: 28, height: 3, borderRadius: 2, backgroundColor: '#FFFFFF' },
   plusVertical: { position: 'absolute', width: 3, height: 28, borderRadius: 2, backgroundColor: '#FFFFFF' },

@@ -13,6 +13,7 @@ import {
 import { GroupManagerModal } from '../components/GroupManagerModal';
 import { GroupPickerModal } from '../components/GroupPickerModal';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { FAB_CLEARANCE } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { useBackHandler } from '../navigation/back';
@@ -432,7 +433,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 150, gap: 16 },
+    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 16 },
     search: {
       color: theme.colors.textPrimary,
       backgroundColor: theme.colors.surface,
