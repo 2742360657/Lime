@@ -19,7 +19,7 @@ import {
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 
 import { AppNavigator } from './src/components/AppNavigator';
-import { useBackHandler, useSystemBack } from './src/navigation/back';
+import { useBackHandler } from './src/navigation/back';
 import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { MemosScreen } from './src/screens/MemosScreen';
@@ -59,8 +59,6 @@ function AppShell() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
-
-  useSystemBack();
 
   useEffect(() => {
     if (!error) {
