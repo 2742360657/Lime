@@ -12,7 +12,7 @@ import { HabitActionModal } from '../components/HabitActionModal';
 import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
-import { FAB_CLEARANCE } from '../components/FloatingAddButton';
+import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { UndoToast } from '../components/UndoToast';
@@ -165,7 +165,7 @@ export function HomeScreen() {
       fab={{ label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
     >
       <View style={styles.screen}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
           {habits.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>还没有习惯</Text>

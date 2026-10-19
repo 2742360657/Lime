@@ -13,7 +13,7 @@ import {
 import { GroupManagerModal } from '../components/GroupManagerModal';
 import { GroupPickerModal } from '../components/GroupPickerModal';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
-import { FAB_CLEARANCE } from '../components/FloatingAddButton';
+import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { useBackHandler } from '../navigation/back';
@@ -227,6 +227,8 @@ export function MemosScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={16}
         >
           <TextInput
             accessibilityLabel="搜索备忘录"

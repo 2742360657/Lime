@@ -8,7 +8,7 @@ import { AccordionSection } from '../components/AccordionSection';
 import { CheckinDetailModal } from '../components/CheckinDetailModal';
 import { HabitCard } from '../components/HabitCard';
 import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
-import { FAB_CLEARANCE } from '../components/FloatingAddButton';
+import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -242,7 +242,7 @@ export function TodayScreen() {
       panelItems={[]}
       fab={{ label: '新建待办', onPress: () => openEditor(null) }}
     >
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
           <AccordionSection
             title="待办"
             meta={`${todayTodoIds.length} 项`}
