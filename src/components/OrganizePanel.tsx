@@ -1,17 +1,15 @@
-import { Alert } from 'react-native';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { useBackHandler } from '../navigation/back';
 import { useHabits } from '../state/HabitStore';
-import { SCREEN_ENTERING } from '../theme/animation';
+import { LIST_LAYOUT } from '../theme/animation';
 import { DraggableList, DragGroup, DragItem } from './DraggableList';
 import { GroupPickerModal } from './GroupPickerModal';
 
-export type MultiSelectTarget = 'habits' | 'memos' | 'todos';
-
-type MultiSelectBoardProps = {
+type OrganizePanelProps = {
+  /** 可选标题，仅在多选页顶部展示（例如「整理待办」）。 */
   title: string;
   onClose: () => void;
   items: DragItem[];
@@ -25,15 +23,21 @@ type MultiSelectBoardProps = {
   onMoveToGroup?: (ids: string[], groupId: string | null) => void;
   moveTitle?: string;
   deleteLabel?: string;
-  /** 整理模式的操作说明，展示在标题栏下方。 */
+  /** 整理模式的操作说明，展示在工具栏下方。 */
   hint?: string;
+  /** 进入整理时滚动到的位置，保持和之前看到的一致。 */
+  initialScrollY?: number;
 };
 
 /**
- * 多选页：常态下条目行只显示“选择圆圈 + 名称”，
- * 右侧两条横线仅在此页出现，长按可拖动排序、跨分组移动。
+ * 原地整理面板：不替换整页，直接渲染在当前页面的内容区里，
+ * 顶部资料条与底部导航保持可见，退出后回到原来的列表。
+ *
+ * - 点按整行切换选中；按住右侧把手拖动排序。
+ * - 拖动时其余行实时让位、目标分组高亮。
+ * - 松手一次性落位。
  */
-export function MultiSelectBoard({
+export function OrganizePanel({
   title,
   onClose,
   items,
@@ -47,12 +51,16 @@ export function MultiSelectBoard({
   moveTitle = '移动到分组',
   deleteLabel = '删除',
   hint = '点按条目选中 · 按住右侧把手拖动排序',
-}: MultiSelectBoardProps) {
+  initialScrollY = 0,
+}: OrganizePanelProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [moveVisible, setMoveVisible] = useState(false);
 
-  useBackHandler(() => { onClose(); return true; });
+  useBackHandler(() => {
+    onClose();
+    return true;
+  });
 
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allSelected = items.length > 0 && selected.size === items.length;
@@ -73,7 +81,7 @@ export function MultiSelectBoard({
   };
 
   return (
-    <Animated.View entering={SCREEN_ENTERING} style={styles.board}>
+    <Animated.View layout={LIST_LAYOUT} style={styles.panel}>
       <View style={styles.toolbar}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="完成整理" onPress={onClose} style={styles.action}>
           <Text style={styles.actionText}>完成</Text>
@@ -92,6 +100,8 @@ export function MultiSelectBoard({
         </Text>
         {canMove ? (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="移动分组"
             disabled={selectedIds.length === 0}
             onPress={() => setMoveVisible(true)}
             style={[styles.action, selectedIds.length === 0 && styles.actionDisabled]}
@@ -100,6 +110,8 @@ export function MultiSelectBoard({
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={`${deleteLabel}选中`}
           disabled={selectedIds.length === 0}
           onPress={handleDelete}
           style={[styles.action, styles.dangerAction, selectedIds.length === 0 && styles.actionDisabled]}
@@ -120,6 +132,8 @@ export function MultiSelectBoard({
         onToggleSelect={toggleSelected}
         emptyText="没有可整理的条目"
         contentPaddingBottom={160}
+        initialScrollY={initialScrollY}
+        autoScroll
       />
 
       {canMove ? (
@@ -140,7 +154,7 @@ export function MultiSelectBoard({
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    board: { flex: 1, backgroundColor: theme.colors.background },
+    panel: { flex: 1, backgroundColor: theme.colors.background },
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -178,58 +192,5 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     actionText: { fontSize: 13, fontWeight: '800', color: theme.colors.primary },
     dangerAction: { backgroundColor: theme.colors.dangerSoft },
     dangerActionText: { color: theme.colors.danger },
-  });
-}
-
-/** 多选页条目左侧的选择圆圈。传了 onPress 才可点，否则只作为选中状态指示。 */
-export function SelectCircle({
-  checked,
-  accessibilityLabel,
-  onPress,
-}: {
-  checked: boolean;
-  accessibilityLabel: string;
-  onPress?: () => void;
-}) {
-  const { theme } = useHabits();
-  const styles = useMemo(() => createCircleStyles(theme), [theme]);
-  const circleStyle = [styles.circle, checked && styles.circleOn];
-  const tick = checked ? <Text style={styles.tick}>✓</Text> : null;
-
-  if (!onPress) {
-    return (
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={circleStyle}>
-        {tick}
-      </View>
-    );
-  }
-
-  return (
-    <TouchableOpacity
-      accessibilityRole="checkbox"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ checked }}
-      onPress={onPress}
-      style={circleStyle}
-    >
-      {tick}
-    </TouchableOpacity>
-  );
-}
-
-function createCircleStyles(theme: ReturnType<typeof useHabits>['theme']) {
-  return StyleSheet.create({
-    circle: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    circleOn: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
-    tick: { fontSize: 14, fontWeight: '900', color: theme.colors.white },
   });
 }

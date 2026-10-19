@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -11,7 +11,8 @@ import { GroupManagerModal } from '../components/GroupManagerModal';
 import { HabitActionModal } from '../components/HabitActionModal';
 import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
-import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { OrganizePanel } from '../components/OrganizePanel';
+import { SelectCircle } from '../components/SelectCircle';
 import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
@@ -77,7 +78,11 @@ export function HomeScreen() {
   };
   const dismissUndo = useCallback(() => setUndoState(null), []);
   /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const scrollYRef = useRef(0);
+  const [organizeScrollY, setOrganizeScrollY] = useState(0);
+
   const enterSelectMode = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedIds([id]);
     setSelectMode(true);
   };
@@ -114,37 +119,6 @@ export function HomeScreen() {
     [orderedGroups]
   );
 
-  if (selectMode) {
-    return (
-      <MultiSelectBoard
-        title="整理习惯"
-        hint="点按习惯选中 · 拖动右侧把手排序或换分组"
-        onClose={() => { setSelectMode(false); setSelectedIds([]); }}
-        items={boardItems}
-        groups={boardGroups}
-        selectedIds={selectedIds}
-        onSetSelection={setSelectedIds}
-        onCommit={(ordered) => {
-          ordered.forEach((entry) => {
-            moveHabitsToGroup([entry.id], entry.groupId === 'ungrouped' ? null : entry.groupId);
-          });
-          for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
-            reorderHabits(groupId === 'ungrouped' ? null : groupId,
-              ordered.filter((entry) => entry.groupId === groupId).map((entry) => entry.id));
-          }
-        }}
-        onDelete={(ids) => {
-          deleteHabits(ids);
-          setSelectedIds([]);
-          setSelectMode(false);
-        }}
-        groupOptions={groupOptions}
-        onMoveToGroup={moveHabitsToGroup}
-        moveTitle="移动到分组"
-      />
-    );
-  }
-
   return (
     <ScreenScaffold
       panelTitle="习惯分组"
@@ -165,10 +139,49 @@ export function HomeScreen() {
           onPress: () => setArchive(true),
         },
       ]}
-      fab={{ label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
+      fab={selectMode ? null : { label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
     >
       <View style={styles.screen}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
+        {selectMode ? (
+          <OrganizePanel
+            title="整理习惯"
+            hint="点按习惯选中 · 按住右侧把手拖动排序或换分组"
+            initialScrollY={organizeScrollY}
+            onClose={() => { setSelectMode(false); setSelectedIds([]); }}
+            items={boardItems}
+            groups={boardGroups}
+            selectedIds={selectedIds}
+            onSetSelection={setSelectedIds}
+            onCommit={(ordered) => {
+              const nextGroup = new Map(ordered.map((entry) => [entry.id, entry.groupId]));
+              ordered.forEach((entry) => {
+                const habit = habits.find((item) => item.id === entry.id);
+                if (!habit) {
+                  return;
+                }
+                const currentGroup = habit.groupId ?? 'ungrouped';
+                if (currentGroup !== entry.groupId) {
+                  moveHabitsToGroup([entry.id], entry.groupId === 'ungrouped' ? null : entry.groupId);
+                }
+              });
+              for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
+                reorderHabits(
+                  groupId === 'ungrouped' ? null : groupId,
+                  ordered.filter((entry) => nextGroup.get(entry.id) === groupId).map((entry) => entry.id)
+                );
+              }
+            }}
+            onDelete={(ids) => {
+              deleteHabits(ids);
+              setSelectedIds([]);
+              setSelectMode(false);
+            }}
+            groupOptions={groupOptions}
+            onMoveToGroup={moveHabitsToGroup}
+            moveTitle="移动到分组"
+          />
+        ) : (
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
           {habits.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>还没有习惯</Text>
@@ -202,7 +215,7 @@ export function HomeScreen() {
                             onAddCheckin={handleAddCheckin}
                             onOpenDetails={setHistoryHabitId}
                             onOpenActions={setActionHabit}
-                            onLongPress={() => enterSelectMode(habit.id)}
+                            onLongPress={() => setActionHabit(habit)}
                           />
                         ))}
                       </Animated.View>
@@ -212,7 +225,7 @@ export function HomeScreen() {
               })
           )}
         </ScrollView>
-
+        )}
         <GroupManagerModal visible={manage} onClose={() => setManage(false)} />
         <ArchivedHabitsModal visible={archive} onClose={() => setArchive(false)} />
         <AddHabitModal visible={isAddHabitVisible} onClose={() => setAddHabitVisible(false)} />
@@ -231,6 +244,7 @@ export function HomeScreen() {
           onClose={() => setActionHabit(null)}
           onEdit={setEditingHabitId}
           onOpenHistory={setHistoryHabitId}
+          onOrganize={(habitId) => { setActionHabit(null); enterSelectMode(habitId); }}
         />
         <HabitHistoryModal
           habitId={historyHabitId}

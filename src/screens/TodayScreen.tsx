@@ -1,13 +1,16 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_LAYOUT } from '../theme/animation';
 
 import { AccordionSection } from '../components/AccordionSection';
+import { AddHabitModal } from '../components/AddHabitModal';
 import { CheckinDetailModal } from '../components/CheckinDetailModal';
 import { HabitCard } from '../components/HabitCard';
-import { MultiSelectBoard, SelectCircle } from '../components/MultiSelectBoard';
+import { ItemActionSheet } from '../components/ItemActionSheet';
+import { OrganizePanel } from '../components/OrganizePanel';
+import { SelectCircle } from '../components/SelectCircle';
 import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
@@ -47,11 +50,13 @@ export function TodayScreen() {
     moveHabitsToGroup,
     reorderHabits,
     deleteHabits,
+    archiveHabit,
   } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [detailHabitId, setDetailHabitId] = useState<string | null>(null);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState>(null);
   const [todoSelectMode, setTodoSelectMode] = useState(false);
   const [habitSelectMode, setHabitSelectMode] = useState(false);
@@ -95,12 +100,24 @@ export function TodayScreen() {
   };
 
   /** 长按直接进入整理模式，并预选被长按的那一条。 */
+  const [actionTodoId, setActionTodoId] = useState<string | null>(null);
+  const actionTodo = todos.find((todo) => todo.id === actionTodoId) ?? null;
+  const [dueTodoId, setDueTodoId] = useState<string | null>(null);
+  const dueTodo = todos.find((todo) => todo.id === dueTodoId) ?? null;
+  const [actionHabitId, setActionHabitId] = useState<string | null>(null);
+  const actionHabit = habits.find((habit) => habit.id === actionHabitId) ?? null;
+
+  const scrollYRef = useRef(0);
+  const [organizeScrollY, setOrganizeScrollY] = useState(0);
+
   const enterTodoSelect = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedTodoIds([id]);
     setTodoSelectMode(true);
   };
 
   const enterHabitSelect = (id: string) => {
+    setOrganizeScrollY(scrollYRef.current);
     setSelectedHabitIds([id]);
     setHabitSelectMode(true);
   };
@@ -168,9 +185,15 @@ export function TodayScreen() {
     [orderedHabits, selectedHabitIds]
   );
 
-  if (todoSelectMode) {
-    return (
-      <MultiSelectBoard
+  return (
+    <View style={styles.screen}>
+      <ScreenScaffold
+      panelTitle="首页"
+      panelItems={[]}
+      fab={todoSelectMode || habitSelectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
+    >
+        {todoSelectMode ? (
+          <OrganizePanel
         title="整理待办"
         hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
         onClose={() => { setTodoSelectMode(false); setSelectedTodoIds([]); }}
@@ -238,13 +261,9 @@ export function TodayScreen() {
         onMoveToGroup={(ids, groupId) => moveTodosToBucket(ids, bucketToDueDateKey(groupId ?? 'no-date'))}
         moveTitle="移动到日期分组"
         deleteLabel="删除"
-      />
-    );
-  }
-
-  if (habitSelectMode) {
-    return (
-      <MultiSelectBoard
+                />
+        ) : habitSelectMode ? (
+          <OrganizePanel
         title="整理习惯"
         hint="点按习惯选中 · 拖动右侧把手排序或换分组"
         onClose={() => { setHabitSelectMode(false); setSelectedHabitIds([]); }}
@@ -269,18 +288,9 @@ export function TodayScreen() {
         groupOptions={groupOptions}
         onMoveToGroup={moveHabitsToGroup}
         moveTitle="移动到分组"
-      />
-    );
-  }
-
-  return (
-    <View style={styles.screen}>
-      <ScreenScaffold
-      panelTitle="首页"
-      panelItems={[]}
-      fab={{ label: '新建待办', onPress: () => openEditor(null) }}
-    >
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => handleFabScroll(event.nativeEvent.contentOffset.y)} scrollEventThrottle={16}>
+                />
+        ) : (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
           <AccordionSection
             title="待办"
             meta={`${todayTodoIds.length} 项`}
@@ -299,7 +309,8 @@ export function TodayScreen() {
               >
                 <Animated.View layout={LIST_LAYOUT} style={styles.list}>
                   {bucket.todos.map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => enterTodoSelect(todo.id)} compact />
+                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
+                    onPickDue={(item) => setDueTodoId(item.id)} compact />
                   ))}
                 </Animated.View>
               </AccordionSection>
@@ -313,7 +324,8 @@ export function TodayScreen() {
               >
                 <Animated.View layout={LIST_LAYOUT} style={styles.list}>
                   {noDateTodos.slice(0, 3).map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => enterTodoSelect(todo.id)} compact />
+                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
+                    onPickDue={(item) => setDueTodoId(item.id)} compact />
                   ))}
                 </Animated.View>
               </AccordionSection>
@@ -340,7 +352,7 @@ export function TodayScreen() {
                     habit={habit}
                     compact
                     onOpenDetails={setDetailHabitId}
-                    onLongPress={() => enterHabitSelect(habit.id)}
+                    onLongPress={() => setActionHabitId(habit.id)}
                     onAddCheckin={(habitId) => {
                       const recordId = addCheckinNow(habitId);
                       setUndoState({ kind: 'checkin', habitId, recordId });
@@ -351,6 +363,7 @@ export function TodayScreen() {
             )}
           </AccordionSection>
         </ScrollView>
+        )}
 
         <TodoEditorModal
           visible={editorVisible}
@@ -359,6 +372,11 @@ export function TodayScreen() {
             setEditorVisible(false);
             setEditingTodo(null);
           }}
+        />
+        <AddHabitModal
+          habit={editingHabitId ? habits.find((habit) => habit.id === editingHabitId) ?? null : null}
+          visible={editingHabitId !== null}
+          onClose={() => setEditingHabitId(null)}
         />
         <CheckinDetailModal
           habitId={detailHabitId}
@@ -377,6 +395,73 @@ export function TodayScreen() {
             }
             setUndoState(null);
           }}
+        />
+        <ItemActionSheet
+          visible={dueTodo !== null}
+          title={dueTodo?.title ?? ''}
+          subtitle="不改内容，只改截止时间"
+          actions={[
+            { label: '今天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('today')); } } },
+            { label: '明天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('tomorrow')); } } },
+            { label: '未来 7 天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('soon')); } } },
+            { label: '稍后', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('later')); } } },
+            { label: '无日期', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('no-date')); } } },
+            { label: '自定义时间…', onPress: () => { if (dueTodo) { openEditor(dueTodo); } } },
+          ]}
+          onClose={() => setDueTodoId(null)}
+        />
+        <ItemActionSheet
+          visible={actionTodo !== null}
+          title={actionTodo?.title ?? ''}
+          subtitle="长按后可以改信息、进整理或删掉它"
+          actions={[
+            { label: '编辑信息', onPress: () => { if (actionTodo) { openEditor(actionTodo); } } },
+            { label: '多选整理', onPress: () => { if (actionTodo) { enterTodoSelect(actionTodo.id); } } },
+            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) { deleteTodo(actionTodo.id); } } },
+          ]}
+          onClose={() => setActionTodoId(null)}
+        />
+        <ItemActionSheet
+          visible={actionHabit !== null}
+          title={actionHabit?.name ?? ''}
+          subtitle="长按后可以改信息、看历史或进整理"
+          actions={[
+            { label: '编辑习惯', onPress: () => { if (actionHabit) { setEditingHabitId(actionHabit.id); } } },
+            { label: '查看历史', onPress: () => { if (actionHabit) { setDetailHabitId(actionHabit.id); } } },
+            { label: '多选整理', onPress: () => { if (actionHabit) { enterHabitSelect(actionHabit.id); } } },
+            {
+              label: '归档习惯',
+              onPress: () => {
+                const habit = actionHabit;
+                if (!habit) {
+                  return;
+                }
+                Alert.alert(
+                  '归档习惯',
+                  `归档“${habit.name}”后，它会从打卡页移除，并在设置页的归档习惯中只读查看。`,
+                  [
+                    { text: '取消', style: 'cancel' },
+                    { text: '确认归档', onPress: () => archiveHabit(habit.id) },
+                  ]
+                );
+              },
+            },
+            {
+              label: '删除习惯',
+              danger: true,
+              onPress: () => {
+                const habit = actionHabit;
+                if (!habit) {
+                  return;
+                }
+                Alert.alert('确认删除习惯', `删除“${habit.name}”后，相关全部打卡历史会一并清除，且无法恢复。`, [
+                  { text: '取消', style: 'cancel' },
+                  { text: '确认删除', style: 'destructive', onPress: () => deleteHabits([habit.id]) },
+                ]);
+              },
+            },
+          ]}
+          onClose={() => setActionHabitId(null)}
         />
       </ScreenScaffold>
     </View>

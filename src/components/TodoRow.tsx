@@ -13,10 +13,12 @@ type TodoRowProps = {
   onToggle: (todo: TodoItem) => void;
   onPress: (todo: TodoItem) => void;
   onLongPress?: (todo: TodoItem) => void;
+  /** 点截止时间快速改期，不打开编辑页。 */
+  onPickDue?: (todo: TodoItem) => void;
   compact?: boolean;
 };
 
-export function TodoRow({ todo, onToggle, onPress, onLongPress, compact = false }: TodoRowProps) {
+export function TodoRow({ todo, onToggle, onPress, onLongPress, onPickDue, compact = false }: TodoRowProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const completed = todo.completedAt !== null;
@@ -48,7 +50,20 @@ export function TodoRow({ todo, onToggle, onPress, onLongPress, compact = false 
         <Text numberOfLines={1} style={[styles.title, completed && styles.titleDone]}>
           {todo.title}
         </Text>
-        <Text style={[styles.meta, overdue && styles.metaOverdue]}>{formatTodoDue(todo)}</Text>
+        {onPickDue && !completed ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`改截止时间：${formatTodoDue(todo)}`}
+            onPress={() => onPickDue(todo)}
+            style={styles.dueChip}
+            hitSlop={6}
+          >
+            <Text style={[styles.meta, overdue && styles.metaOverdue]}>{formatTodoDue(todo)}</Text>
+            <Text style={[styles.dueChipHint, overdue && styles.metaOverdue]}>改</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.meta, overdue && styles.metaOverdue]}>{formatTodoDue(todo)}</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity accessibilityLabel="编辑待办" onPress={() => onPress(todo)} style={styles.more}>
         <Text style={styles.moreText}>›</Text>
@@ -71,6 +86,8 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
+    dueChip: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
+    dueChipHint: { fontSize: 10, fontWeight: '700', color: theme.colors.textMuted },
     rowCompact: {
       minHeight: 62,
     },
