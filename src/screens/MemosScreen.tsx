@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -38,6 +38,7 @@ export function MemosScreen() {
     addMemo,
     updateMemo,
     trashMemos,
+    purgeMemos,
     moveMemosToGroup,
     reorderMemos,
     deleteMemoGroup: removeMemoGroup,
@@ -50,6 +51,7 @@ export function MemosScreen() {
   const [filter, setFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [newMemoId, setNewMemoId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manageVisible, setManageVisible] = useState(false);
@@ -116,7 +118,24 @@ export function MemosScreen() {
   const createMemo = () => {
     const groupId =
       filter !== 'all' && filter !== UNCATEGORIZED_FILTER ? filter : null;
-    setEditingId(addMemo(groupId));
+    const id = addMemo(groupId);
+    setNewMemoId(id);
+    setEditingId(id);
+  };
+
+  const closeEditor = () => {
+    setEditingId(null);
+    setNewMemoId(null);
+  };
+
+  // 新建后没留下内容的备忘录直接清掉，避免列表里出现空条目。
+  const discardEditor = () => {
+    const id = editingId;
+    const createdNow = id !== null && id === newMemoId;
+    closeEditor();
+    if (createdNow && id) {
+      purgeMemos([id]);
+    }
   };
 
   if (selectMode) {
@@ -193,10 +212,13 @@ export function MemosScreen() {
     >
       {editingMemo ? (
         <MemoEditor
+          key={editingMemo.id}
           memo={editingMemo}
+          isNew={editingMemo.id === newMemoId}
           initialGroupId={editingMemo.groupId}
           groupOptions={groupOptions}
-          onClose={() => setEditingId(null)}
+          onClose={closeEditor}
+          onDiscard={discardEditor}
           onChange={(patch) => updateMemo(editingMemo.id, patch)}
         />
       ) : null}
@@ -217,8 +239,14 @@ export function MemosScreen() {
 
           {list.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>还没有备忘录</Text>
-              <Text style={styles.emptyHint}>点右下角 + 新建，可以写标题和正文。</Text>
+              <Text style={styles.emptyTitle}>
+                {baseList.length === 0 ? '还没有备忘录' : '没有符合条件的备忘录'}
+              </Text>
+              <Text style={styles.emptyHint}>
+                {baseList.length === 0
+                  ? '点右下角 + 新建，可以写标题和正文。'
+                  : '换个关键词或分类再试试。'}
+              </Text>
             </View>
           ) : (
             <Animated.View layout={LIST_LAYOUT} style={styles.list}>
@@ -298,13 +326,17 @@ function MemoEditor({
   memo,
   initialGroupId,
   groupOptions,
+  isNew,
   onClose,
+  onDiscard,
   onChange,
 }: {
   memo: Memo;
+  isNew: boolean;
   initialGroupId: string | null;
   groupOptions: Array<{ id: string | null; label: string }>;
   onClose: () => void;
+  onDiscard: () => void;
   onChange: (patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>>) => void;
 }) {
   const { theme } = useHabits();
@@ -313,6 +345,7 @@ function MemoEditor({
   const [body, setBody] = useState(memo.body);
   const [groupId, setGroupId] = useState<string | null>(initialGroupId);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const initialRef = useRef({ title: memo.title, body: memo.body, groupId: memo.groupId });
   const dirty = title !== memo.title || body !== memo.body || groupId !== memo.groupId;
   const hasContent = title.trim() !== '' || body.trim() !== '';
 
@@ -340,25 +373,47 @@ function MemoEditor({
     onClose();
   }, [hasContent, onClose, persist]);
 
+  // 放弃编辑：新建的直接丢弃，已有的回滚到打开编辑器时的内容。
+  const discard = useCallback(() => {
+    if (isNew) {
+      onDiscard();
+      return;
+    }
+    onChange(initialRef.current);
+    onClose();
+  }, [isNew, onChange, onClose, onDiscard]);
+
   const handleBack = useCallback(() => {
     if (!dirty) {
-      // 没有改动：直接退出，不打断用户。
-      onClose();
+      // 没有改动：新建的空备忘录直接清掉，已有的直接退出。
+      if (isNew) {
+        onDiscard();
+      } else {
+        onClose();
+      }
       return true;
     }
     if (!hasContent) {
-      Alert.alert('放弃这条备忘录？', '标题和正文都是空的，返回后不会保存这次修改。', [
-        { text: '继续编辑', style: 'cancel' },
-        { text: '放弃', style: 'destructive', onPress: onClose },
-      ]);
+      Alert.alert(
+        isNew ? '放弃这条备忘录？' : '清空这条备忘录？',
+        isNew ? '标题和正文都是空的，返回后不会保存。' : '返回会恢复打开时的内容。',
+        [
+          { text: '继续编辑', style: 'cancel' },
+          { text: '放弃修改', style: 'destructive', onPress: discard },
+        ]
+      );
       return true;
     }
-    Alert.alert('保存这条备忘录？', '返回前可以先保存当前内容。', [
-      { text: '不保存', style: 'destructive', onPress: onClose },
-      { text: '保存', onPress: handleSave },
-    ]);
+    Alert.alert(
+      '保存这条备忘录？',
+      '返回前可以先保存当前内容；选择“不保存”会撤销本次修改。',
+      [
+        { text: '不保存', style: 'destructive', onPress: discard },
+        { text: '保存', onPress: handleSave },
+      ]
+    );
     return true;
-  }, [dirty, handleSave, hasContent, onClose]);
+  }, [discard, dirty, handleSave, hasContent, isNew, onClose, onDiscard]);
 
   // 编辑态优先消费系统返回，避免直接退出应用。
   // 原生 Modal 的返回键由 onRequestClose 接管，所以两个入口都要走 handleBack。
