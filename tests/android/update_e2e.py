@@ -182,10 +182,18 @@ def final_test():
     adb('install','-r',a.final_apk,timeout=90);launch();tap('设置')
     version=json.loads((root/'app.json').read_text())['expo']['version']
     wait_message('当前版本 '+version)
-    tap('检查更新');wait_message('当前已是最新版本',30);shot('final-version')
     assert business(state())==json.loads((a.out/'expected-business.json').read_text())
     assert state()['settings']['themeId']=='ocean'
-    record('formalUpgradePreservesContent');record('latestDoesNotOfferDowngrade')
+    record('formalUpgradePreservesContent')
+    for attempt in range(3):
+        tap('检查更新')
+        try:
+            wait_message('当前已是最新版本',22)
+            break
+        except AssertionError:
+            if attempt == 2: raise
+            time.sleep(4)
+    shot('final-version');record('latestDoesNotOfferDowngrade')
 
 env=dict(os.environ,ANDROID_HOME=str(a.sdk),ANDROID_SDK_ROOT=str(a.sdk),ANDROID_AVD_HOME=str(avds))
 log=(a.out/'emulator.log').open('w')
@@ -211,6 +219,8 @@ try:
     record(mode+'Status','passed')
 except Exception as error:
     record(('finalUpgrade' if a.final_apk else 'initialUpdate')+'Status','failed: '+str(error))
+    (a.out/'guest-connectivity.txt').write_text(sh('dumpsys','connectivity'))
+    (a.out/'guest-network-log.txt').write_text(sh('logcat','-d','-t','300'))
     shot('failure-final');raise
 finally:
     adb('emu','kill',check=False)
