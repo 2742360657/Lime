@@ -163,7 +163,7 @@ def initial_test():
     x1,y1,x2,y2=box(n);sh('input','tap',(x1+x2)//2,(y1+y2)//2)
     sh('input','keyevent',4);time.sleep(1);tap('安装更新');time.sleep(2);shot('system-installer')
     current=tree()
-    buttons=[n for n in current.iter('node') if n.attrib.get('text') in ['Update','Install','更新','安装'] and n.attrib.get('enabled')=='true']
+    buttons=[n for n in current.iter('node') if n.attrib.get('text','').casefold() in ['update','install','更新','安装'] and n.attrib.get('enabled')=='true']
     assert buttons,'Expected Android installer confirmation'
     n=buttons[-1];x1,y1,x2,y2=box(n);sh('input','tap',(x1+x2)//2,(y1+y2)//2)
     deadline=time.monotonic()+60
