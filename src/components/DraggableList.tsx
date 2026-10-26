@@ -25,6 +25,8 @@ export type DragItem = {
   label: string;
   subtitle?: string;
   leading?: React.ReactNode;
+  selected?: boolean;
+  sortable?: boolean;
 };
 
 type Row =
@@ -44,6 +46,7 @@ type DraggableListProps = {
   initialScrollY?: number;
   /** 拖到列表上下边缘时自动滚动，长列表也能一次拖到底。 */
   autoScroll?: boolean;
+  dragEnabled?: boolean;
 };
 
 const GROUP_ROW_HEIGHT = 46;
@@ -73,6 +76,7 @@ export function DraggableList({
   contentPaddingBottom = 140,
   initialScrollY = 0,
   autoScroll = false,
+  dragEnabled = true,
 }: DraggableListProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -389,6 +393,17 @@ export function DraggableList({
                 >
                   <DragHandleRow
                     item={row.item}
+                    dragEnabled={dragEnabled && row.item.sortable !== false}
+                    onNudge={(direction) => {
+                      const next = [...orderedRef.current];
+                      const peers = next.filter((item) => item.groupId === row.item.groupId);
+                      const peer = peers[peers.findIndex((item) => item.id === row.id) + direction];
+                      if (!peer) return;
+                      const a = next.findIndex((item) => item.id === row.id);
+                      const b = next.findIndex((item) => item.id === peer.id);
+                      [next[a], next[b]] = [next[b], next[a]];
+                      onCommit(next.map(({ id, groupId }) => ({ id, groupId })));
+                    }}
                     active={active}
                     lift={lift}
                     onStart={startDrag}
@@ -410,6 +425,8 @@ export function DraggableList({
 
 function DragHandleRow({
   item,
+  dragEnabled,
+  onNudge,
   active,
   lift,
   onStart,
@@ -420,6 +437,8 @@ function DragHandleRow({
   theme,
 }: {
   item: DragItem;
+  dragEnabled: boolean;
+  onNudge: (direction: number) => void;
   active: boolean;
   lift: Animated.Value;
   onStart: (id: string, pageY: number) => void;
@@ -488,20 +507,23 @@ function DragHandleRow({
       <Pressable
         accessibilityRole={onToggleSelect ? 'checkbox' : undefined}
         accessibilityLabel={item.label}
+        accessibilityState={onToggleSelect ? { checked: item.selected } : undefined}
         disabled={!onToggleSelect}
         onPress={() => onToggleSelect?.(itemId)}
         style={styles.tapArea}
       >
         {item.leading}
         <View style={styles.rowText}>
-          <Text numberOfLines={1} style={styles.rowLabel}>
+          <Text numberOfLines={2} style={styles.rowLabel}>
             {item.label}
           </Text>
           {item.subtitle ? <Text style={styles.rowSubtitle}>{item.subtitle}</Text> : null}
         </View>
       </Pressable>
-      <View
+      {dragEnabled && <View
         accessibilityRole="adjustable"
+        accessibilityActions={[{ name: 'increment', label: '下移' }, { name: 'decrement', label: '上移' }]}
+        onAccessibilityAction={(event) => onNudge(event.nativeEvent.actionName === 'increment' ? 1 : -1)}
         accessibilityLabel={`拖动 ${item.label}`}
         hitSlop={8}
         style={[styles.handle, active && styles.handleActive]}
@@ -509,7 +531,7 @@ function DragHandleRow({
       >
         <View style={[styles.handleLine, active && { backgroundColor: theme.colors.primary }]} />
         <View style={[styles.handleLine, active && { backgroundColor: theme.colors.primary }]} />
-      </View>
+      </View>}
     </Animated.View>
   );
 }
@@ -549,13 +571,13 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       backgroundColor: theme.colors.primarySoft,
       ...theme.shadow,
     },
-    tapArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    tapArea: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowText: { flex: 1, gap: 3 },
     rowLabel: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
     rowSubtitle: { fontSize: 11, color: theme.colors.textSecondary },
     handle: {
       width: 48,
-      height: 44,
+      height: 48,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 5,

@@ -1,3 +1,5 @@
+import { AppIcon } from '../components/AppIcon';
+import { FilterBar } from '../components/FilterBar';
 import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,7 +18,6 @@ import { GroupPickerModal } from '../components/GroupPickerModal';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
 import { SelectCircle } from '../components/SelectCircle';
-import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { useBackHandler } from '../navigation/back';
@@ -94,6 +95,9 @@ export function MemosScreen() {
   }, [baseList, filter, orderedGroups, query]);
 
   const editingMemo = editingId ? activeMemos.find((memo) => memo.id === editingId) ?? null : null;
+  const updateEditingMemo = useCallback((patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>>) => {
+    if (editingId) updateMemo(editingId, patch);
+  }, [editingId, updateMemo]);
 
   const groupLabel = (groupId: string | null) =>
     orderedGroups.find((group) => group.id === groupId)?.name ?? '未分类';
@@ -113,9 +117,9 @@ export function MemosScreen() {
   const scrollYRef = useRef(0);
   const [organizeScrollY, setOrganizeScrollY] = useState(0);
 
-  const enterSelectMode = (id: string) => {
+  const enterSelectMode = (id?: string) => {
     setOrganizeScrollY(scrollYRef.current);
-    setSelectedIds([id]);
+    setSelectedIds(id ? [id] : []);
     setSelectMode(true);
   };
 
@@ -156,7 +160,9 @@ export function MemosScreen() {
 
   return (
     <ScreenScaffold
+      organizing={selectMode}
       panelTitle="备忘录分类"
+      onOrganize={!selectMode && !editingMemo && list.length > 0 ? () => enterSelectMode() : undefined}
       panelItems={[
         { id: 'all', label: `全部备忘录 · ${activeMemos.length}`, selected: filter === 'all', onPress: () => setFilter('all') },
         { id: UNCATEGORIZED_FILTER, label: `未分类 · ${activeMemos.filter((memo) => memo.groupId === null).length}`, selected: filter === UNCATEGORIZED_FILTER, onPress: () => setFilter(UNCATEGORIZED_FILTER) },
@@ -175,7 +181,7 @@ export function MemosScreen() {
           onPress: () => navigation.navigate('trash'),
         },
       ]}
-      fab={selectMode ? null : { label: '新建备忘录', onPress: createMemo }}
+      createAction={selectMode ? null : { label: '新建备忘录', onPress: createMemo }}
     >
       {editingMemo ? (
         <MemoEditor
@@ -186,7 +192,7 @@ export function MemosScreen() {
           groupOptions={groupOptions}
           onClose={closeEditor}
           onDiscard={discardEditor}
-          onChange={(patch) => updateMemo(editingMemo.id, patch)}
+          onChange={updateEditingMemo}
         />
       ) : null}
       <View style={styles.screen}>
@@ -237,13 +243,16 @@ export function MemosScreen() {
             deleteLabel="删除"
           />
         ) : (
+        <>
+        <FilterBar options={[{ id: 'all', label: '全部', count: activeMemos.length }, { id: UNCATEGORIZED_FILTER, label: '未分类' }, ...orderedGroups.map((group) => ({ id: group.id, label: group.name }))]} value={filter} onChange={setFilter} />
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }}
+          onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
         >
+          <Text style={styles.resultCount}>{list.length} 条备忘录 · 点开编辑，更多操作见条目菜单</Text>
           <TextInput
             accessibilityLabel="搜索备忘录"
             placeholder="搜索标题、正文或分类"
@@ -260,7 +269,7 @@ export function MemosScreen() {
               </Text>
               <Text style={styles.emptyHint}>
                 {baseList.length === 0
-                  ? '点右下角 + 新建，可以写标题和正文。'
+                  ? '点顶部“新建”，可以写标题和正文。'
                   : '换个关键词或分类再试试。'}
               </Text>
             </View>
@@ -273,6 +282,7 @@ export function MemosScreen() {
                   exiting={LIST_ITEM_EXITING}
                   layout={LIST_LAYOUT}
                 >
+                <View style={styles.memoRow}>
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={`打开 ${memo.title || '未命名备忘录'}`}
@@ -281,7 +291,7 @@ export function MemosScreen() {
                   delayLongPress={360}
                   style={styles.card}
                 >
-                  <Text numberOfLines={1} style={styles.cardTitle}>
+                  <Text numberOfLines={2} style={styles.cardTitle}>
                     {memo.title || '未命名备忘录'}
                   </Text>
                   <Text numberOfLines={2} style={styles.cardBody}>
@@ -291,11 +301,14 @@ export function MemosScreen() {
                     {groupLabel(memo.groupId)} · {formatMemoTime(memo.updatedAt)}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`备忘录操作：${memo.title || '未命名备忘录'}`} onPress={() => setActionMemoId(memo.id)} style={styles.memoMore}><AppIcon name="more" color={theme.colors.textSecondary} /></TouchableOpacity>
+                </View>
                 </Animated.View>
               ))}
             </Animated.View>
           )}
         </ScrollView>
+        </>
         )}
 
         <ItemActionSheet
@@ -460,6 +473,7 @@ function MemoEditor({
       <KeyboardAvoidingView style={styles.screen} behavior="padding">
         <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
           <View style={styles.editorHeader}>
+
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="返回备忘录列表"
@@ -469,6 +483,10 @@ function MemoEditor({
             >
               <Text style={styles.backLinkText}>‹ 返回</Text>
             </TouchableOpacity>
+            <View style={styles.editorHeading}>
+              <Text style={styles.editorTitle}>{isNew ? '新建备忘录' : '编辑备忘录'}</Text>
+              <Text style={styles.editorHint}>编辑后自动保存</Text>
+            </View>
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="保存备忘录"
@@ -535,7 +553,8 @@ function MemoEditor({
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.background },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 16 },
+    resultCount: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 16 },
     search: {
       color: theme.colors.textPrimary,
       backgroundColor: theme.colors.surface,
@@ -547,16 +566,17 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       borderColor: theme.colors.border,
     },
     list: { gap: 9 },
+    memoRow: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.medium, backgroundColor: theme.colors.surface },
+    memoMore: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
     card: {
+      flex: 1,
       borderRadius: theme.radius.medium,
-      padding: 16,
+      padding: 12,
       gap: 6,
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
-    cardTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary },
-    cardBody: { fontSize: 13, lineHeight: 19, color: theme.colors.textSecondary },
+    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
+    cardBody: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
     cardMeta: { fontSize: 11, color: theme.colors.textMuted },
     emptyCard: {
       borderRadius: theme.radius.large,
@@ -568,6 +588,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
     emptyHint: { fontSize: 12, color: theme.colors.textSecondary },
+    editorHeading: { flex: 1, gap: 3, paddingHorizontal: 8 },
+    editorTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
+    editorHint: { fontSize: 11, color: theme.colors.textSecondary },
     editorHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -576,9 +599,11 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       paddingTop: 6,
       paddingBottom: 6,
     },
-    backLink: { paddingVertical: 8, paddingRight: 12 },
+    backLink: { minHeight: 48, justifyContent: 'center', paddingVertical: 8, paddingRight: 12 },
     backLinkText: { fontSize: 15, fontWeight: '700', color: theme.colors.primary },
     saveButton: {
+      minHeight: 48,
+      justifyContent: 'center',
       borderRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 9,
@@ -586,10 +611,10 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
     editorScroll: { flex: 1 },
-    editorContent: { paddingHorizontal: 20, paddingTop: 8, gap: 14, paddingBottom: 40 },
+    editorContent: { paddingHorizontal: 16, paddingTop: 8, gap: 14, paddingBottom: 40 },
     titleInput: {
-      fontSize: 22,
-      fontWeight: '800',
+      fontSize: 20,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
       paddingVertical: 6,
     },

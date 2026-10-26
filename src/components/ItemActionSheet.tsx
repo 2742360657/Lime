@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useHabits } from '../state/HabitStore';
 
@@ -23,17 +24,19 @@ type ItemActionSheetProps = {
  */
 export function ItemActionSheet({ visible, title, subtitle, actions, onClose }: ItemActionSheetProps) {
   const { theme } = useHabits();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable accessibilityLabel="关闭操作面板" style={styles.backdrop} onPress={onClose} />
-        <View style={styles.card}>
+        <View style={[styles.card, { paddingBottom: Math.max(20, insets.bottom + 12) }]}>
+          <View style={styles.handle} />
           <Text numberOfLines={2} style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-          <View style={styles.actionList}>
+          <ScrollView contentContainerStyle={styles.actionList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {actions.map((action) => (
               <TouchableOpacity
                 key={action.label}
@@ -50,7 +53,7 @@ export function ItemActionSheet({ visible, title, subtitle, actions, onClose }: 
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="取消" onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>取消</Text>
@@ -67,8 +70,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     backdrop: { ...StyleSheet.absoluteFillObject },
     card: {
       width: '100%',
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      maxHeight: '90%',
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       paddingHorizontal: 20,
       paddingTop: 22,
       paddingBottom: 28,
@@ -76,11 +80,13 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       gap: 10,
       ...theme.shadow,
     },
-    title: { fontSize: 19, fontWeight: '700', color: theme.colors.textPrimary },
+    handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', backgroundColor: theme.colors.border, marginBottom: 8 },
+    title: { fontSize: 17, fontWeight: '700', color: theme.colors.textPrimary },
     subtitle: { fontSize: 12, color: theme.colors.textSecondary },
     actionList: { gap: 10, paddingTop: 6 },
     actionButton: {
       borderRadius: theme.radius.medium,
+      minHeight: 52,
       paddingVertical: 14,
       paddingHorizontal: 14,
       backgroundColor: theme.colors.background,
@@ -91,6 +97,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     actionButtonText: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
     actionButtonTextDanger: { color: theme.colors.danger },
     closeButton: {
+      minHeight: 48,
       marginTop: 4,
       borderRadius: 12,
       paddingVertical: 12,

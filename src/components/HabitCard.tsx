@@ -1,3 +1,4 @@
+import { AppIcon } from './AppIcon';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -37,6 +38,8 @@ export function HabitCard({
       style={[styles.card, compact && styles.cardCompact, progress.completed && styles.cardCompleted]}
     >
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`查看习惯：${habit.name}`}
         style={styles.infoPressable}
         delayLongPress={360}
         onLongPress={onLongPress ? () => {
@@ -46,7 +49,7 @@ export function HabitCard({
         onPress={() => onOpenDetails(habit.id)}
       >
         <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} numberOfLines={2}>
             {habit.name}
           </Text>
           <Text style={[styles.countText, progress.completed && styles.countTextDone]}>
@@ -55,12 +58,12 @@ export function HabitCard({
         </View>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => onAddCheckin(habit.id)} style={styles.plusButton}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={`记录一次：${habit.name}`} onPress={() => onAddCheckin(habit.id)} style={styles.plusButton}>
         <Text style={styles.plusText}>+1</Text>
       </TouchableOpacity>
       {onOpenActions ? (
-        <TouchableOpacity accessibilityLabel="习惯操作" onPress={() => onOpenActions(habit)} style={styles.moreButton}>
-          <Text style={styles.moreText}>•••</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`习惯操作：${habit.name}`} onPress={() => onOpenActions(habit)} style={styles.moreButton} hitSlop={6}>
+          <AppIcon name="more" color={theme.colors.textSecondary} />
         </TouchableOpacity>
       ) : null}
     </Animated.View>
@@ -72,16 +75,16 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     card: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
       borderRadius: theme.radius.medium,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     cardCompact: {
-      paddingVertical: 8,
+      paddingVertical: 6,
     },
     cardCompleted: {
       backgroundColor: theme.colors.primarySoft,
@@ -96,12 +99,12 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       gap: 4,
     },
     name: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '700',
       color: theme.colors.textPrimary,
     },
     countText: {
-      fontSize: 13,
+      fontSize: 12,
       color: theme.colors.textSecondary,
     },
     countTextDone: {
@@ -109,22 +112,23 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       fontWeight: '700',
     },
     plusButton: {
-      minWidth: 56,
-      borderRadius: 14,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
+      minWidth: 48,
+      minHeight: 48,
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.primary,
     },
     plusText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '800',
       color: theme.colors.white,
     },
     moreButton: {
       width: 36,
-      height: 44,
+      height: 48,
       alignItems: 'center',
       justifyContent: 'center',
     },

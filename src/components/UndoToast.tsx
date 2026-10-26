@@ -17,7 +17,7 @@ export function UndoToast({ message, onUndo, onDismiss }: UndoToastProps) {
     if (!message) {
       return;
     }
-    const timeout = setTimeout(onDismiss, 4200);
+    const timeout = setTimeout(onDismiss, 6500);
     return () => clearTimeout(timeout);
   }, [message, onDismiss]);
 
@@ -28,7 +28,7 @@ export function UndoToast({ message, onUndo, onDismiss }: UndoToastProps) {
   return (
     <View style={styles.toast} accessibilityLiveRegion="polite">
       <Text style={styles.message}>{message}</Text>
-      <TouchableOpacity onPress={onUndo} style={styles.action}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="撤销上一次操作" onPress={onUndo} style={styles.action}>
         <Text style={styles.actionText}>撤销</Text>
       </TouchableOpacity>
     </View>
@@ -57,6 +57,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       color: theme.colors.white,
     },
     action: {
+      minHeight: 48,
       paddingHorizontal: 10,
       paddingVertical: 10,
     },

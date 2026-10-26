@@ -101,6 +101,7 @@ export function GroupManagerModal({
                 <Text style={styles.title}>{title}</Text>
               </View>
               <View style={styles.headerActions}>
+                {orderedGroups.length > 1 && <TouchableOpacity accessibilityRole="button" accessibilityLabel="分组排序" onPress={() => setReorderVisible(true)} style={styles.addButton}><Text style={styles.addButtonText}>排序</Text></TouchableOpacity>}
                 <TouchableOpacity onPress={() => setAddingGroup(true)} style={styles.addButton}>
                   <Text style={styles.addButtonText}>新增</Text>
                 </TouchableOpacity>

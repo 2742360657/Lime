@@ -1,3 +1,4 @@
+import { useDateTick } from '../utils/useDateTick';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -11,7 +12,6 @@ import { HabitCard } from '../components/HabitCard';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
 import { SelectCircle } from '../components/SelectCircle';
-import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -21,6 +21,8 @@ import { TodoItem } from '../types/habit';
 import { getCheckinTodayKey } from '../utils/date';
 import { getHabitProgress, getHabitSummary } from '../utils/habit';
 import {
+  hasTodoDateOrderConflict,
+  getTodoDateOptions,
   bucketToDueDateKey,
   buildTodoBuckets,
   compareTodosSmart,
@@ -53,6 +55,7 @@ export function TodayScreen() {
     archiveHabit,
   } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const [organizerVisible, setOrganizerVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null);
   const [detailHabitId, setDetailHabitId] = useState<string | null>(null);
@@ -63,18 +66,10 @@ export function TodayScreen() {
   const [selectedTodoIds, setSelectedTodoIds] = useState<string[]>([]);
   const [selectedHabitIds, setSelectedHabitIds] = useState<string[]>([]);
 
-  const allBuckets = useMemo(() => buildTodoBuckets(todos), [todos]);
-  const activeBuckets = useMemo(
-    () => allBuckets.filter((bucket) => bucket.id === 'overdue' || bucket.id === 'today'),
-    [allBuckets]
-  );
-  const noDateTodos = useMemo(
-    () =>
-      todos
-        .filter((todo) => todo.completedAt === null && todo.dueDateKey === null)
-        .sort(compareTodosSmart),
-    [todos]
-  );
+  const dateTick = useDateTick();
+  const allBuckets = useMemo(() => buildTodoBuckets(todos), [todos, dateTick]);
+  const activeBuckets = allBuckets.filter((bucket) => bucket.id === 'overdue' || bucket.id === 'today');
+  const laterBuckets = allBuckets.filter((bucket) => bucket.id !== 'overdue' && bucket.id !== 'today');
   const orderedHabits = useMemo(
     () => [...habits].sort((left, right) => left.order - right.order),
     [habits]
@@ -110,15 +105,15 @@ export function TodayScreen() {
   const scrollYRef = useRef(0);
   const [organizeScrollY, setOrganizeScrollY] = useState(0);
 
-  const enterTodoSelect = (id: string) => {
+  const enterTodoSelect = (id?: string) => {
     setOrganizeScrollY(scrollYRef.current);
-    setSelectedTodoIds([id]);
+    setSelectedTodoIds(id ? [id] : []);
     setTodoSelectMode(true);
   };
 
-  const enterHabitSelect = (id: string) => {
+  const enterHabitSelect = (id?: string) => {
     setOrganizeScrollY(scrollYRef.current);
-    setSelectedHabitIds([id]);
+    setSelectedHabitIds(id ? [id] : []);
     setHabitSelectMode(true);
   };
 
@@ -133,23 +128,8 @@ export function TodayScreen() {
   );
 
   // 今天页的多选只用于批量整理当天可见的条目。
-  const todayTodoIds = useMemo(() => {
-    const ids = [...activeBuckets.flatMap((bucket) => bucket.todos.map((todo) => todo.id)), ...noDateTodos.slice(0, 3).map((todo) => todo.id)];
-    return [...new Set(ids)];
-  }, [activeBuckets, noDateTodos]);
-
-  const boardGroups = useMemo(() => {
-    const result = activeBuckets.map((bucket) => ({
-      id: bucket.id,
-      title: bucket.title,
-      acceptsDrop: false,
-    }));
-    if (noDateTodos.length > 0) {
-      result.push({ id: 'no-date', title: '无日期', acceptsDrop: false });
-    }
-    return result;
-  }, [activeBuckets, noDateTodos.length]);
-
+  const todayTodoIds = useMemo(() => allBuckets.flatMap((bucket) => bucket.todos.map((todo) => todo.id)), [allBuckets]);
+  const boardGroups = useMemo(() => allBuckets.map((bucket) => ({ id: bucket.id, title: bucket.title, acceptsDrop: true })), [allBuckets]);
   const boardItems = useMemo(
     () =>
       todayTodoIds.map((id) => {
@@ -188,13 +168,16 @@ export function TodayScreen() {
   return (
     <View style={styles.screen}>
       <ScreenScaffold
-      panelTitle="首页"
+      organizing={todoSelectMode || habitSelectMode}
+      panelTitle="今日"
+      onOrganize={!todoSelectMode && !habitSelectMode && (todayTodoIds.length > 0 || habits.length > 0) ? () => setOrganizerVisible(true) : undefined}
       panelItems={[]}
-      fab={todoSelectMode || habitSelectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
+      createAction={todoSelectMode || habitSelectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
     >
         {todoSelectMode ? (
           <OrganizePanel
         title="整理待办"
+        sortHint="按截止日期、时间优先排列；相同时间内可手动排序。跨日期分组会先确认改期。"
         hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
         onClose={() => { setTodoSelectMode(false); setSelectedTodoIds([]); }}
         items={boardItems}
@@ -217,6 +200,7 @@ export function TodayScreen() {
             .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
 
           if (moves.length === 0) {
+            if (hasTodoDateOrderConflict(ordered, todos)) Alert.alert('按截止时间排序', '不同截止日期或时间的待办会保持时间先后。相同截止时间内可自由排序。');
             reorderOnly();
             return;
           }
@@ -251,15 +235,9 @@ export function TodayScreen() {
           setSelectedTodoIds([]);
           setTodoSelectMode(false);
         }}
-        groupOptions={[
-          { id: 'today', label: '今天' },
-          { id: 'tomorrow', label: '明天' },
-          { id: 'soon', label: '未来 7 天' },
-          { id: 'later', label: '稍后' },
-          { id: null, label: '无日期' },
-        ]}
+        groupOptions={getTodoDateOptions().map(({ id, label }) => ({ id: id === 'no-date' ? null : id, label }))}
         onMoveToGroup={(ids, groupId) => moveTodosToBucket(ids, bucketToDueDateKey(groupId ?? 'no-date'))}
-        moveTitle="移动到日期分组"
+        moveTitle="更改截止日期"
         deleteLabel="删除"
                 />
         ) : habitSelectMode ? (
@@ -290,13 +268,17 @@ export function TodayScreen() {
         moveTitle="移动到分组"
                 />
         ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
+          <View style={styles.overview}>
+            <Text style={styles.overviewBody}>{todayTodoIds.length} 项未完成待办 · {habits.length} 个可记录的习惯</Text>
+            <Text style={styles.overviewHint}>先处理临近截止的事，其他任务也能提前做。</Text>
+          </View>
           <AccordionSection
-            title="待办"
-            meta={`${todayTodoIds.length} 项`}
+            title="优先处理"
+            meta={`${activeBuckets.reduce((count, bucket) => count + bucket.todos.length, 0)} 项`}
             collapsed={collapsed.has('home-todos')}
             onToggle={() => toggleBucket('home-todos')}
-            accessibilityLabel="折叠今天的待办"
+            accessibilityLabel={collapsed.has('home-todos') ? '展开优先处理' : '收起优先处理'}
           >
             {activeBuckets.map((bucket) => (
               <AccordionSection
@@ -315,26 +297,11 @@ export function TodayScreen() {
                 </Animated.View>
               </AccordionSection>
             ))}
-            {noDateTodos.length > 0 ? (
-              <AccordionSection
-                title="无日期"
-                meta={`${noDateTodos.length} 项`}
-                collapsed={collapsed.has('no-date')}
-                onToggle={() => toggleBucket('no-date')}
-              >
-                <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                  {noDateTodos.slice(0, 3).map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
-                    onPickDue={(item) => setDueTodoId(item.id)} compact />
-                  ))}
-                </Animated.View>
-              </AccordionSection>
-            ) : null}
-            {todayTodoIds.length === 0 ? <Text style={styles.emptyText}>今天暂无待办</Text> : null}
+            {activeBuckets.length === 0 ? <Text style={styles.emptyText}>没有逾期或今天截止的事项，可以继续记录习惯，或推进下面的其他待办。</Text> : null}
           </AccordionSection>
 
           <AccordionSection
-            title="习惯"
+            title="可记录的习惯"
             meta={getHabitSummary(habits)}
             collapsed={collapsed.has('habits')}
             onToggle={() => toggleBucket('habits')}
@@ -351,6 +318,7 @@ export function TodayScreen() {
                     key={habit.id}
                     habit={habit}
                     compact
+                    onOpenActions={(habit) => setActionHabitId(habit.id)}
                     onOpenDetails={setDetailHabitId}
                     onLongPress={() => setActionHabitId(habit.id)}
                     onAddCheckin={(habitId) => {
@@ -362,9 +330,37 @@ export function TodayScreen() {
               </Animated.View>
             )}
           </AccordionSection>
+          {laterBuckets.length > 0 && <AccordionSection
+            title="其他可推进的待办"
+            meta={`${laterBuckets.reduce((count, bucket) => count + bucket.todos.length, 0)} 项`}
+            collapsed={collapsed.has('home-upcoming')}
+            onToggle={() => toggleBucket('home-upcoming')}
+          >
+            {laterBuckets.map((bucket) => (
+              <AccordionSection
+                key={bucket.id}
+                title={bucket.title}
+                danger={bucket.id === 'overdue'}
+                meta={`${bucket.todos.length} 项`}
+                collapsed={collapsed.has(bucket.id)}
+                onToggle={() => toggleBucket(bucket.id)}
+              >
+                <Animated.View layout={LIST_LAYOUT} style={styles.list}>
+                  {bucket.todos.map((todo) => (
+                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
+                    onPickDue={(item) => setDueTodoId(item.id)} compact />
+                  ))}
+                </Animated.View>
+              </AccordionSection>
+            ))}
+          </AccordionSection>}
         </ScrollView>
         )}
 
+        <ItemActionSheet visible={organizerVisible} title="整理事项" subtitle="分别整理待办和习惯，完成后回到当前页面。" onClose={() => setOrganizerVisible(false)} actions={[
+          { label: '整理待办', onPress: () => enterTodoSelect() },
+          { label: '整理习惯', onPress: () => enterHabitSelect() },
+        ]} />
         <TodoEditorModal
           visible={editorVisible}
           todo={editingTodo}
@@ -399,14 +395,10 @@ export function TodayScreen() {
         <ItemActionSheet
           visible={dueTodo !== null}
           title={dueTodo?.title ?? ''}
-          subtitle="不改内容，只改截止时间"
+          subtitle="更改截止日期；原有具体时间保持不变。"
           actions={[
-            { label: '今天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('today')); } } },
-            { label: '明天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('tomorrow')); } } },
-            { label: '未来 7 天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('soon')); } } },
-            { label: '稍后', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('later')); } } },
-            { label: '无日期', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('no-date')); } } },
-            { label: '自定义时间…', onPress: () => { if (dueTodo) { openEditor(dueTodo); } } },
+            ...getTodoDateOptions().map((option) => ({ label: option.label, onPress: () => { if (dueTodo) moveTodosToBucket([dueTodo.id], option.dueDateKey); } })),
+            { label: '自定义日期和时间…', onPress: () => { if (dueTodo) openEditor(dueTodo); } },
           ]}
           onClose={() => setDueTodoId(null)}
         />
@@ -417,7 +409,7 @@ export function TodayScreen() {
           actions={[
             { label: '编辑信息', onPress: () => { if (actionTodo) { openEditor(actionTodo); } } },
             { label: '多选整理', onPress: () => { if (actionTodo) { enterTodoSelect(actionTodo.id); } } },
-            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) { deleteTodo(actionTodo.id); } } },
+            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) Alert.alert('删除待办？', `将删除“${actionTodo.title}”，此操作无法撤销。`, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => deleteTodo(actionTodo.id) }]); } },
           ]}
           onClose={() => setActionTodoId(null)}
         />
@@ -472,7 +464,11 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 22 },
+    overview: { paddingVertical: 10, gap: 5, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+    overviewTitle: { fontSize: 19, fontWeight: '700', color: theme.colors.textPrimary },
+    overviewBody: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
+    overviewHint: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
     list: { gap: 8 },
     emptyText: { fontSize: 13, color: theme.colors.textSecondary },
     emptyCard: {

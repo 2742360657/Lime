@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
@@ -38,6 +38,7 @@ export function TrashScreen() {
 
   return (
     <ScreenScaffold
+      organizing={selectMode}
       panelTitle="回收站"
       panelItems={[
         { id: 'back', label: '返回备忘录', onPress: () => navigation.navigate('memos') },
@@ -47,7 +48,7 @@ export function TrashScreen() {
                 id: 'empty',
                 label: `清空回收站 · ${trashedMemos.length}`,
                 bottom: true,
-                onPress: () => purgeAllMemos(),
+                onPress: () => Alert.alert('清空回收站？', `将永久删除 ${trashedMemos.length} 条备忘录，无法恢复。`, [{ text: '取消', style: 'cancel' }, { text: '永久删除', style: 'destructive', onPress: purgeAllMemos }]),
               },
             ]
           : []),
@@ -57,6 +58,7 @@ export function TrashScreen() {
         {selectMode ? (
           <OrganizePanel
             title="整理回收站"
+            allowSort={false}
             hint="点按选中后可彻底删除，删除后不可恢复"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
@@ -142,7 +144,7 @@ export function TrashScreen() {
           actions={[
             { label: '恢复这条', onPress: () => { if (actionMemo) { restoreMemos([actionMemo.id]); } } },
             { label: '多选整理', onPress: () => { if (actionMemo) { enterSelectMode(actionMemo.id); } } },
-            { label: '彻底删除', danger: true, onPress: () => { if (actionMemo) { purgeMemos([actionMemo.id]); } } },
+            { label: '彻底删除', danger: true, onPress: () => { if (actionMemo) Alert.alert('永久删除备忘录？', `“${actionMemo.title || '未命名备忘录'}”将无法恢复。`, [{ text: '取消', style: 'cancel' }, { text: '永久删除', style: 'destructive', onPress: () => purgeMemos([actionMemo.id]) }]); } },
           ]}
           onClose={() => setActionMemoId(null)}
         />

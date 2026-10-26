@@ -1,3 +1,4 @@
+import { FilterBar } from '../components/FilterBar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -13,7 +14,6 @@ import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
 import { OrganizePanel } from '../components/OrganizePanel';
 import { SelectCircle } from '../components/SelectCircle';
-import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { UndoToast } from '../components/UndoToast';
@@ -81,9 +81,9 @@ export function HomeScreen() {
   const scrollYRef = useRef(0);
   const [organizeScrollY, setOrganizeScrollY] = useState(0);
 
-  const enterSelectMode = (id: string) => {
+  const enterSelectMode = (id?: string) => {
     setOrganizeScrollY(scrollYRef.current);
-    setSelectedIds([id]);
+    setSelectedIds(id ? [id] : []);
     setSelectMode(true);
   };
 
@@ -91,12 +91,12 @@ export function HomeScreen() {
     list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 
   const boardGroups = useMemo(
-    () => sections.map((section) => ({ id: section.id, title: section.title, acceptsDrop: true })),
-    [sections]
+    () => sections.filter((section) => filter === 'all' || filter === section.id).map((section) => ({ id: section.id, title: section.title, acceptsDrop: true })),
+    [sections, filter]
   );
   const boardItems = useMemo(
     () =>
-      [...habits]
+      [...habits].filter((habit) => filter === 'all' || (habit.groupId ?? 'ungrouped') === filter)
         .sort((left, right) => left.order - right.order)
         .map((habit) => ({
           id: habit.id,
@@ -108,7 +108,7 @@ export function HomeScreen() {
             <SelectCircle checked={selectedIds.includes(habit.id)} accessibilityLabel={`选择 ${habit.name}`} />
           ),
         })),
-    [habits, selectedIds]
+    [habits, selectedIds, filter]
   );
 
   const groupOptions = useMemo(
@@ -121,7 +121,9 @@ export function HomeScreen() {
 
   return (
     <ScreenScaffold
+      organizing={selectMode}
       panelTitle="习惯分组"
+      onOrganize={!selectMode && boardItems.length > 0 ? () => enterSelectMode() : undefined}
       panelItems={[
         { id: 'all', label: `全部习惯 · ${habits.length}`, selected: filter === 'all', onPress: () => setFilter('all') },
         ...sections.map((section) => ({
@@ -139,7 +141,7 @@ export function HomeScreen() {
           onPress: () => setArchive(true),
         },
       ]}
-      fab={selectMode ? null : { label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
+      createAction={selectMode ? null : { label: '新建习惯', onPress: () => setAddHabitVisible(true) }}
     >
       <View style={styles.screen}>
         {selectMode ? (
@@ -181,10 +183,13 @@ export function HomeScreen() {
             moveTitle="移动到分组"
           />
         ) : (
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
+        <>
+        <FilterBar options={[{ id: 'all', label: '全部', count: habits.length }, ...sections.map((section) => ({ id: section.id, label: section.title, count: section.habits.length }))]} value={filter} onChange={setFilter} />
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
           {habits.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>还没有习惯</Text>
+              <Text style={styles.groupEmpty}>点顶部“新建”，从一件小事开始。</Text>
             </View>
           ) : (
             sections
@@ -225,6 +230,7 @@ export function HomeScreen() {
               })
           )}
         </ScrollView>
+        </>
         )}
         <GroupManagerModal visible={manage} onClose={() => setManage(false)} />
         <ArchivedHabitsModal visible={archive} onClose={() => setArchive(false)} />
@@ -271,7 +277,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
     scrollView: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 20 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,

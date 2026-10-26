@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -27,6 +27,8 @@ type OrganizePanelProps = {
   hint?: string;
   /** 进入整理时滚动到的位置，保持和之前看到的一致。 */
   initialScrollY?: number;
+  sortHint?: string;
+  allowSort?: boolean;
 };
 
 /**
@@ -42,7 +44,7 @@ export function OrganizePanel({
   onClose,
   items,
   groups,
-  selectedIds,
+  selectedIds: rawSelectedIds,
   onSetSelection,
   onCommit,
   onDelete,
@@ -52,10 +54,20 @@ export function OrganizePanel({
   deleteLabel = '删除',
   hint = '点按条目选中 · 按住右侧把手拖动排序',
   initialScrollY = 0,
+  sortHint,
+  allowSort = true,
 }: OrganizePanelProps) {
   const { theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const selectedIds = useMemo(() => {
+    const visibleIds = new Set(items.map((item) => item.id));
+    return rawSelectedIds.filter((id) => visibleIds.has(id));
+  }, [items, rawSelectedIds]);
+  useEffect(() => {
+    if (selectedIds.length !== rawSelectedIds.length) onSetSelection(selectedIds);
+  }, [selectedIds, rawSelectedIds, onSetSelection]);
   const [moveVisible, setMoveVisible] = useState(false);
+  const [mode, setMode] = useState<'select' | 'sort'>('select');
 
   useBackHandler(() => {
     onClose();
@@ -65,6 +77,9 @@ export function OrganizePanel({
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allSelected = items.length > 0 && selected.size === items.length;
   const canMove = !!groupOptions && !!onMoveToGroup;
+  const displayItems = useMemo(() => items.map((item) => ({
+    ...item, selected: selected.has(item.id), leading: mode === 'select' ? item.leading : undefined,
+  })), [items, selected, mode]);
 
   const toggleSelected = (id: string) => {
     onSetSelection(selected.has(id) ? selectedIds.filter((entry) => entry !== id) : [...selectedIds, id]);
@@ -83,71 +98,43 @@ export function OrganizePanel({
   return (
     <Animated.View layout={LIST_LAYOUT} style={styles.panel}>
       <View style={styles.toolbar}>
+        <Text style={styles.toolbarTitle}>{title}</Text>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="完成整理" onPress={onClose} style={styles.action}>
           <Text style={styles.actionText}>完成</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="checkbox"
-          accessibilityLabel="全选"
-          accessibilityState={{ checked: allSelected }}
-          onPress={() => onSetSelection(allSelected ? [] : items.map((item) => item.id))}
-          style={[styles.circle, allSelected && styles.circleOn]}
-        >
-          {allSelected ? <Text style={styles.circleTick}>✓</Text> : null}
-        </TouchableOpacity>
-        <Text style={styles.toolbarTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        {canMove ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="移动分组"
-            disabled={selectedIds.length === 0}
-            onPress={() => setMoveVisible(true)}
-            style={[styles.action, selectedIds.length === 0 && styles.actionDisabled]}
-          >
-            <Text style={styles.actionText}>移动</Text>
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={`${deleteLabel}选中`}
-          disabled={selectedIds.length === 0}
-          onPress={handleDelete}
-          style={[styles.action, styles.dangerAction, selectedIds.length === 0 && styles.actionDisabled]}
-        >
-          <Text style={[styles.actionText, styles.dangerActionText]}>{deleteLabel}</Text>
-        </TouchableOpacity>
       </View>
-
-      <Text style={styles.hint}>
-        {selectedIds.length > 0 ? `已选 ${selectedIds.length} · ` : ''}
-        {hint}
-      </Text>
-
+      <View style={styles.modes}>
+        {((allowSort ? ['select', 'sort'] : ['select']) as Array<'select' | 'sort'>).map((value) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityLabel={value === 'select' ? '多选模式' : '排序模式'} accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={[styles.mode, mode === value && styles.modeActive]}>
+          <Text style={[styles.modeText, mode === value && styles.modeTextActive]}>{value === 'select' ? '多选' : '排序'}</Text>
+        </TouchableOpacity>)}
+      </View>
+      {mode === 'select' ? <View style={styles.selectionBar}>
+        <Text style={styles.selectionCount}>已选 {selectedIds.length} / {items.length}</Text>
+        <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel="全选" accessibilityState={{ checked: allSelected }} onPress={() => onSetSelection(allSelected ? [] : items.map((item) => item.id))} style={styles.action}>
+          <Text style={styles.actionText}>{allSelected ? '取消全选' : '全选'}</Text>
+        </TouchableOpacity>
+      </View> : <Text style={styles.hint}>{sortHint ?? hint}
+按住右侧把手拖动，松手即保存。跨组移动会改变所属分组。</Text>}
       <DraggableList
         groups={groups}
-        items={items}
+        items={displayItems}
         onCommit={onCommit}
-        onToggleSelect={toggleSelected}
+        onToggleSelect={mode === 'select' ? toggleSelected : undefined}
+        dragEnabled={mode === 'sort'}
         emptyText="没有可整理的条目"
-        contentPaddingBottom={160}
+        contentPaddingBottom={24}
         initialScrollY={initialScrollY}
         autoScroll
       />
-
-      {canMove ? (
-        <GroupPickerModal
-          visible={moveVisible}
-          title={moveTitle}
-          selectedGroupId={null}
-          allowNull
-          nullLabel="未分组"
-          options={groupOptions ?? []}
-          onClose={() => setMoveVisible(false)}
-          onSubmit={(groupId) => onMoveToGroup?.(selectedIds, groupId)}
-        />
-      ) : null}
+      {mode === 'select' && <View style={styles.bottomActions}>
+        {canMove && <TouchableOpacity accessibilityRole="button" accessibilityLabel={moveTitle} disabled={selectedIds.length === 0} onPress={() => setMoveVisible(true)} style={[styles.batchAction, styles.moveAction, selectedIds.length === 0 && styles.actionDisabled]}>
+          <Text style={styles.actionText}>{moveTitle.includes('日期') ? '更改截止日期' : '移动分组'}</Text>
+        </TouchableOpacity>}
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${deleteLabel}选中`} disabled={selectedIds.length === 0} onPress={handleDelete} style={[styles.batchAction, styles.dangerAction, selectedIds.length === 0 && styles.actionDisabled]}>
+          <Text style={styles.dangerActionText}>{deleteLabel} {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</Text>
+        </TouchableOpacity>
+      </View>}
+      {canMove && <GroupPickerModal visible={moveVisible} title={moveTitle} selectedGroupId={null} allowNull nullLabel="未分组" options={groupOptions ?? []} onClose={() => setMoveVisible(false)} onSubmit={(groupId) => { onMoveToGroup?.(selectedIds, groupId); onSetSelection([]); }} />}
     </Animated.View>
   );
 }
@@ -155,42 +142,23 @@ export function OrganizePanel({
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     panel: { flex: 1, backgroundColor: theme.colors.background },
-    toolbar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: 20,
-      paddingTop: 10,
-      paddingBottom: 8,
-    },
-    hint: {
-      paddingHorizontal: 20,
-      paddingBottom: 10,
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-    },
-    circle: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      borderWidth: 2,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    circleOn: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
-    circleTick: { fontSize: 14, fontWeight: '900', color: theme.colors.white },
-    toolbarTitle: { flex: 1, fontSize: 15, fontWeight: '800', color: theme.colors.textPrimary },
-    action: {
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    actionDisabled: { opacity: 0.45 },
-    actionText: { fontSize: 13, fontWeight: '800', color: theme.colors.primary },
+    toolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
+    toolbarTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary },
+    modes: { marginHorizontal: 16, padding: 4, flexDirection: 'row', borderRadius: 10, backgroundColor: theme.colors.surfaceMuted },
+    mode: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+    modeActive: { backgroundColor: theme.colors.surface },
+    modeText: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
+    modeTextActive: { color: theme.colors.primary, fontWeight: '800' },
+    selectionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
+    selectionCount: { fontSize: 13, color: theme.colors.textSecondary },
+    hint: { paddingHorizontal: 16, paddingVertical: 12, fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
+    action: { minHeight: 48, justifyContent: 'center', borderRadius: 8, paddingHorizontal: 14, backgroundColor: theme.colors.primarySoft },
+    actionDisabled: { opacity: 0.4 },
+    actionText: { fontSize: 14, fontWeight: '700', color: theme.colors.primary },
+    bottomActions: { flexDirection: 'row', gap: 12, padding: 12, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
+    batchAction: { flex: 1, minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+    moveAction: { backgroundColor: theme.colors.primarySoft },
     dangerAction: { backgroundColor: theme.colors.dangerSoft },
-    dangerActionText: { color: theme.colors.danger },
+    dangerActionText: { fontSize: 14, fontWeight: '700', color: theme.colors.danger },
   });
 }

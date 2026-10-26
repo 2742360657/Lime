@@ -1,3 +1,5 @@
+import { useDateTick } from '../utils/useDateTick';
+import { FilterBar } from '../components/FilterBar';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -8,7 +10,6 @@ import { AccordionSection } from '../components/AccordionSection';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
 import { SelectCircle } from '../components/SelectCircle';
-import { FAB_CLEARANCE, handleFabScroll } from '../components/FloatingAddButton';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
@@ -16,6 +17,8 @@ import { UndoToast } from '../components/UndoToast';
 import { useHabits } from '../state/HabitStore';
 import { TodoItem } from '../types/habit';
 import {
+  hasTodoDateOrderConflict,
+  getTodoDateOptions,
   bucketToDueDateKey,
   buildTodoBuckets,
   formatTodoDue,
@@ -43,7 +46,8 @@ export function TasksScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const buckets = useMemo(() => buildTodoBuckets(todos), [todos]);
+  const dateTick = useDateTick();
+  const buckets = useMemo(() => buildTodoBuckets(todos), [todos, dateTick]);
   const completedTodos = useMemo(
     () =>
       todos
@@ -82,9 +86,9 @@ export function TasksScreen() {
   const scrollYRef = useRef(0);
   const [organizeScrollY, setOrganizeScrollY] = useState(0);
 
-  const enterSelectMode = (id: string) => {
+  const enterSelectMode = (id?: string) => {
     setOrganizeScrollY(scrollYRef.current);
-    setSelectedIds([id]);
+    setSelectedIds(id ? [id] : []);
     setSelectMode(true);
   };
 
@@ -120,36 +124,41 @@ export function TasksScreen() {
 
   const boardGroups = useMemo(
     () => [
-      ...buckets.map((bucket) => ({ id: bucket.id, title: bucket.title, acceptsDrop: true })),
-      ...(completedTodos.length > 0
+      ...buckets.filter((bucket) => filter === 'all' || filter === bucket.id).map((bucket) => ({ id: bucket.id, title: bucket.title, acceptsDrop: true })),
+      ...((filter === 'all' || filter === 'completed') && completedTodos.length > 0
         ? [{ id: TODO_COMPLETED_BUCKET_ID, title: '已完成', acceptsDrop: false }]
         : []),
     ],
-    [buckets, completedTodos.length]
+    [buckets, completedTodos.length, filter]
   );
 
   const boardItems = useMemo(
     () =>
-      [...buckets.flatMap((bucket) => bucket.todos), ...completedTodos].map((todo) => ({
+      [...buckets.filter((bucket) => filter === 'all' || filter === bucket.id).flatMap((bucket) => bucket.todos), ...((filter === 'all' || filter === 'completed') ? completedTodos : [])].map((todo) => ({
         id: todo.id,
         groupId: todoGroupKey(todo, buckets),
         label: todo.title,
+        sortable: todo.completedAt === null,
         subtitle: formatTodoDue(todo),
         leading: <SelectCircle checked={selectedIds.includes(todo.id)} accessibilityLabel={`选择 ${todo.title}`} />,
       })),
-    [buckets, completedTodos, selectedIds]
+    [buckets, completedTodos, selectedIds, filter]
   );
 
   return (
     <View style={styles.screen}>
       <ScreenScaffold
-      panelTitle="待办"
+      organizing={selectMode}
+      panelTitle="待办日期"
+      onOrganize={!selectMode && boardItems.length > 0 ? () => enterSelectMode() : undefined}
       panelItems={sidebarItems}
-      fab={selectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
+      createAction={selectMode ? null : { label: '新建待办', onPress: () => openEditor(null) }}
     >
         {selectMode ? (
           <OrganizePanel
             title="整理待办"
+            allowSort={filter !== TODO_COMPLETED_BUCKET_ID}
+            sortHint="按截止日期、时间优先排列；相同时间内可手动排序。跨日期分组会先确认改期。"
             hint="点按待办选中 · 按住右侧把手拖动排序，拖到别的分组会先确认是否改截止时间"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
@@ -174,6 +183,7 @@ export function TasksScreen() {
                 .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
 
               if (moves.length === 0) {
+                if (hasTodoDateOrderConflict(ordered, todos)) Alert.alert('按截止时间排序', '不同截止日期或时间的待办会保持时间先后。相同截止时间内可自由排序；需要调整日期可点条目的日期。');
                 reorderOnly();
                 return;
               }
@@ -208,23 +218,20 @@ export function TasksScreen() {
               setSelectedIds([]);
               setSelectMode(false);
             }}
-            groupOptions={[
-              { id: 'today', label: '今天' },
-              { id: 'tomorrow', label: '明天' },
-              { id: 'soon', label: '未来 7 天' },
-              { id: 'later', label: '稍后' },
-              { id: null, label: '无日期' },
-            ]}
+            groupOptions={getTodoDateOptions().map(({ id, label }) => ({ id: id === 'no-date' ? null : id, label }))}
             onMoveToGroup={(ids, groupId) =>
               moveTodosToBucket(ids, bucketToDueDateKey(groupId ?? 'no-date'))
             }
-            moveTitle="移动到日期分组"
+            moveTitle="更改截止日期"
           />
         ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; handleFabScroll(event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
-          {openTodos.length === 0 ? (
+        <>
+        <FilterBar options={[{ id: 'all', label: '全部', count: openTodos.length }, ...Object.entries(TODO_BUCKET_TITLES).map(([id, label]) => ({ id, label, count: buckets.find((bucket) => bucket.id === id)?.todos.length ?? 0 })), { id: 'completed', label: '已完成', count: completedTodos.length }]} value={filter} onChange={(id) => { setFilter(id); if (id === 'completed') setTodoBucketCollapsed('completed', false); }} />
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
+          <Text style={styles.sortExplanation}>按截止日期、时间排列 · 相同时间可手动排序</Text>
+          {visibleBuckets.length === 0 && (filter !== 'completed' || completedTodos.length === 0) ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>暂时没有未完成待办</Text>
+              <Text style={styles.emptyTitle}>{filter === 'completed' ? '还没有已完成待办' : filter === 'all' ? '没有未完成待办，轻松一下' : '这个日期分组没有待办'}</Text>
             </View>
           ) : (
             visibleBuckets.map((bucket) => (
@@ -273,19 +280,16 @@ export function TasksScreen() {
             </AccordionSection>
           ) : null}
         </ScrollView>
+        </>
         )}
 
         <ItemActionSheet
           visible={dueTodo !== null}
           title={dueTodo?.title ?? ''}
-          subtitle="不改内容，只改截止时间"
+          subtitle="更改截止日期；原有具体时间保持不变。"
           actions={[
-            { label: '今天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('today')); } } },
-            { label: '明天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('tomorrow')); } } },
-            { label: '未来 7 天', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('soon')); } } },
-            { label: '稍后', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('later')); } } },
-            { label: '无日期', onPress: () => { if (dueTodo) { moveTodosToBucket([dueTodo.id], bucketToDueDateKey('no-date')); } } },
-            { label: '自定义时间…', onPress: () => { if (dueTodo) { openEditor(dueTodo); } } },
+            ...getTodoDateOptions().map((option) => ({ label: option.label, onPress: () => { if (dueTodo) moveTodosToBucket([dueTodo.id], option.dueDateKey); } })),
+            { label: '自定义日期和时间…', onPress: () => { if (dueTodo) openEditor(dueTodo); } },
           ]}
           onClose={() => setDueTodoId(null)}
         />
@@ -296,7 +300,7 @@ export function TasksScreen() {
           actions={[
             { label: '编辑信息', onPress: () => { if (actionTodo) { openEditor(actionTodo); } } },
             { label: '多选整理', onPress: () => { if (actionTodo) { enterSelectMode(actionTodo.id); } } },
-            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) { deleteTodo(actionTodo.id); } } },
+            { label: '删除待办', danger: true, onPress: () => { if (actionTodo) Alert.alert('删除待办？', `将删除“${actionTodo.title}”，此操作无法撤销。`, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => deleteTodo(actionTodo.id) }]); } },
           ]}
           onClose={() => setActionTodoId(null)}
         />
@@ -327,7 +331,8 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: FAB_CLEARANCE, gap: 22 },
+    sortExplanation: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
     list: { gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,

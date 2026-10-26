@@ -10,7 +10,7 @@ export type NavigationProps = {
 
 /** 底部主导航菜单项。 */
 export const GLOBAL_NAV_ITEMS: Array<{ id: NavigationTarget; label: string; icon: string }> = [
-  { id: 'today', label: '首页', icon: '⌂' },
+  { id: 'today', label: '今日', icon: '⌂' },
   { id: 'tasks', label: '待办', icon: '✓' },
   { id: 'habits', label: '习惯', icon: '◷' },
   { id: 'memos', label: '备忘录', icon: '▤' },

@@ -1,6 +1,6 @@
+import { EditorLayout, useConfirmDiscard } from './EditorLayout';
 import { Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -36,6 +36,10 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
   const [dueMode, setDueMode] = useState<DueMode>('none');
   const [customDate, setCustomDate] = useState(getTodayKey());
   const [dueTime, setDueTime] = useState('');
+  const snapshot = useRef('');
+  const dirty = visible && snapshot.current !== JSON.stringify({ title, note, dueMode, customDate, dueTime });
+  const requestClose = useConfirmDiscard(dirty, onClose);
+
 
   useEffect(() => {
     if (!visible) {
@@ -44,6 +48,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
 
     const todayKey = getTodayKey();
     const tomorrowKey = addDaysToDateKey(todayKey, 1);
+    const initialMode: DueMode = !todo?.dueDateKey ? 'none' : todo.dueDateKey === todayKey ? 'today' : todo.dueDateKey === tomorrowKey ? 'tomorrow' : 'custom';
+    snapshot.current = JSON.stringify({ title: todo?.title ?? '', note: todo?.note ?? '', dueMode: initialMode, customDate: todo?.dueDateKey ?? todayKey, dueTime: todo?.dueTime ?? '' });
     setTitle(todo?.title ?? '');
     setNote(todo?.note ?? '');
     setCustomDate(todo?.dueDateKey ?? todayKey);
@@ -110,25 +116,16 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>取消</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{todo ? '编辑待办' : '新建待办'}</Text>
-          <TouchableOpacity onPress={handleSubmit} style={[styles.headerButton, styles.saveButton]}>
-            <Text style={styles.saveButtonText}>保存</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Modal visible={visible} animationType="slide" onRequestClose={requestClose}>
+      <EditorLayout title={todo ? '编辑待办' : '新建待办'} onClose={requestClose} onSave={handleSubmit} disabled={!title.trim()}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.field}>
             <Text style={styles.label}>要做什么</Text>
             <TextInput
               autoFocus
               maxLength={80}
-              placeholder="待办名称"
+              accessibilityLabel="待办名称"
+              placeholder="例如：整理本周学习计划"
               placeholderTextColor={theme.colors.textMuted}
               value={title}
               onChangeText={setTitle}
@@ -144,6 +141,7 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
               <Choice label="明天" active={dueMode === 'tomorrow'} onPress={() => setDueMode('tomorrow')} />
               <Choice label="自定义" active={dueMode === 'custom'} onPress={() => setDueMode('custom')} />
             </View>
+            <Text style={styles.fieldHint}>日期决定自动分组；时间可留空，表示当天内完成。</Text>
             {dueMode === 'custom' ? (
               <TextInput
                 value={customDate}
@@ -153,7 +151,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
                   if (normalized) setCustomDate(normalized);
                 }}
                 maxLength={30}
-                placeholder="日期"
+                accessibilityLabel="截止日期"
+                placeholder="例如：10月28日、10.28 或明天"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
               />
@@ -170,7 +169,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
                     if (normalized) setDueTime(normalized);
                   }}
                   maxLength={20}
-                  placeholder="时间"
+                  accessibilityLabel="截止时间"
+                  placeholder="选填，如 18:30"
                   placeholderTextColor={theme.colors.textMuted}
                   style={styles.timeInput}
                 />
@@ -185,7 +185,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
               maxLength={300}
               value={note}
               onChangeText={setNote}
-              placeholder="备注"
+              accessibilityLabel="待办备注"
+              placeholder="补充步骤、地点或需要准备的内容（选填）"
               placeholderTextColor={theme.colors.textMuted}
               style={[styles.input, styles.noteInput]}
             />
@@ -197,7 +198,7 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
             </TouchableOpacity>
           ) : null}
         </ScrollView>
-      </SafeAreaView>
+      </EditorLayout>
     </Modal>
   );
 
@@ -225,40 +226,22 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      minHeight: 64,
-      paddingHorizontal: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    headerTitle: { fontSize: 17, fontWeight: '800', color: theme.colors.textPrimary },
-    headerButton: { minWidth: 60, paddingHorizontal: 10, paddingVertical: 10, alignItems: 'center' },
-    headerButtonText: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary },
-    saveButton: { borderRadius: 12, backgroundColor: theme.colors.primary },
-    saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
-    content: { padding: 20, gap: 22, paddingBottom: 44 },
+    content: { padding: 16, gap: 18, paddingBottom: 44 },
     field: { gap: 10 },
-    label: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
+    fieldHint: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
+    label: { fontSize: 13, fontWeight: '700', color: theme.colors.textPrimary },
     titleInput: {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
       paddingVertical: 14,
-      fontSize: 21,
+      fontSize: 18,
       fontWeight: '700',
       color: theme.colors.textPrimary,
     },
     input: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 14,
+      borderRadius: 8,
       paddingHorizontal: 14,
       paddingVertical: 12,
       fontSize: 15,
@@ -268,11 +251,12 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     noteInput: { minHeight: 112, textAlignVertical: 'top' },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     chip: {
-      borderRadius: 999,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 14,
-      paddingVertical: 9,
+      minHeight: 48,
+      paddingVertical: 12,
       backgroundColor: theme.colors.surface,
     },
     chipActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
@@ -283,7 +267,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       alignItems: 'center',
       gap: 14,
       padding: 14,
-      borderRadius: 14,
+      borderRadius: 8,
       backgroundColor: theme.colors.surfaceMuted,
     },
     timeTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
@@ -300,9 +284,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     deleteButton: {
       paddingVertical: 14,
       alignItems: 'center',
-      borderRadius: 14,
+      borderRadius: 8,
       backgroundColor: theme.colors.dangerSoft,
     },
-    deleteButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.danger },
+    deleteButtonText: { fontSize: 13, fontWeight: '700', color: theme.colors.danger },
   });
 }

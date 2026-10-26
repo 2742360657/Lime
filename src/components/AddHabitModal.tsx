@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { EditorLayout, useConfirmDiscard } from './EditorLayout';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -10,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HabitInput, useHabits } from '../state/HabitStore';
 import { Habit, HabitCadence } from '../types/habit';
@@ -36,11 +36,16 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   const [cadence, setCadence] = useState<HabitCadence>('daily');
   const [targetCount, setTargetCount] = useState('1');
   const [hasTarget, setHasTarget] = useState(false);
+  const snapshot = useRef('');
+  const dirty = visible && snapshot.current !== JSON.stringify({ name, selectedGroupId, cadence, targetCount, hasTarget });
+  const requestClose = useConfirmDiscard(dirty, onClose);
+
 
   useEffect(() => {
     if (!visible) {
       return;
     }
+    snapshot.current = JSON.stringify({ name: habit?.name ?? '', selectedGroupId: habit?.groupId ?? null, cadence: habit?.cadence ?? 'daily', targetCount: String(habit?.targetCount || 1), hasTarget: !!habit && habit.targetCount > 0 });
     setName(habit?.name ?? '');
     setSelectedGroupId(habit?.groupId ?? null);
     setCadence(habit?.cadence ?? 'daily');
@@ -67,25 +72,16 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Text style={styles.headerButtonText}>取消</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{habit ? '编辑习惯' : '新建习惯'}</Text>
-          <TouchableOpacity onPress={handleSubmit} style={[styles.headerButton, styles.saveButton]}>
-            <Text style={styles.saveButtonText}>保存</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <Modal visible={visible} animationType="slide" onRequestClose={requestClose}>
+      <EditorLayout title={habit ? '编辑习惯' : '新建习惯'} onClose={requestClose} onSave={handleSubmit} disabled={!name.trim()}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.field}>
             <Text style={styles.label}>习惯名称</Text>
             <TextInput
               autoFocus
               maxLength={40}
-              placeholder="习惯名称"
+              accessibilityLabel="习惯名称"
+              placeholder="例如：阅读 20 分钟"
               placeholderTextColor={theme.colors.textMuted}
               value={name}
               onChangeText={setName}
@@ -152,7 +148,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </EditorLayout>
     </Modal>
   );
 
@@ -167,34 +163,15 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      minHeight: 64,
-      paddingHorizontal: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    headerTitle: { fontSize: 17, fontWeight: '800', color: theme.colors.textPrimary },
-    headerButton: { minWidth: 60, paddingHorizontal: 10, paddingVertical: 10, alignItems: 'center' },
-    headerButtonText: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary },
-    saveButton: { borderRadius: 12, backgroundColor: theme.colors.primary },
-    saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
-    content: { padding: 20, gap: 24, paddingBottom: 44 },
+    content: { padding: 16, gap: 18, paddingBottom: 44 },
     field: { gap: 11 },
-    label: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
+    label: { fontSize: 13, fontWeight: '700', color: theme.colors.textPrimary },
     hint: { marginTop: 6, fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
     titleInput: {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
       paddingVertical: 14,
-      fontSize: 21,
+      fontSize: 18,
       fontWeight: '700',
       color: theme.colors.textPrimary,
     },
@@ -204,7 +181,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       minHeight: 54,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 16,
+      borderRadius: 10,
       padding: 12,
       justifyContent: 'center',
       backgroundColor: theme.colors.surface,
@@ -217,7 +194,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       alignItems: 'center',
       gap: 16,
       padding: 16,
-      borderRadius: 16,
+      borderRadius: 10,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -235,7 +212,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     groupList: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     groupChip: {
-      borderRadius: 999,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,

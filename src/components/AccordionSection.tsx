@@ -40,8 +40,9 @@ export function AccordionSection({
        否则外层高度会瞬间跳变，内层的让位动画就看不出来。 */
     <Animated.View layout={LIST_LAYOUT} style={styles.section}>
       <TouchableOpacity
+        hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? `折叠${title}`}
+        accessibilityLabel={accessibilityLabel ?? `${collapsed ? '展开' : '收起'}${title}`}
         accessibilityState={{ expanded: !collapsed }}
         onPress={onToggle}
         style={styles.header}
@@ -60,6 +61,8 @@ export function AccordionSection({
         收起时呈现向上收回的效果；同时避免手动测量高度带来的各种坑。
       */}
       <Animated.View
+        accessibilityElementsHidden={collapsed}
+        importantForAccessibility={collapsed ? 'no-hide-descendants' : 'auto'}
         layout={LIST_LAYOUT}
         style={[styles.body, collapsed ? styles.bodyCollapsed : styles.bodyExpanded]}
       >
@@ -71,15 +74,16 @@ export function AccordionSection({
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    section: { gap: 10 },
+    section: { gap: 5 },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 3,
+      minHeight: 40,
+      paddingVertical: 6,
       gap: 12,
     },
-    title: { flexShrink: 1, fontSize: 17, fontWeight: '800', color: theme.colors.textPrimary },
+    title: { flexShrink: 1, fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
     dangerTitle: { color: theme.colors.danger },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     meta: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },

@@ -57,8 +57,8 @@ export function buildTodoBuckets(todos: TodoItem[]): TodoBucket[] {
     ['overdue', '已逾期'],
     ['today', '今天'],
     ['tomorrow', '明天'],
-    ['soon', '未来 7 天'],
-    ['later', '稍后'],
+    ['soon', '未来 2–7 天'],
+    ['later', '7 天以后'],
     ['no-date', '无日期'],
   ];
 
@@ -78,8 +78,8 @@ export const TODO_BUCKET_TITLES: Record<TodoBucketId, string> = {
   overdue: '已逾期',
   today: '今天',
   tomorrow: '明天',
-  soon: '未来 7 天',
-  later: '稍后',
+  soon: '未来 2–7 天',
+  later: '7 天以后',
   'no-date': '无日期',
 };
 
@@ -87,7 +87,7 @@ export const TODO_COMPLETED_BUCKET_ID = 'completed';
 
 /**
  * 多选时“移动到某个日期分组”对应的截止日期。
- * 已逾期与今天都落到今天，稍后落到 7 天之后。
+ * 已逾期与今天都落到今天；未来分组分别映射到 3 天、30 天后。
  */
 export function bucketToDueDateKey(bucketId: string): string | null {
   const todayKey = getTodayKey();
@@ -133,4 +133,30 @@ export function isTodoOverdue(todo: TodoItem) {
   const now = new Date();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   return todo.dueTime < currentTime;
+}
+
+/** Explicit dates for rescheduling, distinct from the automatically computed date buckets. */
+export function getTodoDateOptions() {
+  return [
+    { id: 'today', label: '今天' },
+    { id: 'tomorrow', label: '明天' },
+    { id: 'soon', label: '3 天后' },
+    { id: 'later', label: '30 天后' },
+    { id: 'no-date', label: '无截止日期' },
+  ].map((option) => ({ ...option, dueDateKey: bucketToDueDateKey(option.id),
+    label: option.id === 'no-date' ? option.label : `${option.label} · ${bucketToDueDateKey(option.id)}` }));
+}
+
+/** Dragging within a date bucket cannot override differing deadlines. */
+export function hasTodoDateOrderConflict(ordered: Array<{ id: string; groupId: string }>, todos: TodoItem[]) {
+  const byId = new Map(todos.map((todo) => [todo.id, todo]));
+  const previous = new Map<string, TodoItem>();
+  for (const entry of ordered) {
+    const todo = byId.get(entry.id);
+    if (!todo || todo.completedAt !== null) continue;
+    const before = previous.get(entry.groupId);
+    if (before && dueSortValue(before).localeCompare(dueSortValue(todo)) > 0) return true;
+    previous.set(entry.groupId, todo);
+  }
+  return false;
 }

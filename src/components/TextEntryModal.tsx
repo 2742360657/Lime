@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   StyleSheet,
@@ -51,11 +52,14 @@ export function TextEntryModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView behavior="padding" style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <TextInput
+            accessibilityLabel={placeholder}
+            returnKeyType="done"
+            onSubmitEditing={() => { if (value.trim()) handleSubmit(); }}
             autoFocus
             maxLength={maxLength}
             placeholder={placeholder}
@@ -68,12 +72,12 @@ export function TextEntryModal({
             <TouchableOpacity onPress={onClose} style={[styles.button, styles.secondaryButton]}>
               <Text style={styles.secondaryButtonText}>取消</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} style={[styles.button, styles.primaryButton]}>
+            <TouchableOpacity accessibilityRole="button" disabled={!value.trim()} onPress={handleSubmit} style={[styles.button, styles.primaryButton, !value.trim() && { opacity: 0.4 }]}>
               <Text style={styles.primaryButtonText}>{submitLabel}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

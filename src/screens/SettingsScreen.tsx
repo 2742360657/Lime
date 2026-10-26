@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ProfileBar } from '../components/ProfileBar';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { ThemeSelectionModal } from '../components/ThemeSelectionModal';
 import {
@@ -68,21 +68,17 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScreenScaffold panelTitle="设置" panelItems={[]} fab={null}>
+    <ScreenScaffold panelTitle="设置" panelItems={[]} createAction={null}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader title="设置" />
+        <ProfileBar onPress={() => setProfileVisible(true)} />
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>外观与整理</Text>
 
-          <SettingRow
-            label="个人资料"
-            value={appData.settings.profileName}
-            onPress={() => setProfileVisible(true)}
-          />
+
           <SettingRow
             label="色系选择"
             value={theme.label}
@@ -97,6 +93,7 @@ export function SettingsScreen() {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>数据备份与恢复</Text>
+          <Text style={styles.backupHint}>定期导出到应用之外。恢复备份会覆盖当前全部数据。</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity
               disabled={busyAction !== null}
@@ -141,7 +138,7 @@ export function SettingsScreen() {
           <Text style={styles.settingLabel}>{label}</Text>
           <Text style={styles.settingValue}>{value}</Text>
         </View>
-        <Text style={styles.settingArrow}>进入</Text>
+        <Text style={styles.settingArrow}>›</Text>
       </TouchableOpacity>
     );
   }
@@ -153,9 +150,10 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       flex: 1,
     },
     content: {
-      padding: 20,
+      padding: 16,
       gap: 18,
     },
+    backupHint: { fontSize: 13, lineHeight: 20, color: theme.colors.textSecondary },
     sectionCard: {
       borderRadius: theme.radius.large,
       padding: 18,
@@ -166,7 +164,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       ...theme.shadow,
     },
     sectionTitle: {
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: '800',
       color: theme.colors.textPrimary,
     },

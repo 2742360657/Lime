@@ -56,6 +56,7 @@ function GlobalDrawerContent(props: DrawerContentComponentProps) {
  */
 export function AppNavigator({ screens }: { screens: Record<string, React.ComponentType<any>> }) {
   const { width: screenWidth } = useWindowDimensions();
+  const { theme } = useHabits();
   return (
     <PanelProvider>
     <Drawer.Navigator
@@ -67,14 +68,14 @@ export function AppNavigator({ screens }: { screens: Record<string, React.Compon
         drawerPosition: 'left',
         // 只保留一套横向抽屉，减少手势竞争和“滑了但没跟上”的感觉。
         swipeEnabled: true,
-        swipeEdgeWidth: screenWidth * 0.62,
+        swipeEdgeWidth: 24,
         swipeMinDistance: 18,
         overlayColor: '#00000055',
-        drawerStyle: { width: 300 },
+        drawerStyle: { width: Math.min(340, screenWidth * 0.88), backgroundColor: theme.colors.surface },
       }}
     >
       {Object.entries(screens).map(([name, Component]) => (
-        <Drawer.Screen key={name} name={name} component={Component} />
+        <Drawer.Screen key={name} name={name} component={Component} options={{ swipeEnabled: name !== 'today' && name !== 'settings' }} />
       ))}
     </Drawer.Navigator>
     </PanelProvider>

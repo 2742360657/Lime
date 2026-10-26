@@ -34,10 +34,7 @@ export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
           <Text numberOfLines={1} style={styles.signature}>{settings.profileSignature}</Text>
         ) : null}
       </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Text style={styles.name}>{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(new Date())}</Text>
-        <Text style={styles.signature}>{new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(new Date())}</Text>
-      </View>
+      <Text style={styles.signature}>编辑 ›</Text>
       </TouchableOpacity>
     </View>
   );
@@ -46,15 +43,16 @@ export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     bar: {
-      minHeight: 66,
+      minHeight: 84,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderRadius: theme.radius.large,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
     },
     menuButton: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
     menuIcon: { fontSize: 21, color: theme.colors.textPrimary },
