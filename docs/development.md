@@ -1,5 +1,11 @@
 # 开发与发布
 
+## 持续维护职责
+
+本项目按用户明确授权由 agent 管理实现、验证、版本、正常推送和正式发布，用户主要提供问题反馈与功能需求。常规维护不需要逐步确认；产品方向冲突、宿主运维、签名/凭据变更和不可恢复的用户数据操作应单独判断范围。授权入口见 [AGENTS.md](../AGENTS.md)。
+
+每次发布都递增 Android versionCode；修复与兼容改进递增补丁版本，新能力递增次版本。版本同时更新 app.json、package.json 和锁文件。先发布经过验证的提交，再创建对应标签和 Release；已发布版本及附件不覆盖重写。正式发布提供 arm64-v8a、x86_64 APK、SHA256SUMS 与包含提交、版本、签名证书摘要、文件大小及哈希的 release-manifest.json。
+
 ## 环境与初始化
 
 Node 22、npm、JDK 17、Android SDK Platform/Build Tools 36，以及 Gradle wrapper 9.0.0。Android 原生工程已提交；常规开发不需要 prebuild。
