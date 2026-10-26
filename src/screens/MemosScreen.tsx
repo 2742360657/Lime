@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   ScrollView,
   StyleSheet,
@@ -453,76 +454,80 @@ function MemoEditor({
 
   const groupLabel = groupOptions.find((option) => option.id === groupId)?.label ?? '未分类';
 
+  // Android edge-to-edge 下 Modal 可能保持全屏高度，显式避让键盘以保留末行的滚动空间。
   return (
     <Modal visible animationType="slide" onRequestClose={handleBack}>
-      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-        <View style={styles.editorHeader}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="返回备忘录列表"
-            onPress={handleBack}
-            hitSlop={12}
-            style={styles.backLink}
-          >
-            <Text style={styles.backLinkText}>‹ 返回</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="保存备忘录"
-            onPress={handleSave}
-            hitSlop={8}
-            style={styles.saveButton}
-          >
-            <Text style={styles.saveButtonText}>保存</Text>
-          </TouchableOpacity>
-        </View>
+      <KeyboardAvoidingView style={styles.screen} behavior="padding">
+        <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+          <View style={styles.editorHeader}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="返回备忘录列表"
+              onPress={handleBack}
+              hitSlop={12}
+              style={styles.backLink}
+            >
+              <Text style={styles.backLinkText}>‹ 返回</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="保存备忘录"
+              onPress={handleSave}
+              hitSlop={8}
+              style={styles.saveButton}
+            >
+              <Text style={styles.saveButtonText}>保存</Text>
+            </TouchableOpacity>
+          </View>
 
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.editorContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <TextInput
-            accessibilityLabel="备忘录标题"
-            placeholder="标题"
-            placeholderTextColor={theme.colors.textMuted}
-            value={title}
-            onChangeText={setTitle}
-            style={styles.titleInput}
+          <ScrollView
+            style={styles.editorScroll}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.editorContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <TextInput
+              accessibilityLabel="备忘录标题"
+              placeholder="标题"
+              placeholderTextColor={theme.colors.textMuted}
+              value={title}
+              onChangeText={setTitle}
+              style={styles.titleInput}
+            />
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="选择分类"
+              onPress={() => setPickerVisible(true)}
+              style={styles.groupField}
+            >
+              <Text style={styles.groupFieldLabel}>分类</Text>
+              <Text style={styles.groupFieldValue}>{groupLabel}</Text>
+            </TouchableOpacity>
+
+            <TextInput
+              accessibilityLabel="备忘录正文"
+              placeholder="开始记录…"
+              placeholderTextColor={theme.colors.textMuted}
+              value={body}
+              onChangeText={setBody}
+              multiline
+              textAlignVertical="top"
+              style={styles.bodyInput}
+            />
+          </ScrollView>
+
+          <GroupPickerModal
+            visible={pickerVisible}
+            title="选择分类"
+            selectedGroupId={groupId}
+            options={groupOptions}
+            nullLabel="未分类"
+            onClose={() => setPickerVisible(false)}
+            onSubmit={(next) => setGroupId(next)}
           />
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="选择分类"
-            onPress={() => setPickerVisible(true)}
-            style={styles.groupField}
-          >
-            <Text style={styles.groupFieldLabel}>分类</Text>
-            <Text style={styles.groupFieldValue}>{groupLabel}</Text>
-          </TouchableOpacity>
-
-          <TextInput
-            accessibilityLabel="备忘录正文"
-            placeholder="开始记录…"
-            placeholderTextColor={theme.colors.textMuted}
-            value={body}
-            onChangeText={setBody}
-            multiline
-            textAlignVertical="top"
-            style={styles.bodyInput}
-          />
-        </ScrollView>
-
-        <GroupPickerModal
-          visible={pickerVisible}
-          title="选择分类"
-          selectedGroupId={groupId}
-          options={groupOptions}
-          nullLabel="未分类"
-          onClose={() => setPickerVisible(false)}
-          onSubmit={(next) => setGroupId(next)}
-        />
-      </SafeAreaView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -580,6 +585,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       backgroundColor: theme.colors.primary,
     },
     saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
+    editorScroll: { flex: 1 },
     editorContent: { paddingHorizontal: 20, paddingTop: 8, gap: 14, paddingBottom: 40 },
     titleInput: {
       fontSize: 22,
