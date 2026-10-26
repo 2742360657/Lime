@@ -74,3 +74,22 @@ test('explicit no-goal values survive disk load and JSON backup import; old miss
   assert.equal(normalizeHabitTarget(0), 0);
   assert.equal(normalizeHabitTarget(3), 3);
 });
+
+test('old backups acquire update defaults and update preferences survive disk and backup roundtrips', async () => {
+  const app = { version: 7, habits: [], groups: [], todos: [], memoGroups: [], memos: [], settings: {} };
+  await saveAppDataToDisk(app);
+  const loaded = await loadAppDataFromDisk();
+  assert.equal(loaded.settings.autoCheckUpdates, true);
+  assert.equal(loaded.settings.lastUpdateCheckAt, 0);
+  assert.equal(loaded.settings.skippedUpdateVersionCode, 0);
+  const prefs = { autoCheckUpdates: false, lastUpdateCheckAt: stamp, skippedUpdateVersionCode: 11 };
+  await saveAppDataToDisk({ ...loaded, settings: { ...loaded.settings, ...prefs } });
+  files.set('memory://updates-backup', buildBackupPayload(await loadAppDataFromDisk()));
+  const restored = await importBackupFile('memory://updates-backup');
+  for (const key of Object.keys(prefs)) assert.equal(restored.settings[key], prefs[key]);
+  await saveAppDataToDisk({ ...loaded, settings: { ...loaded.settings, autoCheckUpdates: 'false', lastUpdateCheckAt: -1, skippedUpdateVersionCode: 1.5 } });
+  const invalid = await loadAppDataFromDisk();
+  assert.equal(invalid.settings.autoCheckUpdates, true);
+  assert.equal(invalid.settings.lastUpdateCheckAt, 0);
+  assert.equal(invalid.settings.skippedUpdateVersionCode, 0);
+});

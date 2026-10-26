@@ -60,5 +60,40 @@ bash scripts/build-android.sh release arm64-v8a,x86_64
 
 - src/、android/、assets/ 是源码；docs/ 是持续更新的使用/开发/架构/隐私说明，截图只使用测试内容。
 - .local/ 只保留工具配置和必要签名；artifacts/ 只保留当前产物。测试输出按任务清理，不堆日期归档、重复交接报告或源码副本。
-- main 为纯本地稳定线；extended/dev 为独立安装的 AI 扩展测试线，按需切换，不保留第二套常驻工程。
+- main 为本地业务稳定线；extended/dev 为独立安装的 AI 扩展测试线，按需切换，不保留第二套常驻工程。
 - 宿主运维独立在 server-infra 私有仓库；不把网络、凭据、VM/NAS 文档塞进公开应用仓库。
+
+## 自动更新维护
+
+运行时只匿名读取 `https://github.com/2742360657/Lime/releases/latest/download/release-manifest.json`，无需 GitHub API 令牌。清单格式由 `scripts/prepare-release.mjs` 生成，解析契约见 `src/update/manifest.ts`。保留 formatVersion、stable channel、applicationId、version/versionCode、tag、minimumAndroidApi、certificateSha256、notes，以及各 ABI 的 name/url/size/sha256。APK 地址必须精确对应本仓库的版本标签。不要删除旧发布或覆盖附件；保持递增 versionCode 和正式签名。
+
+`npm run check` 包含清单拒绝边界、版本/架构选择、每日节流与旧备份迁移测试。原生安全校验需在隔离 Android 模拟器运行 `UpdateVerifierInstrumentation`，测试同签名新版、错误哈希/大小/路径/版本、其他包名/签名/ABI 和降级。测试夹具与专用旧版本元数据 APK 不公开发布。UI 验收需使用实际发布清单/下载，检查跳过与手动检查、取消/重试、缓存被篡改后的安装拒绝、未知来源许可、系统确认及覆盖升级后数据保留。
+
+正式源码提交并通过构建后：
+
+```bash
+node scripts/prepare-release.mjs artifacts/release
+# 推送当前正式提交与 vX.Y.Z 标签后，发布清单中的精确产物
+python scripts/publish-release.py publish artifacts/release /绝对路径/发布说明.md
+```
+
+发布脚本从现有 Git credential helper 临时取得 GitHub 凭据，不写入源码、参数或应用；先创建草稿并上传，验证远端摘要与本地一致后发布。已发布附件不可覆盖。检查 latest 的清单版本及哈希，确认应用手动检查自己的版本时不会再次提示。构建/测试通过工作区公共入口运行，遵循外部全局资源限制。
+
+### 隔离更新验收
+
+`bash scripts/build-update-qa.sh 1.2.4 9` 会临时降低原生版本，构建完成或失败后恢复 app.json；测试包只在 `artifacts/update-qa/`。保持当前 Node/Gradle 环境和正式签名配置，以便测试同签名覆盖升级。不要发布该包。
+
+准备 `fixtures/`：保留待升级正式版的两份原始 APK；把其 x86_64 包用仓库公开的 debug.keystore 重签后命名 `lime-1.2.6-x86_64.apk`（不同签名夹具），测试 APK 复制为 `lime-1.2.7-x86_64.apk`（不同包名），QA 主 APK 复制为 `lime-1.2.4-x86_64.apk`（旧版本）。这些名称只用于隔离的反例；签名口令通过临时文件传入工具，不放入命令行。原始正式版不得重新签名或上传覆盖。
+
+在包含 emulator、platform-tools 和 Android36 default/x86_64 系统镜像的 SDK 上运行：
+
+```bash
+python tests/android/update_e2e.py --sdk /local/test-sdk --out /local/task-evidence \
+  --manifest /local/official-release/release-manifest.json --fixtures /local/fixtures \
+  --qa-apk artifacts/update-qa/lime-updater-qa.apk --test-apk artifacts/update-qa/verifier-test.apk
+# 恢复正式版本并构建后，在同一隔离 AVD 上继续覆盖升级验收
+python tests/android/update_e2e.py --sdk /local/test-sdk --out /local/task-evidence \
+  --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk
+```
+
+首次验收时 latest 必须指向提供的正式夹具版本。脚本只启动自己的 `.local/update-avd/LimeUpdater.avd`（端口 5584），只操作明确的 `emulator-5584`，使用合成数据并在退出时关闭模拟器；不连接真实手机、不复用个人 AVD。证据含截图、原生校验结果和 JSON 结果。结束后按任务清理独立 AVD 与测试 APK。

@@ -285,6 +285,9 @@ function sanitizeSettings(candidate: unknown): AppSettings {
 
   return {
     collapsedTodoBuckets,
+    autoCheckUpdates: typeof raw.autoCheckUpdates === 'boolean' ? raw.autoCheckUpdates : true,
+    lastUpdateCheckAt: typeof raw.lastUpdateCheckAt === 'number' && Number.isFinite(raw.lastUpdateCheckAt) && raw.lastUpdateCheckAt >= 0 ? raw.lastUpdateCheckAt : 0,
+    skippedUpdateVersionCode: typeof raw.skippedUpdateVersionCode === 'number' && Number.isInteger(raw.skippedUpdateVersionCode) && raw.skippedUpdateVersionCode >= 0 && raw.skippedUpdateVersionCode <= 2_100_000_000 ? raw.skippedUpdateVersionCode : 0,
     themeId: isThemeId(raw.themeId) ? raw.themeId : DEFAULT_THEME_ID,
     profileName:
       typeof raw.profileName === 'string' && raw.profileName.trim()

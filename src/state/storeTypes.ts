@@ -35,7 +35,10 @@ export type HabitState = {
   error: string | null;
 };
 
+export type UpdatePreferences = Pick<AppSettings, 'autoCheckUpdates' | 'lastUpdateCheckAt' | 'skippedUpdateVersionCode'>;
+
 export type HabitAction =
+  | { type: 'update-preferences'; patch: Partial<UpdatePreferences> }
   | { type: 'memo-add'; memo: Memo }
   | { type: 'memo-update'; id: string; patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>> }
   | { type: 'memo-soft-delete'; ids: string[] }
@@ -100,6 +103,7 @@ export type HabitAction =
   | { type: 'reorder-todos'; todoIds: string[] };
 
 export type HabitContextValue = HabitState & {
+  setUpdatePreferences: (patch: Partial<UpdatePreferences>) => void;
   setTodoBucketCollapsed: (bucketId: string, collapsed: boolean) => void;
   allHabits: Habit[];
   habits: Habit[];
@@ -168,6 +172,9 @@ export const initialState: HabitState = {
       profileSignature: DEFAULT_PROFILE_SIGNATURE,
       avatarUri: null,
       collapsedTodoBuckets: [],
+      autoCheckUpdates: true,
+      lastUpdateCheckAt: 0,
+      skippedUpdateVersionCode: 0,
     },
   },
   isLoading: true,

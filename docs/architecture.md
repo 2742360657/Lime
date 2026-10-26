@@ -12,6 +12,8 @@
 | src/storage/habitStorage.ts | JSON 存储、规范化、历史 v1–v7 迁移、导出/导入 |
 | src/types/habit.ts、src/utils/ | 业务类型、日期/频次/排序工具 |
 | src/theme.ts、src/theme/ | 六套主题与动画 |
+| src/update/、src/native/ | 更新清单解析、前台检查、下载状态与原生 TurboModule 接口 |
+| android/app/src/main/java/…/LimeUpdate*、ApkUpdateVerifier | 安装信息、私有缓存校验与系统安装授权 |
 | app.json | 应用名称、包名、版本、versionCode 和权限策略；Gradle 读取该身份 |
 | android/ | 已提交的原生工程、Gradle wrapper 与签名接入 |
 

@@ -17,7 +17,7 @@ fi
 version="$(node -p "require('./package.json').version")"
 args=("-PreactNativeArchitectures=$abis")
 if [[ "$mode" == preview ]]; then args+=('-PLIME_PREVIEW=true'); fi
-(cd android && ./gradlew assembleRelease "${args[@]}" --no-daemon --max-workers=4)
+(cd android && ./gradlew assembleRelease "${args[@]}" --no-daemon --max-workers="${WORKSPACE_JOBS:-4}")
 out="artifacts/$mode"
 mkdir -p "$out"
 IFS=',' read -r -a abi_list <<< "$abis"

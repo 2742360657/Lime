@@ -1,17 +1,18 @@
 {
   "name": "lime",
-  "version": "1.2.5",
+  "version": "1.3.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "check": "node scripts/check-repository.mjs && npm run typecheck && npm run test:goals && npm run test:checkin && npm run test:todos",
+    "check": "node scripts/check-repository.mjs && npm run typecheck && npm run test:goals && npm run test:checkin && npm run test:todos && npm run test:updates",
     "build:apk": "bash scripts/build-android.sh release arm64-v8a",
     "build:preview": "bash scripts/build-android.sh preview arm64-v8a",
     "test:todos": "node --test tests/todo-interaction.test.cjs",
     "test:goals": "node --test tests/habit-goals.test.cjs",
-    "test:checkin": "node --test tests/checkin-day.test.cjs"
+    "test:checkin": "node --test tests/checkin-day.test.cjs",
+    "test:updates": "node --test tests/update-manifest.test.cjs"
   },
   "dependencies": {
     "@react-navigation/drawer": "^7.14.2",
@@ -33,6 +34,14 @@
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~55.0.12",
     "typescript": "~5.9.2"
+  },
+  "codegenConfig": {
+    "name": "LimeUpdaterSpec",
+    "type": "modules",
+    "jsSrcsDir": "src/native",
+    "android": {
+      "javaPackageName": "com.androidsoftwaredaily.habitcheckin"
+    }
   },
   "private": true,
   "license": "MIT",

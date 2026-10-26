@@ -2,7 +2,7 @@
   "expo": {
     "name": "酸橙",
     "slug": "lime",
-    "version": "1.2.5",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/lime-icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,11 @@
     },
     "android": {
       "package": "com.androidsoftwaredaily.habitcheckin",
-      "versionCode": 10,
+      "versionCode": 11,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/lime-icon.png"
@@ -21,7 +25,6 @@
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
       "blockedPermissions": [
-        "android.permission.INTERNET",
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"

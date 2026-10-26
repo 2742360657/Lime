@@ -1,6 +1,6 @@
 # 贡献指南
 
-欢迎改进纯本地 Android 主线。先阅读 [README](README.md)、[开发指南](docs/development.md)和 [AGENTS.md](AGENTS.md)。
+欢迎改进本地业务 Android 主线。先阅读 [README](README.md)、[开发指南](docs/development.md)和 [AGENTS.md](AGENTS.md)。
 
 问题反馈请说明 APK 版本、Android 版本、复现步骤和预期/实际结果；截图先去除私人信息，不上传个人备份、密钥或完整数据库。
 

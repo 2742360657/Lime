@@ -5,6 +5,8 @@ import type { HabitAction, HabitState } from './storeTypes';
 
 export function habitReducer(state: HabitState, action: HabitAction): HabitState {
   switch (action.type) {
+    case 'update-preferences':
+      return { ...state, appData: { ...state.appData, settings: { ...state.appData.settings, ...action.patch } } };
     case 'memo-add':
       return { ...state, appData: { ...state.appData, memos: [...state.appData.memos, action.memo] } };
     case 'memo-update':

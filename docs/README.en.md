@@ -8,10 +8,11 @@ An offline Android app for **habits, tasks and memos**. No account or server req
 - Tasks: dates and times, date buckets, sorting and completion.
 - Memos: autosave, categories, search and a recoverable trash bin.
 - Today overview, six color themes, local profile and JSON backup/restore.
+- Daily foreground update checks, optional version skipping, verified downloads and system-confirmed installation.
 
 Android 7.0+. Choose arm64-v8a for most phones or x86_64 for compatible emulators. v1.2.0 uses a new private signing key because the legacy key was exposed in Git history. Older releases cannot be upgraded in place: export and verify a JSON backup first, then uninstall the old app, install v1.2.0 and restore the backup. Later releases with the same new signature can be installed in place.
 
-The main release has no network permission, advertising or analytics. File sharing happens only through the system picker/share UI when requested. Backup JSON is not encrypted. See [privacy](privacy.md).
+There is no advertising or analytics. Starting with v1.3.0, network access is used only to check public release metadata and download updates from GitHub. Automatic checks can be disabled in Settings; habits, tasks and memos are not uploaded. File sharing happens only through the system picker/share UI when requested. Backup JSON is not encrypted. See [privacy](privacy.md).
 
 For development, use Node 22, JDK 17 and Android SDK 36: `npm ci`, `npm run check`, then `npm start`. `npm run build:preview` creates a standalone development-signed APK. Agents should read [AGENTS.md](../AGENTS.md).
 

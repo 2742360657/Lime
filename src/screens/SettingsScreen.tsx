@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
@@ -13,9 +13,11 @@ import {
   pickBackupFile,
 } from '../storage/habitStorage';
 import { useHabits } from '../state/HabitStore';
+import { useAppUpdate } from '../update/UpdateProvider';
 
 export function SettingsScreen() {
-  const { appData, archivedHabits, theme, replaceAppData } = useHabits();
+  const { appData, archivedHabits, theme, replaceAppData, settings, setUpdatePreferences } = useHabits();
+  const update = useAppUpdate();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [busyAction, setBusyAction] = useState<'backup' | 'restore' | null>(null);
   const [themeVisible, setThemeVisible] = useState(false);
@@ -92,6 +94,36 @@ export function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>软件更新</Text>
+          <View style={styles.updateRow}>
+            <View style={styles.settingText}>
+              <Text style={styles.settingLabel}>自动检查更新</Text>
+              <Text style={styles.settingValue}>打开应用时检查，每天最多一次</Text>
+            </View>
+            <Switch accessibilityLabel="自动检查更新" value={settings.autoCheckUpdates}
+              onValueChange={autoCheckUpdates => setUpdatePreferences({ autoCheckUpdates })}
+              trackColor={{ true: theme.colors.primary }} />
+          </View>
+          <Text style={styles.backupHint}>
+            {update.installed ? `当前版本 ${update.installed.version}` : '正在读取版本…'}
+            {update.message ? ` · ${update.message}` : ''}
+          </Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="检查更新"
+              disabled={!update.installed || ['checking', 'downloading', 'installing'].includes(update.stage)}
+              onPress={update.stage === 'ready' ? update.showUpdate : update.checkNow}
+              style={[styles.primaryAction, update.stage === 'checking' && styles.disabledAction]}>
+              <Text style={styles.primaryActionText}>{update.stage === 'checking' ? '正在检查…' : update.stage === 'ready' ? '继续安装' : '检查更新'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={update.candidate ? '查看更新' : '查看发布页'}
+              onPress={update.candidate ? update.showUpdate : update.openReleasePage} style={styles.secondaryAction}>
+              <Text style={styles.secondaryActionText}>{update.candidate ? '查看更新' : '发布页'}</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.settingValue}>仅检查版本和下载更新；安装前由你确认。</Text>
+        </View>
+
+        <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>数据备份与恢复</Text>
           <Text style={styles.backupHint}>定期导出到应用之外。恢复备份会覆盖当前全部数据。</Text>
           <View style={styles.actionRow}>
@@ -154,6 +186,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       gap: 18,
     },
     backupHint: { fontSize: 13, lineHeight: 20, color: theme.colors.textSecondary },
+    updateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     sectionCard: {
       borderRadius: theme.radius.large,
       padding: 18,

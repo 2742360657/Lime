@@ -28,6 +28,7 @@ import { TasksScreen } from './src/screens/TasksScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { TrashScreen } from './src/screens/TrashScreen';
 import { HabitProvider, useHabits } from './src/state/HabitStore';
+import { UpdateProvider } from './src/update/UpdateProvider';
 
 const EXIT_CONFIRM_WINDOW = 2500;
 
@@ -151,7 +152,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <HabitProvider>
-          <AppShell />
+          <UpdateProvider><AppShell /></UpdateProvider>
         </HabitProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

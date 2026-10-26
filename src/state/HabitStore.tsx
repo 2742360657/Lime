@@ -1,3 +1,4 @@
+import type { UpdatePreferences } from './storeTypes';
 import {
   PropsWithChildren,
   useCallback,
@@ -25,6 +26,8 @@ export type { HabitInput, TodoInput } from './storeTypes';
 export function HabitProvider({ children }: PropsWithChildren) {
   const [state, dispatch] = useReducer(habitReducer, initialState);
   const saveQueue = useRef(Promise.resolve());
+  const setUpdatePreferences = useCallback((patch: Partial<UpdatePreferences>) => dispatch({ type: 'update-preferences', patch }), []);
+
   const addMemo = useCallback((groupId: string | null) => {
     const id = createId();
     const now = Date.now();
@@ -432,6 +435,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
     return {
       ...state,
       setTodoBucketCollapsed,
+      setUpdatePreferences,
       allHabits,
       habits,
       archivedHabits,
@@ -486,6 +490,7 @@ export function HabitProvider({ children }: PropsWithChildren) {
     };
   }, [
     state,
+    setUpdatePreferences,
     setTodoBucketCollapsed,
     addMemo,
     updateMemo,
