@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSettings, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 type ProfileBarProps = {
   onPress: () => void;
@@ -9,7 +10,8 @@ type ProfileBarProps = {
 };
 
 export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
-  const { settings, theme } = useHabits();
+  const { settings } = useSettings();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const initial = settings.profileName.trim().slice(0, 1).toUpperCase() || '酸';
 
@@ -40,7 +42,7 @@ export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     bar: {
       minHeight: 68,

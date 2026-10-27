@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   LayoutChangeEvent,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { orderByVisibleGroups } from '../utils/dragOrder';
 
-import { useHabits } from '../state/HabitStore';
 
 export type DragGroup = {
   id: string;
@@ -78,16 +80,17 @@ export function DraggableList({
   autoScroll = false,
   dragEnabled = true,
 }: DraggableListProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [orderedItems, setOrderedItems] = useState<DragItem[]>(items);
+  const visualItems = useMemo(() => orderByVisibleGroups(items, groups), [items, groups]);
+  const [orderedItems, setOrderedItems] = useState<DragItem[]>(visualItems);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dropGroupId, setDropGroupId] = useState<string | null>(null);
   const [heights, setHeights] = useState<Record<string, number>>({});
   const [scrollEnabled, setScrollEnabled] = useState(true);
 
-  const orderedRef = useRef<DragItem[]>(items);
+  const orderedRef = useRef<DragItem[]>(visualItems);
   const dragTop = useRef(new Animated.Value(0)).current;
   const lift = useRef(new Animated.Value(0)).current;
   /** 手指落点相对于被拖行顶部的偏移，保证拖动时行的位置与手指同步。 */
@@ -125,16 +128,16 @@ export function DraggableList({
 
   const resetShifts = () => {
     previewIdsRef.current = '';
-    shiftsRef.current.forEach((value) => value.setValue(0));
+    shiftsRef.current.forEach((value) => { value.stopAnimation(); value.setValue(0); });
   };
 
   // 外部数据变化时同步（拖动过程中不打断）。
-  const lastItemsRef = useRef(items);
-  if (lastItemsRef.current !== items && activeId === null) {
-    lastItemsRef.current = items;
-    orderedRef.current = items;
-    if (orderedItems !== items) {
-      setOrderedItems(items);
+  const lastItemsRef = useRef(visualItems);
+  if (lastItemsRef.current !== visualItems && activeId === null) {
+    lastItemsRef.current = visualItems;
+    orderedRef.current = visualItems;
+    if (orderedItems !== visualItems) {
+      setOrderedItems(visualItems);
     }
   }
 
@@ -237,11 +240,14 @@ export function DraggableList({
   }, [dropIndexFor, targetGroupFor]);
 
   const scrollBy = useCallback((delta: number) => {
-    const next = Math.max(0, scrollYRef.current + delta);
+    const lastRow = rowsRef.current.at(-1);
+    const contentHeight = lastRow ? lastRow.y + lastRow.height + contentPaddingBottom : 0;
+    const maximum = Math.max(0, contentHeight - viewportHeightRef.current);
+    const next = Math.min(maximum, Math.max(0, scrollYRef.current + delta));
     scrollYRef.current = next;
     scrollRef.current?.scrollTo({ y: next, animated: false });
     return next;
-  }, []);
+  }, [contentPaddingBottom]);
 
   /** 手指靠近上下边缘时滚动列表，并把被拖行一起带着走。 */
   const autoScrollFor = useCallback(
@@ -446,55 +452,30 @@ function DragHandleRow({
   onEnd: (id: string, pageY: number) => void;
   onToggleSelect?: (id: string) => void;
   styles: ReturnType<typeof createStyles>;
-  theme: ReturnType<typeof useHabits>['theme'];
+  theme: AppTheme;
 }) {
   const itemId = item.id;
-  const activeRef = useRef(active);
-  activeRef.current = active;
   const startedRef = useRef(false);
   const startYRef = useRef(0);
+  const callbacks = useRef({ onStart, onMove, onEnd, onToggleSelect });
+  useLayoutEffect(() => { callbacks.current = { onStart, onMove, onEnd, onToggleSelect }; });
 
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponderCapture: () => true,
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: (event) => {
-          startedRef.current = false;
-          startYRef.current = event.nativeEvent.pageY;
-        },
-        onPanResponderMove: (event) => {
-          const pageY = event.nativeEvent.pageY;
-          if (!startedRef.current) {
-            if (Math.abs(pageY - startYRef.current) < DRAG_THRESHOLD) {
-              return;
-            }
-            startedRef.current = true;
-            onStart(itemId, pageY);
-          }
-          onMove(itemId, pageY);
-        },
-        onPanResponderRelease: () => {
-          if (startedRef.current) {
-            onEnd(itemId, 0);
-          } else {
-            // 轻触把手：当作选中，不触发重排。
-            onToggleSelect?.(itemId);
-          }
-          startedRef.current = false;
-        },
-        onPanResponderTerminate: () => {
-          if (startedRef.current) {
-            onEnd(itemId, 0);
-          }
-          startedRef.current = false;
-        },
-      }),
-    [itemId, onEnd, onMove, onStart, onToggleSelect]
-  );
+  // Keep the native gesture instance stable while React renders the drag preview.
+  const gesture = useMemo(() => Gesture.Pan()
+    .minDistance(DRAG_THRESHOLD)
+    .runOnJS(true)
+    .onBegin(event => { startedRef.current = false; startYRef.current = event.absoluteY; })
+    .onStart(event => {
+      startedRef.current = true;
+      callbacks.current.onStart(itemId, startYRef.current);
+      callbacks.current.onMove(itemId, event.absoluteY);
+    })
+    .onUpdate(event => callbacks.current.onMove(itemId, event.absoluteY))
+    .onFinalize(() => {
+      if (startedRef.current) callbacks.current.onEnd(itemId, 0);
+      else callbacks.current.onToggleSelect?.(itemId);
+      startedRef.current = false;
+    }), [itemId]);
 
   return (
     <Animated.View
@@ -520,23 +501,22 @@ function DragHandleRow({
           {item.subtitle ? <Text style={styles.rowSubtitle}>{item.subtitle}</Text> : null}
         </View>
       </Pressable>
-      {dragEnabled && <View
+      {dragEnabled && <GestureDetector gesture={gesture}><View
         accessibilityRole="adjustable"
         accessibilityActions={[{ name: 'increment', label: '下移' }, { name: 'decrement', label: '上移' }]}
         onAccessibilityAction={(event) => onNudge(event.nativeEvent.actionName === 'increment' ? 1 : -1)}
         accessibilityLabel={`拖动 ${item.label}`}
         hitSlop={8}
         style={[styles.handle, active && styles.handleActive]}
-        {...responder.panHandlers}
       >
         <View style={[styles.handleLine, active && { backgroundColor: theme.colors.primary }]} />
         <View style={[styles.handleLine, active && { backgroundColor: theme.colors.primary }]} />
-      </View>}
+      </View></GestureDetector>}
     </Animated.View>
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     wrapper: { flex: 1 },
     empty: { padding: 18, fontSize: 13, color: theme.colors.textSecondary },

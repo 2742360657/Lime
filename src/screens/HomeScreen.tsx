@@ -1,11 +1,12 @@
-import { FilterBar } from '../components/FilterBar';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet, Text, View } from 'react-native';
+import { FilterBar } from '../components/FilterBar';
+import { SectionHeading } from '../components/SectionHeading';
+import { VirtualList, type VirtualRow } from '../components/VirtualList';
+import { useAppActions, useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { LIST_LAYOUT } from '../theme/animation';
 
-import { AccordionSection } from '../components/AccordionSection';
 import { AddHabitModal } from '../components/AddHabitModal';
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
 import { GroupManagerModal } from '../components/GroupManagerModal';
@@ -13,12 +14,11 @@ import { HabitActionModal } from '../components/HabitActionModal';
 import { HabitCard } from '../components/HabitCard';
 import { HabitHistoryModal } from '../components/HabitHistoryModal';
 import { OrganizePanel } from '../components/OrganizePanel';
-import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
+import { SelectCircle } from '../components/SelectCircle';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { UndoToast } from '../components/UndoToast';
-import { useHabits } from '../state/HabitStore';
-import { Habit } from '../types/habit';
+import { Habit } from '../types/app';
 
 type HabitSection = {
   id: string;
@@ -28,17 +28,9 @@ type HabitSection = {
 };
 
 export function HomeScreen() {
-  const {
-    habits,
-    groups,
-    theme,
-    addCheckinNow,
-    deleteCheckin,
-    addGroup,
-    moveHabitsToGroup,
-    reorderHabits,
-    deleteHabits,
-  } = useHabits();
+  const { habits, groups } = useHabitData();
+  const theme = useTheme();
+  const { addCheckinNow, deleteCheckin, addGroup, moveHabitsToGroup, deleteHabits, organizeHabits } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [filter, setFilter] = useState('all');
   const [manage, setManage] = useState(false);
@@ -87,8 +79,7 @@ export function HomeScreen() {
     setSelectMode(true);
   };
 
-  const toggleId = (list: string[], id: string) =>
-    list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
+
 
   const boardGroups = useMemo(
     () => sections.filter((section) => filter === 'all' || filter === section.id).map((section) => ({ id: section.id, title: section.title, acceptsDrop: true })),
@@ -119,6 +110,17 @@ export function HomeScreen() {
     [orderedGroups]
   );
 
+
+  const listRows: VirtualRow[] = [];
+  for (const section of sections.filter(section => filter === 'all' || filter === section.id)) {
+    const collapsed = collapsedSections[section.id] ?? false;
+    listRows.push({ key: `header:${section.id}`, render: () => <SectionHeading title={section.title} meta={`${section.habits.length} 个`} collapsed={collapsed} onToggle={() => setCollapsedSections(current => ({ ...current, [section.id]: !current[section.id] }))} /> });
+    if (!collapsed) {
+      if (!section.habits.length) listRows.push({ key: `empty:${section.id}`, render: () => <Text style={styles.groupEmpty}>{habits.length ? '这个分组里还没有习惯' : '点顶部“新建”，从一件小事开始。'}</Text> });
+      for (const habit of section.habits) listRows.push({ key: `habit:${habit.id}`, render: () => <HabitCard habit={habit} onAddCheckin={handleAddCheckin} onOpenDetails={setHistoryHabitId} onOpenActions={setActionHabit} onLongPress={() => setActionHabit(habit)} /> });
+    }
+  }
+
   return (
     <ScreenScaffold
       organizing={selectMode}
@@ -147,32 +149,13 @@ export function HomeScreen() {
         {selectMode ? (
           <OrganizePanel
             title="整理习惯"
-            hint="点按习惯选中 · 按住右侧把手拖动排序或换分组"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
             items={boardItems}
             groups={boardGroups}
             selectedIds={selectedIds}
             onSetSelection={setSelectedIds}
-            onCommit={(ordered) => {
-              const nextGroup = new Map(ordered.map((entry) => [entry.id, entry.groupId]));
-              ordered.forEach((entry) => {
-                const habit = habits.find((item) => item.id === entry.id);
-                if (!habit) {
-                  return;
-                }
-                const currentGroup = habit.groupId ?? 'ungrouped';
-                if (currentGroup !== entry.groupId) {
-                  moveHabitsToGroup([entry.id], entry.groupId === 'ungrouped' ? null : entry.groupId);
-                }
-              });
-              for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
-                reorderHabits(
-                  groupId === 'ungrouped' ? null : groupId,
-                  ordered.filter((entry) => nextGroup.get(entry.id) === groupId).map((entry) => entry.id)
-                );
-              }
-            }}
+            onCommit={ordered => organizeHabits(ordered.map(entry => ({ id: entry.id, groupId: entry.groupId === 'ungrouped' ? null : entry.groupId })))}
             onDelete={(ids) => {
               deleteHabits(ids);
               setSelectedIds([]);
@@ -185,51 +168,7 @@ export function HomeScreen() {
         ) : (
         <>
         <FilterBar options={[{ id: 'all', label: '全部', count: habits.length }, ...sections.map((section) => ({ id: section.id, label: section.title, count: section.habits.length }))]} value={filter} onChange={setFilter} />
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-          {habits.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>还没有习惯</Text>
-              <Text style={styles.groupEmpty}>点顶部“新建”，从一件小事开始。</Text>
-            </View>
-          ) : (
-            sections
-              .filter((section) => filter === 'all' || filter === section.id)
-              .map((section) => {
-                const collapsed = collapsedSections[section.id] ?? false;
-                return (
-                  <AccordionSection
-                    key={section.id}
-                    title={section.title}
-                    meta={`${section.habits.length} 个`}
-                    collapsed={collapsed}
-                    onToggle={() =>
-                      setCollapsedSections((current) => ({
-                        ...current,
-                        [section.id]: !current[section.id],
-                      }))
-                    }
-                  >
-                    {section.habits.length === 0 ? (
-                      <Text style={styles.groupEmpty}>这个分组里还没有习惯</Text>
-                    ) : (
-                      <Animated.View layout={LIST_LAYOUT} style={styles.habitList}>
-                        {section.habits.map((habit) => (
-                          <HabitCard
-                            key={habit.id}
-                            habit={habit}
-                            onAddCheckin={handleAddCheckin}
-                            onOpenDetails={setHistoryHabitId}
-                            onOpenActions={setActionHabit}
-                            onLongPress={() => setActionHabit(habit)}
-                          />
-                        ))}
-                      </Animated.View>
-                    )}
-                  </AccordionSection>
-                );
-              })
-          )}
-        </ScrollView>
+<VirtualList rows={listRows} contentStyle={styles.content} onScrollY={y => { scrollYRef.current = y; }} />
         </>
         )}
         <GroupManagerModal visible={manage} onClose={() => setManage(false)} />
@@ -272,12 +211,12 @@ export function HomeScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
     scrollView: { flex: 1 },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,

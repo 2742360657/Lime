@@ -1,3 +1,5 @@
+import { useAppActions, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { Alert } from './ThemedAlert';
 
 import { useMemo } from 'react';
@@ -10,8 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import { useHabits } from '../state/HabitStore';
-import { Habit } from '../types/habit';
+import { Habit } from '../types/app';
 
 type HabitActionModalProps = {
   habit: Habit | null;
@@ -31,7 +32,8 @@ export function HabitActionModal({
   onOpenHistory,
   onOrganize,
 }: HabitActionModalProps) {
-  const { theme, archiveHabit, deleteHabit } = useHabits();
+  const theme = useTheme();
+  const { archiveHabit, deleteHabit } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!habit) {
@@ -128,7 +130,7 @@ export function HabitActionModal({
   }
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

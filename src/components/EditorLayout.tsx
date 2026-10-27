@@ -1,8 +1,8 @@
-import { Alert } from './ThemedAlert';
 import { type PropsWithChildren, useCallback } from 'react';
 import { KeyboardAvoidingView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useHabits } from '../state/HabitStore';
+import { useTheme } from '../state/AppProvider';
+import { Alert } from './ThemedAlert';
 
 export function useConfirmDiscard(dirty: boolean, onClose: () => void) {
   return useCallback(() => {
@@ -17,7 +17,7 @@ export function useConfirmDiscard(dirty: boolean, onClose: () => void) {
 export function EditorLayout({ title, onClose, onSave, disabled, children }: PropsWithChildren<{
   title: string; onClose: () => void; onSave: () => void; disabled?: boolean;
 }>) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   return <KeyboardAvoidingView behavior="padding" style={[styles.root, { backgroundColor: theme.colors.background }]}>
     <SafeAreaView style={styles.root}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>

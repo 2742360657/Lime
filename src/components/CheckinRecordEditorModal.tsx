@@ -1,3 +1,5 @@
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { Alert } from './ThemedAlert';
 import { ThemedTextInput as TextInput } from './ThemedTextInput';
 
@@ -11,7 +13,6 @@ import {
   View,
 } from 'react-native';
 
-import { useHabits } from '../state/HabitStore';
 import {
   buildFallbackTimestamp,
   buildTimestampForCheckinDay,
@@ -45,7 +46,7 @@ export function CheckinRecordEditorModal({
   onClose,
   onSubmit,
 }: CheckinRecordEditorModalProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [time, setTime] = useState('08:00');
   const [note, setNote] = useState(initialNote);
@@ -146,7 +147,7 @@ export function CheckinRecordEditorModal({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

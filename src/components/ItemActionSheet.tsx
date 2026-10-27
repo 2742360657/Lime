@@ -1,4 +1,3 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMemo } from 'react';
 import {
   Modal,
@@ -9,8 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 export type ItemAction = {
   label: string;
@@ -31,7 +32,7 @@ type ItemActionSheetProps = {
  * 先给“对这条做什么”，而不是直接把人拖进整理模式。
  */
 export function ItemActionSheet({ visible, title, subtitle, actions, onClose }: ItemActionSheetProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -72,7 +73,7 @@ export function ItemActionSheet({ visible, title, subtitle, actions, onClose }: 
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.scrim },
     backdrop: { ...StyleSheet.absoluteFillObject },

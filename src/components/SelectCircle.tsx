@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 /** 多选状态下条目左侧的选择圆圈。传了 onPress 才可点，否则只作为选中状态指示。 */
 export function SelectCircle({
@@ -13,7 +14,7 @@ export function SelectCircle({
   accessibilityLabel: string;
   onPress?: () => void;
 }) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const circleStyle = [styles.circle, checked && styles.circleOn];
   const tick = checked ? <Text style={styles.tick}>✓</Text> : null;
@@ -33,7 +34,7 @@ export function SelectCircle({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     circle: {
       width: 26,

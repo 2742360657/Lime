@@ -8,14 +8,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHabits } from '../state/HabitStore';
+import { useTheme } from '../state/AppProvider';
 import type { UpdateCandidate, UpdateStage } from './UpdateProvider';
 
 export function UpdateDialog({ visible, candidate, stage, message, progress, onClose, onSkip, onDownload, onCancel, onInstall, onReleasePage }: {
   visible: boolean; candidate: UpdateCandidate | null; stage: UpdateStage; message: string; progress: number;
   onClose: () => void; onSkip: () => void; onDownload: () => void; onCancel: () => void; onInstall: () => void; onReleasePage: () => void;
 }) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   if (!candidate) return null;
   const downloading = stage === 'downloading';

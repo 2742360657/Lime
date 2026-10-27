@@ -1,3 +1,5 @@
+import { useAppActions, useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { Alert } from './ThemedAlert';
 
 import { useMemo, useState } from 'react';
@@ -12,8 +14,7 @@ import {
 } from 'react-native';
 
 import { getGroupUsageCount } from '../storage/habitStorage';
-import { useHabits } from '../state/HabitStore';
-import { HabitGroup } from '../types/habit';
+import { HabitGroup } from '../types/app';
 import { ReorderModal } from './ReorderModal';
 import { TextEntryModal } from './TextEntryModal';
 
@@ -43,15 +44,9 @@ export function GroupManagerModal({
   usageLabel,
   deleteConfirmText,
 }: GroupManagerModalProps) {
-  const {
-    allHabits,
-    groups: habitGroups,
-    theme,
-    addGroup,
-    renameGroup,
-    deleteGroup,
-    reorderGroups,
-  } = useHabits();
+  const { allHabits, groups: habitGroups } = useHabitData();
+  const theme = useTheme();
+  const { addGroup, renameGroup, deleteGroup, reorderGroups } = useAppActions();
   const groups = groupsProp ?? habitGroups;
   const handleAdd = onAdd ?? addGroup;
   const handleRename = onRename ?? renameGroup;
@@ -191,7 +186,7 @@ export function GroupManagerModal({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

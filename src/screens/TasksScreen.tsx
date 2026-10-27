@@ -1,44 +1,39 @@
-import { Alert } from '../components/ThemedAlert';
-import { useDateTick } from '../utils/useDateTick';
-import { FilterBar } from '../components/FilterBar';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet, Text, View } from 'react-native';
+import { FilterBar } from '../components/FilterBar';
+import { SectionHeading } from '../components/SectionHeading';
+import { Alert } from '../components/ThemedAlert';
+import { VirtualList, type VirtualRow } from '../components/VirtualList';
+import { useTodoOrganize } from '../hooks/useTodoOrganize';
+import { useAppActions, useSettings, useTheme, useTodos } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { useDateTick } from '../utils/useDateTick';
 
-import { LIST_LAYOUT } from '../theme/animation';
 
-import { AccordionSection } from '../components/AccordionSection';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
-import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
+import { SelectCircle } from '../components/SelectCircle';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
 import { UndoToast } from '../components/UndoToast';
-import { useHabits } from '../state/HabitStore';
-import { TodoItem } from '../types/habit';
+import { TodoItem } from '../types/app';
 import {
-  hasTodoDateOrderConflict,
-  getTodoDateOptions,
   bucketToDueDateKey,
   buildTodoBuckets,
   formatTodoDue,
+  getTodoDateOptions,
   TODO_BUCKET_TITLES,
   TODO_COMPLETED_BUCKET_ID,
-  todoGroupKey,
+  todoGroupKey
 } from '../utils/todo';
 
 export function TasksScreen() {
-  const {
-    todos,
-    theme,
-    setTodoCompleted,
-    settings,
-    setTodoBucketCollapsed,
-    deleteTodo,
-    moveTodosToBucket,
-    reorderTodos,
-  } = useHabits();
+  const commitTodoOrder = useTodoOrganize();
+  const { todos } = useTodos();
+  const theme = useTheme();
+  const { setTodoCompleted, setTodoBucketCollapsed, deleteTodo, moveTodosToBucket, deleteTodos } = useAppActions();
+  const { settings } = useSettings();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [filter, setFilter] = useState('all');
   const [editorVisible, setEditorVisible] = useState(false);
@@ -93,8 +88,7 @@ export function TasksScreen() {
     setSelectMode(true);
   };
 
-  const toggleId = (list: string[], id: string) =>
-    list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
+
 
   const visibleBuckets = buckets.filter(
     (bucket) => filter === 'all' || filter === bucket.id
@@ -146,6 +140,16 @@ export function TasksScreen() {
     [buckets, completedTodos, selectedIds, filter]
   );
 
+
+  const listRows: VirtualRow[] = [{ key: 'sort-hint', render: () => <Text style={styles.sortExplanation}>按截止日期、时间排列 · 相同时间可手动排序</Text> }];
+  const appendTodos = (id: string, title: string, entries: TodoItem[]) => {
+    listRows.push({ key: `header:${id}`, render: () => <SectionHeading title={title} meta={`${entries.length} 项`} danger={id === 'overdue'} collapsed={collapsed.has(id)} onToggle={() => toggleBucket(id)} /> });
+    if (!collapsed.has(id)) for (const todo of entries) listRows.push({ key: `todo:${todo.id}`, render: () => <TodoRow todo={todo} onToggle={handleToggle} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)} onPickDue={todo.completedAt === null ? item => setDueTodoId(item.id) : undefined} /> });
+  };
+  for (const bucket of visibleBuckets) appendTodos(bucket.id, bucket.title, bucket.todos);
+  if (showCompleted && completedTodos.length) appendTodos(TODO_COMPLETED_BUCKET_ID, '已完成', completedTodos);
+  if (listRows.length === 1) listRows.push({ key: 'empty', render: () => <View style={styles.emptyCard}><Text style={styles.emptyTitle}>{filter === 'completed' ? '还没有已完成待办' : filter === 'all' ? '没有未完成待办，轻松一下' : '这个日期分组没有待办'}</Text></View> });
+
   return (
     <View style={styles.screen}>
       <ScreenScaffold
@@ -160,62 +164,15 @@ export function TasksScreen() {
             title="整理待办"
             allowSort={filter !== TODO_COMPLETED_BUCKET_ID}
             sortHint="按截止日期、时间优先排列；相同时间内可手动排序。跨日期分组会先确认改期。"
-            hint="点按待办选中 · 按住右侧把手拖动排序，拖到别的分组会先确认是否改截止时间"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
             items={boardItems}
             groups={boardGroups}
             selectedIds={selectedIds}
             onSetSelection={setSelectedIds}
-            onCommit={(ordered) => {
-              const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
-              // 只有拖到别的分组才意味着改截止时间，组内拖动就是纯排序。
-              const moves = ordered
-                .map((entry) => {
-                  const todo = todos.find((item) => item.id === entry.id);
-                  if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
-                    return null;
-                  }
-                  if (todoGroupKey(todo, buckets) === entry.groupId) {
-                    return null;
-                  }
-                  return { id: entry.id, title: todo.title, groupId: entry.groupId };
-                })
-                .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
-
-              if (moves.length === 0) {
-                if (hasTodoDateOrderConflict(ordered, todos)) Alert.alert('按截止时间排序', '不同截止日期或时间的待办会保持时间先后。相同截止时间内可自由排序；需要调整日期可点条目的日期。');
-                reorderOnly();
-                return;
-              }
-
-              const labelOf = (groupId: string) =>
-                boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
-              const detail =
-                moves.length === 1
-                  ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
-                  : `${moves.length} 项待办会跟着分组改截止时间。`;
-
-              Alert.alert(
-                '要改截止时间吗？',
-                `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
-                [
-                  { text: '只排序', style: 'cancel', onPress: reorderOnly },
-                  {
-                    text: '改时间',
-                    onPress: () => {
-                      moves.forEach((move) => {
-                        moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
-                      });
-                      reorderOnly();
-                    },
-                  },
-                ],
-                { cancelable: true, onDismiss: reorderOnly }
-              );
-            }}
+            onCommit={commitTodoOrder}
             onDelete={(ids) => {
-              ids.forEach((id) => deleteTodo(id));
+              deleteTodos(ids);
               setSelectedIds([]);
               setSelectMode(false);
             }}
@@ -228,59 +185,7 @@ export function TasksScreen() {
         ) : (
         <>
         <FilterBar options={[{ id: 'all', label: '全部', count: openTodos.length }, ...Object.entries(TODO_BUCKET_TITLES).map(([id, label]) => ({ id, label, count: buckets.find((bucket) => bucket.id === id)?.todos.length ?? 0 })), { id: 'completed', label: '已完成', count: completedTodos.length }]} value={filter} onChange={(id) => { setFilter(id); if (id === 'completed') setTodoBucketCollapsed('completed', false); }} />
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-          <Text style={styles.sortExplanation}>按截止日期、时间排列 · 相同时间可手动排序</Text>
-          {visibleBuckets.length === 0 && (filter !== 'completed' || completedTodos.length === 0) ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>{filter === 'completed' ? '还没有已完成待办' : filter === 'all' ? '没有未完成待办，轻松一下' : '这个日期分组没有待办'}</Text>
-            </View>
-          ) : (
-            visibleBuckets.map((bucket) => (
-              <AccordionSection
-                key={bucket.id}
-                title={bucket.title}
-                danger={bucket.id === 'overdue'}
-                meta={`${bucket.todos.length} 项`}
-                collapsed={collapsed.has(bucket.id)}
-                onToggle={() => toggleBucket(bucket.id)}
-              >
-                <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                  {bucket.todos.map((todo) => (
-                    <TodoRow
-                      key={todo.id}
-                      todo={todo}
-                      onToggle={handleToggle}
-                      onPress={openEditor}
-                      onLongPress={() => setActionTodoId(todo.id)}
-                      onPickDue={(item) => setDueTodoId(item.id)}
-                    />
-                  ))}
-                </Animated.View>
-              </AccordionSection>
-            ))
-          )}
-
-          {completedTodos.length > 0 && showCompleted ? (
-            <AccordionSection
-              title="已完成"
-              meta={`${completedTodos.length} 项`}
-              collapsed={collapsed.has(TODO_COMPLETED_BUCKET_ID)}
-              onToggle={() => toggleBucket(TODO_COMPLETED_BUCKET_ID)}
-            >
-              <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                {completedTodos.map((todo) => (
-                  <TodoRow
-                    key={todo.id}
-                    todo={todo}
-                    onToggle={handleToggle}
-                    onPress={openEditor}
-                    onLongPress={() => setActionTodoId(todo.id)}
-                  />
-                ))}
-              </Animated.View>
-            </AccordionSection>
-          ) : null}
-        </ScrollView>
+<VirtualList rows={listRows} contentStyle={styles.content} onScrollY={y => { scrollYRef.current = y; }} />
         </>
         )}
 
@@ -328,12 +233,12 @@ export function TasksScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
     sortExplanation: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
     list: { gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,

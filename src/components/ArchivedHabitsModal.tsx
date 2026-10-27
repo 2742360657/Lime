@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAppActions, useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 import { HabitHistoryModal } from './HabitHistoryModal';
 
 type ArchivedHabitsModalProps = {
@@ -18,7 +19,9 @@ type ArchivedHabitsModalProps = {
 };
 
 export function ArchivedHabitsModal({ visible, onClose }: ArchivedHabitsModalProps) {
-  const { archivedHabits, restoreArchivedHabit, theme } = useHabits();
+  const { archivedHabits } = useHabitData();
+  const { restoreArchivedHabit } = useAppActions();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
 
@@ -72,7 +75,7 @@ export function ArchivedHabitsModal({ visible, onClose }: ArchivedHabitsModalPro
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

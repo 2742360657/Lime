@@ -4,12 +4,14 @@
 Run through workspace run with --qa-apk for an old-release probe (records results),
 or --final-apk for strict fixed-build assertions. No personal device/data is used.
 """
+from storage_helpers import read_state, clear_snapshot_slots
 import argparse
 import datetime as dt
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import time
 import xml.etree.ElementTree as ET
@@ -20,6 +22,10 @@ p.add_argument('--out', required=True, type=Path)
 p.add_argument('--qa-apk', type=Path)
 p.add_argument('--final-apk', type=Path)
 p.add_argument('--small-only', action='store_true')
+p.add_argument('--engineering-only', action='store_true')
+p.add_argument('--organize-only', action='store_true')
+p.add_argument('--installed-only', action='store_true')
+p.add_argument('--old-apk', type=Path)
 p.add_argument('--themes-only', action='store_true')
 p.add_argument('--scroll-only', action='store_true')
 a = p.parse_args()
@@ -61,7 +67,7 @@ def adb(*args, binary=False, check=True, timeout=40):
     return r.stdout
 
 def sh(*args): return adb('shell', *map(str,args))
-def state(): return json.loads(adb('exec-out', 'cat', data))
+def state(): return read_state(adb, data)
 def keyboard_visible():
     info=sh('dumpsys','input_method')
     return all(flag in info for flag in ['mInputShown=true','mWindowVisible=true','mInputViewStarted=true'])
@@ -101,6 +107,7 @@ def launch(): sh('am','start','-n',pkg+'/.MainActivity');time.sleep(2)
 def restart(): sh('am','force-stop',pkg);launch()
 def write_state(value):
     sh('am','force-stop',pkg)
+    clear_snapshot_slots(adb, data)
     f=a.out/'fixture.json';f.write_text(json.dumps(value,ensure_ascii=False))
     sh('mkdir','-p',str(Path(data).parent));adb('push',f,data)
     uid=sh('stat','-c','%u',f'/data/user/0/{pkg}').strip()
@@ -148,7 +155,7 @@ def probe():
 # control rectangle with a small tolerance, rather than accepting any green/blue.
 def color_count(name,bounds,color):
     x1,y1,x2,y2=bounds
-    result=subprocess.run(['magick',str(a.out/(name+'.png')),'-crop',f'{x2-x1}x{y2-y1}+{x1}+{y1}','-depth','8','RGB:-'],capture_output=True,check=True)
+    result=subprocess.run([shutil.which('magick') or 'convert',str(a.out/(name+'.png')),'-crop',f'{x2-x1}x{y2-y1}+{x1}+{y1}','-depth','8','RGB:-'],capture_output=True,check=True)
     expected=bytes.fromhex(color.lstrip('#'));pixels=result.stdout
     return sum(all(abs(pixels[i+c]-expected[c])<=3 for c in range(3)) for i in range(0,len(pixels),3))
 
@@ -229,6 +236,136 @@ def probe_small():
     record('smallScreenTailSelectionEditAndRestartPersist')
 
 
+
+def verify_existing_install():
+    before=state()
+    adb('install','-r',a.final_apk,timeout=90);restart()
+    after=state()
+    assert business(after)==business(before)
+    for key in ['themeId','profileName','profileSignature','avatarUri']:
+        assert after['settings'][key]==before['settings'][key]
+    tap('设置');tap('检查更新');wait_message('当前已是最新版本');shot('installed-current-version')
+    record('formalReinstallPreservesDataAndDoesNotOfferOwnVersion')
+
+
+def verify_memo_organize():
+    tap('备忘录');tap('多选与排序');tap('Memo0000');tap('移动到分类');tap('GroupA','text');tap('确认','text');time.sleep(.5)
+    assert state()['memos'][0]['groupId']=='group-a'
+    tap('排序模式')
+    x1,y1,x2,y2=box(find('拖动 Memo0001'));tx1,ty1,tx2,ty2=box(find('拖动 Memo0002'))
+    sh('input','swipe',(x1+x2)//2,(y1+y2)//2,(tx1+tx2)//2,(ty1+ty2)//2+20,1100);time.sleep(.8)
+    ungrouped=sorted([m for m in state()['memos'] if m['groupId'] is None],key=lambda m:m['order'])
+    assert [m['id'] for m in ungrouped]==['m2','m1']
+    shot('memo-move-and-drag-sorted');tap('完成整理');restart()
+    assert [m['id'] for m in sorted([m for m in state()['memos'] if m['groupId'] is None],key=lambda m:m['order'])]==['m2','m1']
+    record('memoMultiselectMoveAndActualDragPersist')
+
+
+
+def engineering_fixture(count=2):
+    stamp=1793023200000
+    return dict(version=7,habits=[],groups=[],todos=[dict(id=f't{i}',title=f'Task{i:04}',note='Details',dueDateKey=None,dueTime=None,order=i,createdAt=stamp,completedAt=None) for i in range(count)],memoGroups=[],memos=[dict(id=f'm{i}',title=f'Memo{i:04}',body=f'BASE{i:04}',groupId=None,order=i,createdAt=stamp,updatedAt=stamp,deletedAt=None) for i in range(count)],settings=dict(themeId='ocean',profileName='工程验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
+
+def probe_engineering():
+    assert a.final_apk
+    if a.old_apk:
+        adb('uninstall',pkg,check=False)  # This script owns this isolated emulator and synthetic data.
+        adb('install',a.old_apk,timeout=90)
+        fixture=engineering_fixture();write_state(fixture);launch();tap('备忘录');tap('打开 Memo0000');tap('备忘录正文')
+        sh('input','text','Upgrade');tap('保存备忘录');time.sleep(.6)
+        before=business(state());sh('am','force-stop',pkg)
+        adb('install','-r',a.final_apk,timeout=90);launch()
+        assert business(state())==before
+        tap('待办');tap('完成待办：Task0000');time.sleep(1)
+        after=state();assert after['todos'][0]['completedAt'] is not None
+        assert {k:after[k] for k in ['habits','groups','memoGroups','memos']}=={k:before[k] for k in ['habits','groups','memoGroups','memos']}
+        restart();assert business(state())==business(after)
+        record('oldReleaseCoverUpgradeAndLegacyMigrationPreserveData')
+    else:
+        adb('install','-r',a.final_apk,timeout=90)
+
+    # Force a real write denial for the app UID, while retaining all complete data.
+    fixture=engineering_fixture();write_state(fixture);launch();tap('备忘录');tap('打开 Memo0000');tap('备忘录正文')
+    directory=str(Path(data).parent)
+    sh('chmod','0500',directory)
+    for i in (0,1):adb('shell','chmod','0400',data.replace('data.json',f'data.{i}.json'),check=False)
+    try:
+        sh('input','text','UNSAVED');tap('保存备忘录');wait_message('尚未保存')
+        assert 'UNSAVED' not in state()['memos'][0]['body']
+        shot('write-error-editor-retained');tap('确定')
+    finally:
+        sh('chmod','0700',directory)
+        for i in (0,1):adb('shell','chmod','0600',data.replace('data.json',f'data.{i}.json'),check=False)
+    tap('保存备忘录');restart();assert 'UNSAVED' in state()['memos'][0]['body']
+    record('realWriteFailureDoesNotReportSaveSuccessAndCanRetry')
+
+    # Submit a short edit immediately before leaving, before the 600 ms autosave delay.
+    tap('备忘录');tap('打开 Memo0000');tap('备忘录正文');sh('input','text','FASTX');sh('input','keyevent',3);time.sleep(1)
+    assert 'FASTX' in state()['memos'][0]['body']
+    restart();assert 'FASTX' in state()['memos'][0]['body']
+    record('backgroundFlushIncludesDebouncedEditorDraft')
+
+    # Both snapshots are corrupt; retry must keep the bytes and remain blocked.
+    write_state(engineering_fixture())
+    originals={}
+    for i in (0,1):
+        path=data.replace('data.json',f'data.{i}.json');raw=f'broken-slot-{i}'
+        f=a.out/f'broken-{i}.txt';f.write_text(raw);adb('push',f,path);originals[path]=raw
+    uid=sh('stat','-c','%u',f'/data/user/0/{pkg}').strip()
+    sh('chown',f'{uid}:{uid}',*originals)
+    launch();wait_message('无法读取本地数据');tap('重新读取数据');wait_message('无法读取本地数据')
+    for path,raw in originals.items():assert adb('exec-out','cat',path)==raw
+    shot('corrupt-startup-blocked');record('corruptStartupAndRetryPreserveOriginalBytes')
+
+    # Exercise the actual Android document picker and acknowledged restore UI.
+    restored=engineering_fixture(3);restored['settings']['profileName']='恢复验收'
+    restored['memoGroups']=[dict(id='group-a',name='GroupA',order=0,createdAt=1793023200000)]
+    backup=a.out/'lime-engineering-restore.json';backup.write_text(json.dumps(restored,ensure_ascii=False))
+    adb('push',backup,'/sdcard/Download/lime-engineering-restore.json')
+    sh('am','broadcast','-a','android.intent.action.MEDIA_SCANNER_SCAN_FILE','-d','file:///sdcard/Download/lime-engineering-restore.json')
+    tap('从备份恢复');time.sleep(2)
+    if not any(n.attrib.get('text')=='lime-engineering-restore.json' for n in tree().iter('node')):
+        tap('Show roots')
+        tap('Downloads','text')
+    tap('lime-engineering-restore.json','text');tap('确认恢复');wait_message('恢复成功');shot('restore-confirmed');tap('确定')
+    restart();assert business(state())==business(restored)
+    assert state()['settings']['profileName']=='恢复验收'
+    archives=[name for name in sh('ls',directory).splitlines() if name.startswith('recovery-')]
+    assert archives
+    for path,raw in originals.items():assert any(adb('exec-out','cat',directory+'/'+folder+'/'+Path(path).name,check=False)==raw for folder in archives)
+    record('documentPickerRestorePersistsAndArchivesCorruptOriginals')
+    if any('一份本地保存文件' in n.attrib.get('text','') for n in tree().iter('node')):tap('知道了')
+
+
+    tap('设置')
+    for _ in range(5):
+        snapshot=tree();height=box(next(snapshot.iter('node')))[3]
+        visible=[n for n in snapshot.iter('node') if n.attrib.get('text')=='数据备份' and box(n)[3]<height-100 and box(n)[3]>box(n)[1]]
+        if visible:break
+        sh('input','swipe',360,1250,360,700,350);time.sleep(.3)
+    tap('数据备份','text');time.sleep(1)
+    cached=json.loads(adb('exec-out','cat',f'/data/user/0/{pkg}/cache/angelime-backup-'+dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d')+'.json'))
+    assert business(cached)==business(restored)
+    resumed=sh('dumpsys','activity','activities')
+    assert re.search(r'(?:mResumedActivity|topResumedActivity).*?(?:ChooserActivity|ResolverActivity)',resumed)
+    shot('system-backup-share');sh('input','keyevent',4);wait_message('导出备份');tap('确定')
+    record('backupPayloadAndRealSystemShareMatchCurrentData')
+
+    verify_memo_organize()
+
+    # Native view counts supplement visible UI assertions; XML alone does not prove virtualization.
+    large=engineering_fixture(1000);write_state(large);launch();tap('待办');time.sleep(1)
+    gfx=sh('dumpsys','gfxinfo',pkg);(a.out/'large-list-gfxinfo.txt').write_text(gfx)
+    views=[int(n) for n in re.findall(r'(\d+) views,',gfx)]
+    assert views,'Native view count unavailable'
+    assert max(views)<5000,'Large list mounted too many native views'
+    shot('large-task-list');record('thousandTaskNativeViewCount',max(views))
+    tap('多选与排序');tap('全选');wait_message('已选 1000 / 1000');shot('large-multiselect')
+    tap('完成整理');tap('备忘录');tap('搜索备忘录');sh('input','text','Memo0999');time.sleep(.6)
+    tap('打开 Memo0999');assert find('备忘录正文').attrib.get('text')=='BASE0999'
+    tap('返回备忘录列表');record('thousandItemBrowseMultiselectAndTailSearch')
+
+
 env=dict(os.environ,ANDROID_HOME=str(a.sdk),ANDROID_SDK_ROOT=str(a.sdk),ANDROID_AVD_HOME=str(avds))
 log=(a.out/'emulator.log').open('w')
 emulator=subprocess.Popen([str(a.sdk/'emulator/emulator'),'-avd','LimeMemoTheme','-port','5586','-timezone','Asia/Shanghai','-no-window','-no-audio','-no-boot-anim','-no-snapshot','-gpu','swiftshader','-cores','2','-memory','2048','-no-metrics'],env=env,stdout=log,stderr=log)
@@ -248,7 +385,13 @@ try:
     sh('svc','wifi','enable');sh('svc','data','enable');adb('emu','network','speed','full');time.sleep(3)
     mode='memoThemeFix' if a.final_apk else 'memoBaseline'
     record(mode+'Status','running')
-    if a.small_only:probe_small()
+    if a.installed_only:verify_existing_install()
+    elif a.organize_only:
+        adb('install','-r',a.final_apk,timeout=90)
+        fixture=engineering_fixture(3);fixture['memoGroups']=[dict(id='group-a',name='GroupA',order=0,createdAt=1793023200000)]
+        write_state(fixture);launch();verify_memo_organize()
+    elif a.engineering_only:probe_engineering()
+    elif a.small_only:probe_small()
     elif a.themes_only:
         adb('install','-r',a.final_apk,timeout=90);restart();verify_themes()
     else:probe()

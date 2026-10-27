@@ -1,7 +1,8 @@
 import { ReactNode, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 type ScreenHeaderProps = {
   eyebrow?: string;
@@ -10,7 +11,7 @@ type ScreenHeaderProps = {
 };
 
 export function ScreenHeader({ eyebrow, title, action }: ScreenHeaderProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
@@ -24,7 +25,7 @@ export function ScreenHeader({ eyebrow, title, action }: ScreenHeaderProps) {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     header: {
       flexDirection: 'row',

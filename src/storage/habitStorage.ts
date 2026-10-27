@@ -1,6 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from './defaults';
+import { createSnapshotRepository } from './snapshotRepository';
+export { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from './defaults';
 
 import { DEFAULT_THEME_ID, THEME_PRESETS, ThemeId } from '../theme';
 import {
@@ -16,20 +19,17 @@ import {
   LegacyV3AppDataFile,
   LegacyV3CheckinRecord,
   LegacyV4AppDataFile,
-  TodoItem,
   Memo,
   MemoGroup,
-} from '../types/habit';
+  TodoItem,
+} from '../types/app';
 import { buildFallbackTimestamp, clampToMinute, toCheckinDateKey } from '../utils/date';
-import { createId } from '../utils/id';
 import { normalizeHabitTarget } from '../utils/habitTarget';
+import { createId } from '../utils/id';
 
 const DATA_DIRECTORY = `${FileSystem.documentDirectory}habit-checkin/`;
-const DATA_FILE = `${DATA_DIRECTORY}data.json`;
 const BACKUP_FILE_PREFIX = 'angelime-backup';
 
-export const DEFAULT_PROFILE_NAME = '酸橙用户';
-export const DEFAULT_PROFILE_SIGNATURE = '';
 
 function isThemeId(value: unknown): value is ThemeId {
   return typeof value === 'string' && value in THEME_PRESETS;
@@ -353,8 +353,8 @@ function normalizeAppData(candidate: unknown): AppData {
         .sort((left, right) => left.order - right.order)
     : [];
 
-  const memoGroupIds = new Set(memoGroups.map((group) => group.id));
   const migratedMemos = migrateLegacyMemos(raw.memos, memoGroups);
+  const memoGroupIds = new Set(migratedMemos.groups.map((group) => group.id));
   const memos = migratedMemos.memos
     .map((memo) => ({
       ...memo,
@@ -467,7 +467,13 @@ export function coerceAppData(candidate: unknown): AppData {
     throw new Error('数据格式无效。');
   }
 
-  const raw = candidate as { version?: unknown };
+  const raw = candidate as Record<string, unknown>;
+  if (!Array.isArray(raw.habits)) throw new Error('数据中的习惯列表缺失或损坏。');
+  for (const key of ['groups', 'todos', 'memoGroups', 'memos']) {
+    if ((raw.version === 7 || raw[key] !== undefined) && !Array.isArray(raw[key])) {
+      throw new Error('数据列表缺失或损坏，已停止读取以保护原文件。');
+    }
+  }
   if (raw.version === 7 || raw.version === 6 || raw.version === 5) {
     return normalizeAppData(candidate);
   }
@@ -503,21 +509,21 @@ async function ensureStorageDirectory() {
   }
 }
 
+export const appRepository = createSnapshotRepository<AppData>({
+  exists: async path => (await FileSystem.getInfoAsync(path)).exists,
+  read: path => FileSystem.readAsStringAsync(path),
+  write: (path, contents) => FileSystem.writeAsStringAsync(path, contents),
+  mkdir: async path => {
+    if (!(await FileSystem.getInfoAsync(path)).exists) await FileSystem.makeDirectoryAsync(path, { intermediates: true });
+  },
+}, DATA_DIRECTORY, coerceAppData, buildDefaultAppData);
+
 export async function loadAppDataFromDisk(): Promise<AppData> {
-  await ensureStorageDirectory();
-
-  const fileInfo = await FileSystem.getInfoAsync(DATA_FILE);
-  if (!fileInfo.exists) {
-    return buildDefaultAppData();
-  }
-
-  const fileContents = await FileSystem.readAsStringAsync(DATA_FILE);
-  return coerceAppData(JSON.parse(fileContents));
+  return (await appRepository.load()).data;
 }
 
 export async function saveAppDataToDisk(appData: AppData) {
-  await ensureStorageDirectory();
-  await FileSystem.writeAsStringAsync(DATA_FILE, JSON.stringify(appData, null, 2));
+  await appRepository.save(appData);
 }
 
 export async function exportBackupFile(appData: AppData) {

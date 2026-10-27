@@ -1,7 +1,5 @@
-import { createContext } from 'react';
-
-import { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from '../storage/habitStorage';
-import { DEFAULT_THEME_ID, getTheme, ThemeId } from '../theme';
+import { DEFAULT_PROFILE_NAME, DEFAULT_PROFILE_SIGNATURE } from '../storage/defaults';
+import { DEFAULT_THEME_ID, ThemeId } from '../theme';
 import type {
   AppData,
   AppSettings,
@@ -12,7 +10,7 @@ import type {
   Memo,
   MemoGroup,
   TodoItem,
-} from '../types/habit';
+} from '../types/app';
 
 export type HabitInput = {
   name: string;
@@ -28,7 +26,7 @@ export type TodoInput = {
   dueTime: string | null;
 };
 
-export type HabitState = {
+export type AppState = {
   appData: AppData;
   isLoading: boolean;
   isHydrated: boolean;
@@ -37,7 +35,11 @@ export type HabitState = {
 
 export type UpdatePreferences = Pick<AppSettings, 'autoCheckUpdates' | 'lastUpdateCheckAt' | 'skippedUpdateVersionCode'>;
 
-export type HabitAction =
+export type AppAction =
+  | { type: 'organize-memos'; placements: import('./organize').Placement[] }
+  | { type: 'organize-habits'; placements: import('./organize').Placement[] }
+  | { type: 'organize-todos'; ids: string[]; moves: Array<{ id: string; dueDateKey: string | null }> }
+  | { type: 'delete-todos'; ids: string[] }
   | { type: 'update-preferences'; patch: Partial<UpdatePreferences> }
   | { type: 'memo-add'; memo: Memo }
   | { type: 'memo-update'; id: string; patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>> }
@@ -46,17 +48,14 @@ export type HabitAction =
   | { type: 'memo-purge'; ids: string[] }
   | { type: 'memo-purge-all' }
   | { type: 'memo-move-group'; ids: string[]; groupId: string | null }
-  | { type: 'memo-reorder'; orderedIds: string[]; groupId: string | null }
   | { type: 'memo-group-add'; group: MemoGroup }
   | { type: 'memo-group-rename'; groupId: string; name: string }
   | { type: 'memo-group-delete'; groupId: string }
   | { type: 'memo-group-reorder'; groupIds: string[] }
   | { type: 'set-todo-bucket-collapsed'; bucketId: string; collapsed: boolean }
   | { type: 'move-todos-to-bucket'; todoIds: string[]; dueDateKey: string | null }
-  | { type: 'hydrate'; appData: AppData }
   | { type: 'set-error'; error: string | null }
   | { type: 'clear-error' }
-  | { type: 'replace-app-data'; appData: AppData }
   | { type: 'set-theme-id'; themeId: ThemeId }
   | { type: 'update-profile'; name: string; signature: string; avatarUri: string | null }
   | { type: 'add-group'; group: HabitGroup }
@@ -73,7 +72,6 @@ export type HabitAction =
       targetCount: number;
       order: number;
     }
-  | { type: 'reorder-habits'; groupId: string | null; habitIds: string[] }
   | { type: 'move-habits-to-group'; ids: string[]; groupId: string | null }
   | { type: 'delete-habits'; ids: string[] }
   | { type: 'archive-habit'; habitId: string }
@@ -100,65 +98,8 @@ export type HabitAction =
     }
   | { type: 'set-todo-completed'; todoId: string; completedAt: number | null }
   | { type: 'delete-todo'; todoId: string }
-  | { type: 'reorder-todos'; todoIds: string[] };
 
-export type HabitContextValue = HabitState & {
-  setUpdatePreferences: (patch: Partial<UpdatePreferences>) => void;
-  setTodoBucketCollapsed: (bucketId: string, collapsed: boolean) => void;
-  allHabits: Habit[];
-  habits: Habit[];
-  archivedHabits: Habit[];
-  groups: HabitGroup[];
-  todos: TodoItem[];
-  settings: AppSettings;
-  theme: ReturnType<typeof getTheme>;
-  memos: Memo[];
-  trashedMemos: Memo[];
-  activeMemos: Memo[];
-  memoGroups: MemoGroup[];
-  addMemo: (groupId: string | null) => string;
-  updateMemo: (id: string, patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>>) => void;
-  trashMemos: (ids: string[]) => void;
-  restoreMemos: (ids: string[]) => void;
-  purgeMemos: (ids: string[]) => void;
-  purgeAllMemos: () => void;
-  moveMemosToGroup: (ids: string[], groupId: string | null) => void;
-  reorderMemos: (groupId: string | null, orderedIds: string[]) => void;
-  addMemoGroup: (name: string) => boolean;
-  renameMemoGroup: (groupId: string, name: string) => boolean;
-  deleteMemoGroup: (groupId: string) => void;
-  reorderMemoGroups: (groupIds: string[]) => void;
-  moveTodosToBucket: (todoIds: string[], dueDateKey: string | null) => void;
-  moveHabitsToGroup: (ids: string[], groupId: string | null) => void;
-  deleteHabits: (ids: string[]) => void;
-  clearError: () => void;
-  addGroup: (name: string) => boolean;
-  renameGroup: (groupId: string, name: string) => boolean;
-  deleteGroup: (groupId: string) => void;
-  reorderGroups: (groupIds: string[]) => void;
-  addHabit: (input: HabitInput) => boolean;
-  updateHabit: (habitId: string, input: HabitInput) => boolean;
-  reorderHabits: (groupId: string | null, habitIds: string[]) => void;
-  archiveHabit: (habitId: string) => void;
-  restoreArchivedHabit: (habitId: string) => void;
-  deleteHabit: (habitId: string) => void;
-  addCheckinNow: (habitId: string) => string;
-  addCheckin: (habitId: string, timestamp: number, note: string) => void;
-  updateCheckin: (habitId: string, recordId: string, timestamp: number, note: string) => void;
-  deleteCheckin: (habitId: string, recordId: string) => void;
-  setThemeId: (themeId: ThemeId) => void;
-  updateProfile: (name: string, signature: string, avatarUri: string | null) => boolean;
-  replaceAppData: (appData: AppData) => void;
-  addTodo: (input: TodoInput) => boolean;
-  updateTodo: (todoId: string, input: TodoInput) => boolean;
-  setTodoCompleted: (todoId: string, completed: boolean) => void;
-  deleteTodo: (todoId: string) => void;
-  reorderTodos: (todoIds: string[]) => void;
-};
-
-export const HabitContext = createContext<HabitContextValue | null>(null);
-
-export const initialState: HabitState = {
+export const initialState: AppState = {
   appData: {
       version: 7,
       habits: [],

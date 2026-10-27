@@ -1,13 +1,14 @@
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMemo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRegisterPanel } from '../navigation/panel';
 import type { NavigationTarget, PanelItem } from '../navigation/types';
 import { GLOBAL_NAV_ITEMS } from '../navigation/types';
-import { useRegisterPanel } from '../navigation/panel';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { SCREEN_ENTERING } from '../theme/animation';
-import { useHabits } from '../state/HabitStore';
 import { AppIcon } from './AppIcon';
 
 export type ScreenScaffoldProps = {
@@ -21,7 +22,7 @@ export type ScreenScaffoldProps = {
 const TITLES: Record<string, string> = { today: '今日', tasks: '待办', habits: '习惯', memos: '备忘录', settings: '设置', trash: '回收站' };
 
 export function ScreenScaffold({ panelTitle, panelItems, createAction, onOrganize, organizing = false, children }: ScreenScaffoldProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<{ navigate: (name: NavigationTarget) => void; openDrawer: () => void }>();
@@ -61,7 +62,7 @@ export function ScreenScaffold({ panelTitle, panelItems, createAction, onOrganiz
     </View>
   );
 }
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screenRoot: { flex: 1, backgroundColor: theme.colors.background },
     header: { minHeight: 60, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },

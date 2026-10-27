@@ -1,5 +1,11 @@
 name: Check
 on:
+  workflow_dispatch:
+    inputs:
+      android_ui:
+        description: Run the isolated Android UI suite
+        type: boolean
+        default: false
   push:
     branches: [main]
   pull_request:
@@ -8,7 +14,8 @@ permissions:
   contents: read
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -17,3 +24,44 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: python3 -m py_compile tests/android/*.py scripts/*.py
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      WORKSPACE_JOBS: 2
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - run: npm ci
+      - name: Android SDK dependencies
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - run: bash scripts/build-android.sh preview x86_64
+      - name: Isolated UI suite
+        if: github.event_name == 'workflow_dispatch' && inputs.android_ui
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr imagemagick
+          sudo chmod a+rw /dev/kvm
+          source scripts/env.sh
+          python3 scripts/setup-android-test.py
+          apk="artifacts/preview/lime-$(node -p 'require("./package.json").version')-x86_64.apk"
+          python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/ui --final-apk "$apk"
+          python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/small --final-apk "$apk" --small-only
+          python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/engineering --final-apk "$apk" --engineering-only
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: android-preview-and-ui-evidence
+          path: artifacts/
+          retention-days: 7

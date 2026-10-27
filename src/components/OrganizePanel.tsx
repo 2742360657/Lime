@@ -1,10 +1,12 @@
-import { Alert } from './ThemedAlert';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { Alert } from './ThemedAlert';
+import { VirtualList, type VirtualRow } from './VirtualList';
 
 import { useBackHandler } from '../navigation/back';
-import { useHabits } from '../state/HabitStore';
 import { LIST_LAYOUT } from '../theme/animation';
 import { DraggableList, DragGroup, DragItem } from './DraggableList';
 import { GroupPickerModal } from './GroupPickerModal';
@@ -24,8 +26,6 @@ type OrganizePanelProps = {
   onMoveToGroup?: (ids: string[], groupId: string | null) => void;
   moveTitle?: string;
   deleteLabel?: string;
-  /** 整理模式的操作说明，展示在工具栏下方。 */
-  hint?: string;
   /** 进入整理时滚动到的位置，保持和之前看到的一致。 */
   initialScrollY?: number;
   sortHint?: string;
@@ -34,7 +34,7 @@ type OrganizePanelProps = {
 
 /**
  * 原地整理面板：不替换整页，直接渲染在当前页面的内容区里，
- * 顶部资料条与底部导航保持可见，退出后回到原来的列表。
+ * 页面标题与底部导航保持可见，退出后回到原来的列表。
  *
  * - 点按整行切换选中；按住右侧把手拖动排序。
  * - 拖动时其余行实时让位、目标分组高亮。
@@ -53,12 +53,11 @@ export function OrganizePanel({
   onMoveToGroup,
   moveTitle = '移动到分组',
   deleteLabel = '删除',
-  hint = '点按条目选中 · 按住右侧把手拖动排序',
   initialScrollY = 0,
   sortHint,
   allowSort = true,
 }: OrganizePanelProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const selectedIds = useMemo(() => {
     const visibleIds = new Set(items.map((item) => item.id));
@@ -96,6 +95,15 @@ export function OrganizePanel({
     ]);
   };
 
+  const selectionRows: VirtualRow[] = [];
+  for (const group of groups) {
+    selectionRows.push({ key: `group:${group.id}`, render: () => <Text style={styles.groupTitle}>{group.title}</Text> });
+    for (const item of displayItems.filter(item => item.groupId === group.id)) selectionRows.push({ key: item.id, render: () =>
+      <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel={item.label} accessibilityState={{ checked: selected.has(item.id) }} onPress={() => toggleSelected(item.id)} style={styles.selectionRow}>
+        {item.leading}<View style={{ flex: 1, gap: 4 }}><Text numberOfLines={2} style={styles.rowTitle}>{item.label}</Text>{!!item.subtitle && <Text numberOfLines={2} style={styles.rowSubtitle}>{item.subtitle}</Text>}</View>
+      </TouchableOpacity> });
+  }
+
   return (
     <Animated.View layout={LIST_LAYOUT} style={styles.panel}>
       <View style={styles.toolbar}>
@@ -114,19 +122,17 @@ export function OrganizePanel({
         <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel="全选" accessibilityState={{ checked: allSelected }} onPress={() => onSetSelection(allSelected ? [] : items.map((item) => item.id))} style={styles.action}>
           <Text style={styles.actionText}>{allSelected ? '取消全选' : '全选'}</Text>
         </TouchableOpacity>
-      </View> : <Text style={styles.hint}>{sortHint ?? hint}
-按住右侧把手拖动，松手即保存。跨组移动会改变所属分组。</Text>}
-      <DraggableList
+      </View> : <Text style={styles.hint}>{sortHint ?? '按住右侧把手拖动，松手即保存；拖到其他分组会移动条目。'}</Text>}
+      {mode === 'select' ? <VirtualList rows={selectionRows} contentStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} /> : <DraggableList
         groups={groups}
         items={displayItems}
         onCommit={onCommit}
-        onToggleSelect={mode === 'select' ? toggleSelected : undefined}
-        dragEnabled={mode === 'sort'}
+        dragEnabled
         emptyText="没有可整理的条目"
         contentPaddingBottom={24}
         initialScrollY={initialScrollY}
         autoScroll
-      />
+      />}
       {mode === 'select' && <View style={styles.bottomActions}>
         {canMove && <TouchableOpacity accessibilityRole="button" accessibilityLabel={moveTitle} disabled={selectedIds.length === 0} onPress={() => setMoveVisible(true)} style={[styles.batchAction, styles.moveAction, selectedIds.length === 0 && styles.actionDisabled]}>
           <Text style={styles.actionText}>{moveTitle.includes('日期') ? '更改截止日期' : '移动分组'}</Text>
@@ -140,9 +146,13 @@ export function OrganizePanel({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     panel: { flex: 1, backgroundColor: theme.colors.background },
+    groupTitle: { paddingTop: 10, paddingBottom: 4, fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
+    selectionRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+    rowTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary },
+    rowSubtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
     toolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
     toolbarTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary },
     modes: { marginHorizontal: 16, padding: 4, flexDirection: 'row', borderRadius: 10, backgroundColor: theme.colors.surfaceMuted },

@@ -1,8 +1,8 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
 import NativeUpdater, { type InstalledInfo } from '../native/NativeLimeUpdater';
-import { useHabits } from '../state/HabitStore';
+import { useAppActions, useAppSelector, useSettings } from '../state/AppProvider';
 import { fetchManifest, RELEASE_PAGE, selectUpdate, shouldAutoCheck } from './manifest';
 import { UpdateDialog } from './UpdateDialog';
 
@@ -20,7 +20,9 @@ export function useAppUpdate() {
 }
 
 export function UpdateProvider({ children }: PropsWithChildren) {
-  const { isLoading, settings, setUpdatePreferences } = useHabits();
+  const isHydrated = useAppSelector(s => s.isHydrated);
+  const { settings } = useSettings();
+  const { setUpdatePreferences } = useAppActions();
   const [installed, setInstalled] = useState<InstalledInfo | null>(null);
   const [stage, setStageState] = useState<UpdateStage>('idle');
   const [message, setMessage] = useState('');
@@ -75,19 +77,19 @@ export function UpdateProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!settings.autoCheckUpdates && automaticRequest.current) requestRef.current?.abort();
-    if (!isLoading && installed && stageRef.current !== 'available') void check(false);
-  }, [isLoading, installed, settings.autoCheckUpdates, settings.lastUpdateCheckAt, check]);
+    if (isHydrated && installed && stageRef.current !== 'available') void check(false);
+  }, [isHydrated, installed, settings.autoCheckUpdates, settings.lastUpdateCheckAt, check]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
       if (state !== 'active') return;
-      if (!isLoading && stageRef.current !== 'available') void check(false);
+      if (isHydrated && stageRef.current !== 'available') void check(false);
       if (stageRef.current === 'ready' && fileRef.current) {
         NativeUpdater.canInstallPackages().then(allowed => { if (allowed) setMessage('已允许安装，可继续安装更新。'); }).catch(() => {});
       }
     });
     return () => subscription.remove();
-  }, [check, isLoading]);
+  }, [check, isHydrated]);
 
   const cancelDownload = useCallback(async () => {
     if (cancelling.current || stageRef.current !== 'downloading') return;

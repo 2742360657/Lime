@@ -1,7 +1,3 @@
-import { Alert } from './ThemedAlert';
-import { ThemedTextInput as TextInput } from './ThemedTextInput';
-import { ThemedSwitch as Switch } from './ThemedSwitch';
-import { EditorLayout, useConfirmDiscard } from './EditorLayout';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
@@ -11,9 +7,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAppActions, useHabitData, useTheme } from '../state/AppProvider';
+import type { HabitInput } from '../state/storeTypes';
+import type { AppTheme } from '../theme';
+import { EditorLayout, useConfirmDiscard } from './EditorLayout';
+import { Alert } from './ThemedAlert';
+import { ThemedSwitch as Switch } from './ThemedSwitch';
+import { ThemedTextInput as TextInput } from './ThemedTextInput';
 
-import { HabitInput, useHabits } from '../state/HabitStore';
-import { Habit, HabitCadence } from '../types/habit';
+import { Habit, HabitCadence } from '../types/app';
 import { parseHabitTarget } from '../utils/habitTarget';
 
 type AddHabitModalProps = {
@@ -29,7 +31,9 @@ const CADENCE_OPTIONS: Array<{ id: HabitCadence; label: string }> = [
 ];
 
 export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalProps) {
-  const { theme, groups, addHabit, updateHabit } = useHabits();
+  const theme = useTheme();
+  const { groups } = useHabitData();
+  const { addHabit, updateHabit } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -161,7 +165,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   }
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     content: { padding: 16, gap: 18, paddingBottom: 44 },
     field: { gap: 11 },

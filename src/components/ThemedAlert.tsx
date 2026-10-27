@@ -7,14 +7,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useHabits } from '../state/HabitStore';
+import { useTheme } from '../state/AppProvider';
 import { alertStore } from '../theme/alertStore';
 export { Alert } from '../theme/alertStore';
 
 /** Shared app confirmations use the chosen palette, including destructive actions. */
 export function ThemedAlertHost() {
   const request = useSyncExternalStore(alertStore.subscribe, alertStore.getSnapshot);
-  const { theme } = useHabits();
+  const theme = useTheme();
   if (!request) return null;
   return <Modal transparent visible animationType="fade" onRequestClose={() => alertStore.dismiss(request.id)}>
     <View style={[styles.overlay, { backgroundColor: theme.colors.scrim }]}>

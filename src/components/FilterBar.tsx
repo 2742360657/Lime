@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useHabits } from '../state/HabitStore';
+import { useTheme } from '../state/AppProvider';
 
 export function FilterBar({ options, value, onChange }: {
   options: Array<{ id: string; label: string; count?: number }>;
   value: string;
   onChange: (id: string) => void;
 }) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => StyleSheet.create({
     row: { gap: 8, paddingHorizontal: 16, paddingVertical: 4 },
     chip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, borderRadius: 8, backgroundColor: theme.colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border },

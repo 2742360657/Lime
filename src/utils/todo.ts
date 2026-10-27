@@ -1,4 +1,4 @@
-import { TodoItem } from '../types/habit';
+import { TodoItem } from '../types/app';
 import { addDaysToDateKey, compareDateKeys, formatFriendlyDate, getTodayKey } from './date';
 
 export type TodoBucketId = 'overdue' | 'today' | 'tomorrow' | 'soon' | 'later' | 'no-date';

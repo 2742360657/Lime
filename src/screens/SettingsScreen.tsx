@@ -1,27 +1,32 @@
 import { Alert } from '../components/ThemedAlert';
 import { ThemedSwitch as Switch } from '../components/ThemedSwitch';
+import { useBackupRestore } from '../hooks/useBackupRestore';
+import { useAppActions, useAppStore, useHabitData, useSettings, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
-import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { ProfileBar } from '../components/ProfileBar';
+import { ProfileEditorModal } from '../components/ProfileEditorModal';
 import { ScreenScaffold } from '../components/ScreenScaffold';
 import { ThemeSelectionModal } from '../components/ThemeSelectionModal';
 import {
-  exportBackupFile,
-  importBackupFile,
-  pickBackupFile,
+  exportBackupFile
 } from '../storage/habitStorage';
-import { useHabits } from '../state/HabitStore';
 import { useAppUpdate } from '../update/UpdateProvider';
 
 export function SettingsScreen() {
-  const { appData, archivedHabits, theme, replaceAppData, settings, setUpdatePreferences } = useHabits();
+  const store = useAppStore();
+  const { restore: handleRestore, restoring } = useBackupRestore();
+  const { archivedHabits } = useHabitData();
+  const theme = useTheme();
+  const { setUpdatePreferences } = useAppActions();
+  const { settings } = useSettings();
   const update = useAppUpdate();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const [busyAction, setBusyAction] = useState<'backup' | 'restore' | null>(null);
+  const [busyAction, setBusyAction] = useState<'backup' | null>(null);
   const [themeVisible, setThemeVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [archivedVisible, setArchivedVisible] = useState(false);
@@ -29,45 +34,12 @@ export function SettingsScreen() {
   const handleBackup = async () => {
     try {
       setBusyAction('backup');
-      await exportBackupFile(appData);
+      await exportBackupFile(store.getSnapshot().appData);
       Alert.alert('导出备份', '已打开系统分享面板，请将备份 JSON 保存到文件、网盘或聊天工具中。');
     } catch (error) {
       Alert.alert('导出失败', error instanceof Error ? error.message : '导出备份失败，请稍后重试。');
     } finally {
       setBusyAction(null);
-    }
-  };
-
-  const handleRestore = async () => {
-    try {
-      setBusyAction('restore');
-      const fileAsset = await pickBackupFile();
-      if (!fileAsset) {
-        setBusyAction(null);
-        return;
-      }
-
-      const importedData = await importBackupFile(fileAsset.uri);
-      setBusyAction(null);
-
-      Alert.alert(
-        '覆盖恢复确认',
-        `即将使用“${fileAsset.name ?? '所选文件'}”覆盖当前本地全部数据，包括待办、习惯、备忘录、个人资料和主题。此操作无法撤销。`,
-        [
-          { text: '取消', style: 'cancel' },
-          {
-            text: '确认恢复',
-            style: 'destructive',
-            onPress: () => {
-              replaceAppData(importedData);
-              Alert.alert('恢复成功', '本地数据已覆盖恢复。');
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      setBusyAction(null);
-      Alert.alert('恢复失败', error instanceof Error ? error.message : '恢复数据失败，请检查备份文件。');
     }
   };
 
@@ -130,7 +102,7 @@ export function SettingsScreen() {
           <Text style={styles.backupHint}>定期导出到应用之外。恢复备份会覆盖当前全部数据。</Text>
           <View style={styles.actionRow}>
             <TouchableOpacity
-              disabled={busyAction !== null}
+              disabled={busyAction !== null || restoring}
               onPress={handleBackup}
               style={[styles.primaryAction, busyAction !== null && styles.disabledAction]}
             >
@@ -139,12 +111,12 @@ export function SettingsScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              disabled={busyAction !== null}
+              disabled={busyAction !== null || restoring}
               onPress={handleRestore}
               style={[styles.secondaryAction, busyAction !== null && styles.disabledAction]}
             >
               <Text style={styles.secondaryActionText}>
-                {busyAction === 'restore' ? '正在读取...' : '数据恢复'}
+                {restoring ? '正在读取...' : '数据恢复'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -178,7 +150,7 @@ export function SettingsScreen() {
   }
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     scrollView: {
       flex: 1,

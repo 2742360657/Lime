@@ -1,34 +1,32 @@
-import { Alert } from '../components/ThemedAlert';
-import { useDateTick } from '../utils/useDateTick';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet, Text, View } from 'react-native';
+import { SectionHeading } from '../components/SectionHeading';
+import { Alert } from '../components/ThemedAlert';
+import { VirtualList, type VirtualRow } from '../components/VirtualList';
+import { useTodoOrganize } from '../hooks/useTodoOrganize';
+import { useAppActions, useHabitData, useSettings, useTheme, useTodos } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { useDateTick } from '../utils/useDateTick';
 
-import { LIST_LAYOUT } from '../theme/animation';
 
-import { AccordionSection } from '../components/AccordionSection';
 import { AddHabitModal } from '../components/AddHabitModal';
 import { CheckinDetailModal } from '../components/CheckinDetailModal';
 import { HabitCard } from '../components/HabitCard';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
-import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
+import { SelectCircle } from '../components/SelectCircle';
 import { TodoEditorModal } from '../components/TodoEditorModal';
 import { TodoRow } from '../components/TodoRow';
 import { UndoToast } from '../components/UndoToast';
-import { useHabits } from '../state/HabitStore';
-import { TodoItem } from '../types/habit';
+import { TodoItem } from '../types/app';
 import { getCheckinTodayKey } from '../utils/date';
 import { getHabitProgress, getHabitSummary } from '../utils/habit';
 import {
-  hasTodoDateOrderConflict,
-  getTodoDateOptions,
   bucketToDueDateKey,
   buildTodoBuckets,
-  compareTodosSmart,
-  todoGroupKey,
-  TODO_COMPLETED_BUCKET_ID,
+  getTodoDateOptions,
+  todoGroupKey
 } from '../utils/todo';
 
 type UndoState =
@@ -37,24 +35,12 @@ type UndoState =
   | null;
 
 export function TodayScreen() {
-  const {
-    todos,
-    habits,
-    groups,
-    theme,
-    setTodoCompleted,
-    addCheckinNow,
-    deleteCheckin,
-    settings,
-    setTodoBucketCollapsed,
-    deleteTodo,
-    moveTodosToBucket,
-    reorderTodos,
-    moveHabitsToGroup,
-    reorderHabits,
-    deleteHabits,
-    archiveHabit,
-  } = useHabits();
+  const commitTodoOrder = useTodoOrganize();
+  const { todos } = useTodos();
+  const { habits, groups } = useHabitData();
+  const theme = useTheme();
+  const { setTodoCompleted, addCheckinNow, deleteCheckin, setTodoBucketCollapsed, deleteTodo, moveTodosToBucket, moveHabitsToGroup, deleteHabits, archiveHabit, organizeHabits, deleteTodos } = useAppActions();
+  const { settings } = useSettings();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [organizerVisible, setOrganizerVisible] = useState(false);
   const [editorVisible, setEditorVisible] = useState(false);
@@ -118,8 +104,7 @@ export function TodayScreen() {
     setHabitSelectMode(true);
   };
 
-  const toggleId = (list: string[], id: string) =>
-    list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
+
 
   const dismissUndo = useCallback(() => setUndoState(null), []);
 
@@ -166,6 +151,30 @@ export function TodayScreen() {
     [orderedHabits, selectedHabitIds]
   );
 
+
+  const listRows: VirtualRow[] = [{ key: 'overview', render: () => <View style={styles.overview}><Text style={styles.overviewBody}>{todayTodoIds.length} 项未完成待办 · {habits.length} 个可记录的习惯</Text><Text style={styles.overviewHint}>先处理临近截止的事，其他任务也能提前做。</Text></View> }];
+  const heading = (id: string, title: string, meta: string) => listRows.push({ key: `header:${id}`, render: () => <SectionHeading title={title} meta={meta} collapsed={collapsed.has(id)} danger={id === 'overdue'} onToggle={() => toggleBucket(id)} /> });
+  const appendBuckets = (buckets: typeof allBuckets) => {
+    for (const bucket of buckets) {
+      heading(bucket.id, bucket.title, `${bucket.todos.length} 项`);
+      if (!collapsed.has(bucket.id)) for (const todo of bucket.todos) listRows.push({ key: `todo:${todo.id}`, render: () => <TodoRow todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)} onPickDue={item => setDueTodoId(item.id)} compact /> });
+    }
+  };
+  heading('home-todos', '优先处理', `${activeBuckets.reduce((n, bucket) => n + bucket.todos.length, 0)} 项`);
+  if (!collapsed.has('home-todos')) {
+    appendBuckets(activeBuckets);
+    if (!activeBuckets.length) listRows.push({ key: 'no-urgent', render: () => <Text style={styles.emptyText}>没有逾期或今天截止的事项，可以记录习惯，或推进下面的其他待办。</Text> });
+  }
+  heading('habits', '可记录的习惯', getHabitSummary(habits));
+  if (!collapsed.has('habits')) {
+    if (!orderedHabits.length) listRows.push({ key: 'no-habits', render: () => <Text style={styles.emptyText}>还没有习惯</Text> });
+    for (const habit of orderedHabits) listRows.push({ key: `habit:${habit.id}`, render: () => <HabitCard habit={habit} compact onOpenActions={item => setActionHabitId(item.id)} onOpenDetails={setDetailHabitId} onLongPress={() => setActionHabitId(habit.id)} onAddCheckin={habitId => { const recordId = addCheckinNow(habitId); setUndoState({ kind: 'checkin', habitId, recordId }); }} /> });
+  }
+  if (laterBuckets.length) {
+    heading('home-upcoming', '其他可推进的待办', `${laterBuckets.reduce((n, bucket) => n + bucket.todos.length, 0)} 项`);
+    if (!collapsed.has('home-upcoming')) appendBuckets(laterBuckets);
+  }
+
   return (
     <View style={styles.screen}>
       <ScreenScaffold
@@ -177,62 +186,17 @@ export function TodayScreen() {
     >
         {todoSelectMode ? (
           <OrganizePanel
+        initialScrollY={organizeScrollY}
         title="整理待办"
         sortHint="按截止日期、时间优先排列；相同时间内可手动排序。跨日期分组会先确认改期。"
-        hint="点按待办选中 · 拖动排序；拖到别的分组会先确认是否改截止时间"
         onClose={() => { setTodoSelectMode(false); setSelectedTodoIds([]); }}
         items={boardItems}
         groups={boardGroups}
         selectedIds={selectedTodoIds}
         onSetSelection={setSelectedTodoIds}
-        onCommit={(ordered) => {
-          const reorderOnly = () => reorderTodos(ordered.map((entry) => entry.id));
-          const moves = ordered
-            .map((entry) => {
-              const todo = todos.find((item) => item.id === entry.id);
-              if (!todo || entry.groupId === TODO_COMPLETED_BUCKET_ID) {
-                return null;
-              }
-              if (todoGroupKey(todo, allBuckets) === entry.groupId) {
-                return null;
-              }
-              return { id: entry.id, title: todo.title, groupId: entry.groupId };
-            })
-            .filter((move): move is { id: string; title: string; groupId: string } => move !== null);
-
-          if (moves.length === 0) {
-            if (hasTodoDateOrderConflict(ordered, todos)) Alert.alert('按截止时间排序', '不同截止日期或时间的待办会保持时间先后。相同截止时间内可自由排序。');
-            reorderOnly();
-            return;
-          }
-
-          const labelOf = (groupId: string) =>
-            boardGroups.find((group) => group.id === groupId)?.title ?? '新的分组';
-          const detail =
-            moves.length === 1
-              ? `「${moves[0].title}」会挪到「${labelOf(moves[0].groupId)}」，截止时间跟着变。`
-              : `${moves.length} 项待办会跟着分组改截止时间。`;
-
-          Alert.alert(
-            '要改截止时间吗？',
-            `${detail}\n只排序的话，它们仍留在原来的日期分组里。`,
-            [
-              { text: '只排序', style: 'cancel', onPress: reorderOnly },
-              {
-                text: '改时间',
-                onPress: () => {
-                  moves.forEach((move) => {
-                    moveTodosToBucket([move.id], bucketToDueDateKey(move.groupId));
-                  });
-                  reorderOnly();
-                },
-              },
-            ],
-            { cancelable: true, onDismiss: reorderOnly }
-          );
-        }}
+        onCommit={commitTodoOrder}
         onDelete={(ids) => {
-          ids.forEach((id) => deleteTodo(id));
+          deleteTodos(ids);
           setSelectedTodoIds([]);
           setTodoSelectMode(false);
         }}
@@ -243,22 +207,14 @@ export function TodayScreen() {
                 />
         ) : habitSelectMode ? (
           <OrganizePanel
+        initialScrollY={organizeScrollY}
         title="整理习惯"
-        hint="点按习惯选中 · 拖动右侧把手排序或换分组"
         onClose={() => { setHabitSelectMode(false); setSelectedHabitIds([]); }}
         items={habitBoardItems}
         groups={habitGroups}
         selectedIds={selectedHabitIds}
         onSetSelection={setSelectedHabitIds}
-        onCommit={(ordered) => {
-          ordered.forEach((entry) => {
-            moveHabitsToGroup([entry.id], entry.groupId === 'ungrouped' ? null : entry.groupId);
-          });
-          for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
-            reorderHabits(groupId === 'ungrouped' ? null : groupId,
-              ordered.filter((entry) => entry.groupId === groupId).map((entry) => entry.id));
-          }
-        }}
+        onCommit={ordered => organizeHabits(ordered.map(entry => ({ id: entry.id, groupId: entry.groupId === 'ungrouped' ? null : entry.groupId })))}
         onDelete={(ids) => {
           ids.forEach((id) => deleteHabits([id]));
           setSelectedHabitIds([]);
@@ -269,93 +225,7 @@ export function TodayScreen() {
         moveTitle="移动到分组"
                 />
         ) : (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-          <View style={styles.overview}>
-            <Text style={styles.overviewBody}>{todayTodoIds.length} 项未完成待办 · {habits.length} 个可记录的习惯</Text>
-            <Text style={styles.overviewHint}>先处理临近截止的事，其他任务也能提前做。</Text>
-          </View>
-          <AccordionSection
-            title="优先处理"
-            meta={`${activeBuckets.reduce((count, bucket) => count + bucket.todos.length, 0)} 项`}
-            collapsed={collapsed.has('home-todos')}
-            onToggle={() => toggleBucket('home-todos')}
-            accessibilityLabel={collapsed.has('home-todos') ? '展开优先处理' : '收起优先处理'}
-          >
-            {activeBuckets.map((bucket) => (
-              <AccordionSection
-                key={bucket.id}
-                title={bucket.title}
-                danger={bucket.id === 'overdue'}
-                meta={`${bucket.todos.length} 项`}
-                collapsed={collapsed.has(bucket.id)}
-                onToggle={() => toggleBucket(bucket.id)}
-              >
-                <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                  {bucket.todos.map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
-                    onPickDue={(item) => setDueTodoId(item.id)} compact />
-                  ))}
-                </Animated.View>
-              </AccordionSection>
-            ))}
-            {activeBuckets.length === 0 ? <Text style={styles.emptyText}>没有逾期或今天截止的事项，可以继续记录习惯，或推进下面的其他待办。</Text> : null}
-          </AccordionSection>
-
-          <AccordionSection
-            title="可记录的习惯"
-            meta={getHabitSummary(habits)}
-            collapsed={collapsed.has('habits')}
-            onToggle={() => toggleBucket('habits')}
-            accessibilityLabel="折叠今天的习惯"
-          >
-            {orderedHabits.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>还没有习惯</Text>
-              </View>
-            ) : (
-              <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                {orderedHabits.map((habit) => (
-                  <HabitCard
-                    key={habit.id}
-                    habit={habit}
-                    compact
-                    onOpenActions={(habit) => setActionHabitId(habit.id)}
-                    onOpenDetails={setDetailHabitId}
-                    onLongPress={() => setActionHabitId(habit.id)}
-                    onAddCheckin={(habitId) => {
-                      const recordId = addCheckinNow(habitId);
-                      setUndoState({ kind: 'checkin', habitId, recordId });
-                    }}
-                  />
-                ))}
-              </Animated.View>
-            )}
-          </AccordionSection>
-          {laterBuckets.length > 0 && <AccordionSection
-            title="其他可推进的待办"
-            meta={`${laterBuckets.reduce((count, bucket) => count + bucket.todos.length, 0)} 项`}
-            collapsed={collapsed.has('home-upcoming')}
-            onToggle={() => toggleBucket('home-upcoming')}
-          >
-            {laterBuckets.map((bucket) => (
-              <AccordionSection
-                key={bucket.id}
-                title={bucket.title}
-                danger={bucket.id === 'overdue'}
-                meta={`${bucket.todos.length} 项`}
-                collapsed={collapsed.has(bucket.id)}
-                onToggle={() => toggleBucket(bucket.id)}
-              >
-                <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-                  {bucket.todos.map((todo) => (
-                    <TodoRow key={todo.id} todo={todo} onToggle={handleToggleTodo} onPress={openEditor} onLongPress={() => setActionTodoId(todo.id)}
-                    onPickDue={(item) => setDueTodoId(item.id)} compact />
-                  ))}
-                </Animated.View>
-              </AccordionSection>
-            ))}
-          </AccordionSection>}
-        </ScrollView>
+<VirtualList rows={listRows} contentStyle={styles.content} onScrollY={y => { scrollYRef.current = y; }} />
         )}
 
         <ItemActionSheet visible={organizerVisible} title="整理事项" subtitle="分别整理待办和习惯，完成后回到当前页面。" onClose={() => setOrganizerVisible(false)} actions={[
@@ -461,7 +331,7 @@ export function TodayScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1 },
     scroll: { flex: 1 },
@@ -469,7 +339,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     overviewTitle: { fontSize: 19, fontWeight: '700', color: theme.colors.textPrimary },
     overviewBody: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
     overviewHint: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 14 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
     list: { gap: 8 },
     emptyText: { fontSize: 13, color: theme.colors.textSecondary },
     emptyCard: {

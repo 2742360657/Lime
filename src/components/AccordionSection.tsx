@@ -1,9 +1,10 @@
 import { PropsWithChildren, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
 import { LIST_LAYOUT } from '../theme/animation';
-import { useHabits } from '../state/HabitStore';
 
 type AccordionSectionProps = {
   title: string;
@@ -32,7 +33,7 @@ export function AccordionSection({
   accessibilityLabel,
   children,
 }: PropsWithChildren<AccordionSectionProps>) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
@@ -72,7 +73,7 @@ export function AccordionSection({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     section: { gap: 5 },
     header: {

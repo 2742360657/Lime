@@ -1,12 +1,13 @@
-import { AppIcon } from './AppIcon';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { AppIcon } from './AppIcon';
 
 import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
 
-import { useHabits } from '../state/HabitStore';
-import { TodoItem } from '../types/habit';
+import { TodoItem } from '../types/app';
 import { formatTodoDue, isTodoOverdue } from '../utils/todo';
 
 type TodoRowProps = {
@@ -20,7 +21,7 @@ type TodoRowProps = {
 };
 
 export function TodoRow({ todo, onToggle, onPress, onLongPress, onPickDue, compact = false }: TodoRowProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const completed = todo.completedAt !== null;
   const overdue = !completed && isTodoOverdue(todo);
@@ -59,7 +60,7 @@ export function TodoRow({ todo, onToggle, onPress, onLongPress, onPickDue, compa
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     row: {
       minHeight: 68,

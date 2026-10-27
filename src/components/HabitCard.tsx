@@ -1,12 +1,13 @@
-import { AppIcon } from './AppIcon';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { AppIcon } from './AppIcon';
 
 import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
 
-import { useHabits } from '../state/HabitStore';
-import { Habit } from '../types/habit';
+import { Habit } from '../types/app';
 import { getHabitProgress } from '../utils/habit';
 
 type HabitCardProps = {
@@ -26,7 +27,7 @@ export function HabitCard({
   onLongPress,
   compact = false,
 }: HabitCardProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const progress = getHabitProgress(habit);
 
@@ -70,7 +71,7 @@ export function HabitCard({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     card: {
       flexDirection: 'row',

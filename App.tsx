@@ -1,5 +1,9 @@
 import { Alert } from './src/components/ThemedAlert';
+import { useBackupRestore } from './src/hooks/useBackupRestore';
+import { AppProvider, useAppActions, useAppSelector, useAppStore, useTheme } from './src/state/AppProvider';
+import type { AppTheme } from './src/theme';
 
+import { createNavigationContainerRef, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -17,9 +21,9 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { createNavigationContainerRef, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 
 import { AppNavigator } from './src/components/AppNavigator';
+import { ThemedAlertHost } from './src/components/ThemedAlert';
 import { useBackHandler } from './src/navigation/back';
 import { HOME_TARGET, type NavigationTarget } from './src/navigation/types';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -28,8 +32,6 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { TasksScreen } from './src/screens/TasksScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { TrashScreen } from './src/screens/TrashScreen';
-import { HabitProvider, useHabits } from './src/state/HabitStore';
-import { ThemedAlertHost } from './src/components/ThemedAlert';
 import { UpdateProvider } from './src/update/UpdateProvider';
 
 const EXIT_CONFIRM_WINDOW = 2500;
@@ -58,7 +60,14 @@ function clearExitArm() {
 }
 
 function AppShell() {
-  const { isLoading, error, clearError, theme } = useHabits();
+  const { isLoading, error, loadError, saveFailed, saveError, storageNotice, isRestoring } = useAppSelector(s => ({
+    isLoading: s.isLoading, error: s.error, loadError: s.loadError, saveFailed: s.saveStatus === 'error',
+    saveError: s.saveError, storageNotice: s.storageNotice, isRestoring: s.isRestoring,
+  }));
+  const store = useAppStore();
+  const { restore, restoring } = useBackupRestore();
+  const { clearError } = useAppActions();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigationTheme = useMemo(() => ({ ...DefaultTheme, colors: {
     ...DefaultTheme.colors, primary: theme.colors.primary, background: theme.colors.background,
@@ -97,7 +106,14 @@ function AppShell() {
       if (exitArmed) {
         clearExitArm();
         setExitPromptVisible(false);
-        BackHandler.exitApp();
+        void (async () => {
+          try {
+            if (store.getSnapshot().isHydrated) await store.flush();
+            BackHandler.exitApp();
+          } catch {
+            Alert.alert('修改尚未保存', '保存失败，已暂时留在应用中。请点击“重试保存”后再退出。');
+          }
+        })();
         return true;
       }
 
@@ -110,7 +126,7 @@ function AppShell() {
         exitTimer = null;
       }, EXIT_CONFIRM_WINDOW);
       return true;
-    }, [cancelExit])
+    }, [cancelExit, store])
   );
 
   useEffect(() => () => clearExitArm(), []);
@@ -124,12 +140,34 @@ function AppShell() {
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={styles.loadingText}>正在读取本地数据...</Text>
           </View>
+        ) : loadError ? (
+          <View style={styles.loadingState}>
+            <Text style={styles.promptTitle}>无法读取本地数据</Text>
+            <Text style={styles.loadingText}>{loadError}</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="重新读取数据" onPress={() => void store.load()} style={styles.promptButton}>
+              <Text style={styles.promptButtonText}>重新读取</Text>
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="从备份恢复" disabled={restoring} onPress={restore} style={styles.promptButton}>
+              <Text style={styles.promptButtonText}>{restoring ? '正在恢复…' : '从备份恢复'}</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
+          <>
+            {saveFailed || storageNotice ? <View style={styles.storageBanner}>
+              <Text accessibilityLiveRegion="assertive" style={styles.storageMessage}>{saveError ?? storageNotice}</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={saveFailed ? '重试保存' : '知道了'}
+                onPress={saveFailed ? () => void store.flush().catch(() => {}) : store.dismissStorageNotice} style={styles.promptButton}>
+                <Text style={styles.promptButtonText}>{saveFailed ? '重试保存' : '知道了'}</Text>
+              </TouchableOpacity>
+            </View> : null}
           <NavigationContainer ref={navigationRef} theme={navigationTheme}>
             <AppNavigator screens={SCREENS} />
           </NavigationContainer>
+          </>
         )}
       </View>
+
+      {isRestoring ? <View style={styles.restoringOverlay}><ActivityIndicator color={theme.colors.primary} /><Text style={styles.loadingText}>正在保存恢复的数据…</Text></View> : null}
 
       {exitPromptVisible ? (
         <View
@@ -158,20 +196,23 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <HabitProvider>
+        <AppProvider>
           <UpdateProvider><AppShell /><ThemedAlertHost /></UpdateProvider>
-        </HabitProvider>
+        </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: theme.colors.background },
     app: { flex: 1, backgroundColor: theme.colors.background },
-    loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { fontSize: 14, color: theme.colors.textSecondary },
+    loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
+    loadingText: { fontSize: 14, lineHeight: 22, textAlign: 'center', color: theme.colors.textSecondary },
+    storageBanner: { paddingHorizontal: 16, paddingVertical: 8, gap: 4, backgroundColor: theme.colors.dangerSoft },
+    storageMessage: { fontSize: 13, lineHeight: 20, color: theme.colors.danger },
+    restoringOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: theme.colors.surface },
     promptOverlay: {
       position: 'absolute',
       left: 0,

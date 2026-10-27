@@ -1,6 +1,9 @@
+import { useAppActions, useTheme } from '../state/AppProvider';
+import type { TodoInput } from '../state/storeTypes';
+import type { AppTheme } from '../theme';
+import { EditorLayout, useConfirmDiscard } from './EditorLayout';
 import { Alert } from './ThemedAlert';
 import { ThemedTextInput as TextInput } from './ThemedTextInput';
-import { EditorLayout, useConfirmDiscard } from './EditorLayout';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -12,8 +15,7 @@ import {
   View,
 } from 'react-native';
 
-import { TodoInput, useHabits } from '../state/HabitStore';
-import { TodoItem } from '../types/habit';
+import { TodoItem } from '../types/app';
 import {
   addDaysToDateKey,
   getTodayKey,
@@ -30,7 +32,8 @@ type TodoEditorModalProps = {
 };
 
 export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorModalProps) {
-  const { theme, addTodo, updateTodo, deleteTodo } = useHabits();
+  const theme = useTheme();
+  const { addTodo, updateTodo, deleteTodo } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
@@ -225,7 +228,7 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
   }
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     content: { padding: 16, gap: 18, paddingBottom: 44 },
     field: { gap: 10 },

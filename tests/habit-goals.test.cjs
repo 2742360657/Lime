@@ -25,7 +25,7 @@ Module._load = function (name, ...args) {
 };
 const { parseHabitTarget, normalizeHabitTarget, isValidHabitTarget } = require('../src/utils/habitTarget.ts');
 const { getHabitProgress, getHabitSummary } = require('../src/utils/habit.ts');
-const { saveAppDataToDisk, loadAppDataFromDisk, buildBackupPayload, importBackupFile } = require('../src/storage/habitStorage.ts');
+const { coerceAppData, saveAppDataToDisk, loadAppDataFromDisk, buildBackupPayload, importBackupFile } = require('../src/storage/habitStorage.ts');
 Module._load = originalLoad;
 
 const reference = new Date(2026, 9, 12, 12);
@@ -62,6 +62,7 @@ test('switching goals preserves historical check-ins and weekly/monthly counting
 
 test('explicit no-goal values survive disk load and JSON backup import; old missing goals retain the old default', async () => {
   const app = { version: 7, habits: [habit(0, [record])], groups: [], todos: [], memoGroups: [], memos: [], settings: {} };
+  await loadAppDataFromDisk();
   await saveAppDataToDisk(app);
   const loaded = await loadAppDataFromDisk();
   assert.equal(loaded.habits[0].targetCount, 0);
@@ -69,6 +70,7 @@ test('explicit no-goal values survive disk load and JSON backup import; old miss
   files.set('memory://backup', buildBackupPayload(loaded));
   assert.equal((await importBackupFile('memory://backup')).habits[0].targetCount, 0);
   const legacy = { ...habit(3), targetCount: undefined };
+  await loadAppDataFromDisk();
   await saveAppDataToDisk({ ...app, habits: [legacy] });
   assert.equal((await loadAppDataFromDisk()).habits[0].targetCount, 1);
   assert.equal(normalizeHabitTarget(0), 0);
@@ -77,19 +79,47 @@ test('explicit no-goal values survive disk load and JSON backup import; old miss
 
 test('old backups acquire update defaults and update preferences survive disk and backup roundtrips', async () => {
   const app = { version: 7, habits: [], groups: [], todos: [], memoGroups: [], memos: [], settings: {} };
+  await loadAppDataFromDisk();
   await saveAppDataToDisk(app);
   const loaded = await loadAppDataFromDisk();
   assert.equal(loaded.settings.autoCheckUpdates, true);
   assert.equal(loaded.settings.lastUpdateCheckAt, 0);
   assert.equal(loaded.settings.skippedUpdateVersionCode, 0);
   const prefs = { autoCheckUpdates: false, lastUpdateCheckAt: stamp, skippedUpdateVersionCode: 11 };
+  await loadAppDataFromDisk();
   await saveAppDataToDisk({ ...loaded, settings: { ...loaded.settings, ...prefs } });
   files.set('memory://updates-backup', buildBackupPayload(await loadAppDataFromDisk()));
   const restored = await importBackupFile('memory://updates-backup');
   for (const key of Object.keys(prefs)) assert.equal(restored.settings[key], prefs[key]);
+  await loadAppDataFromDisk();
   await saveAppDataToDisk({ ...loaded, settings: { ...loaded.settings, autoCheckUpdates: 'false', lastUpdateCheckAt: -1, skippedUpdateVersionCode: 1.5 } });
   const invalid = await loadAppDataFromDisk();
   assert.equal(invalid.settings.autoCheckUpdates, true);
   assert.equal(invalid.settings.lastUpdateCheckAt, 0);
   assert.equal(invalid.settings.skippedUpdateVersionCode, 0);
+});
+
+
+test('v1-v7 migrations retain records and are stable after the normalized snapshot is written', () => {
+  for (let version = 1; version <= 7; version++) {
+    const legacyHabit = version < 3 ? { ...habit(1), checkins: [stamp] } : version === 3 ? { ...habit(1), checkins: [{ id: 'record', dateKey: '2026-10-12', timestamp: stamp, hasTime: true, createdAt: stamp }] } : habit(0, [record]);
+    const app = { version, habits: [legacyHabit], groups: [], todos: [], memoGroups: [], memos: [], settings: {} };
+    if (version === 5 || version === 6) app.memos.push({ id: 'legacy-memo', title: 'Memo', body: 'Text', category: 'Old category', order: 0, createdAt: stamp, updatedAt: stamp, deletedAt: null });
+    const migrated = coerceAppData(app);
+    assert.equal(migrated.version, 7);
+    assert.equal(migrated.habits.length, 1);
+    assert.equal(migrated.habits[0].checkins.length, 1);
+    assert.deepEqual(coerceAppData(JSON.parse(buildBackupPayload(migrated))), migrated);
+    if (version === 5 || version === 6) {
+      assert.equal(migrated.memos[0].body, 'Text');
+      assert.equal(migrated.memoGroups[0].name, 'Old category');
+      assert.equal(migrated.memos[0].groupId, migrated.memoGroups[0].id);
+    }
+  }
+});
+
+test('incomplete or malformed current backups are rejected instead of normalizing to empty data', () => {
+  assert.throws(() => coerceAppData({ version: 7 }));
+  assert.throws(() => coerceAppData({ version: 7, habits: [], groups: [], todos: 'broken', memoGroups: [], memos: [] }));
+  assert.throws(() => coerceAppData({ version: 1, habits: null }));
 });

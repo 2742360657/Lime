@@ -1,18 +1,19 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
+import { useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { usePanel, PanelProvider } from '../navigation/panel';
-import { useHabits } from '../state/HabitStore';
+import { PanelProvider, usePanel } from '../navigation/panel';
 
 const Drawer = createDrawerNavigator();
 
 function GlobalDrawerContent(props: DrawerContentComponentProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const activeRoute = props.state.routeNames[props.state.index];
   const panel = usePanel(activeRoute);
@@ -56,7 +57,7 @@ function GlobalDrawerContent(props: DrawerContentComponentProps) {
  */
 export function AppNavigator({ screens }: { screens: Record<string, React.ComponentType<any>> }) {
   const { width: screenWidth } = useWindowDimensions();
-  const { theme } = useHabits();
+  const theme = useTheme();
   return (
     <PanelProvider>
     <Drawer.Navigator
@@ -82,7 +83,7 @@ export function AppNavigator({ screens }: { screens: Record<string, React.Compon
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     drawerScroll: {
       paddingTop: 8,

@@ -1,19 +1,22 @@
-import { Alert } from '../components/ThemedAlert';
 import { useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert } from '../components/ThemedAlert';
+import { useAppActions, useMemos, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
+import { useNavigation } from '@react-navigation/native';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
-import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
-import { useNavigation } from '@react-navigation/native';
+import { SelectCircle } from '../components/SelectCircle';
 import type { NavigationTarget } from '../navigation/types';
-import { useHabits } from '../state/HabitStore';
 
 /** 回收站：默认删除的备忘录会先进这里，从这里删除才是真正删除。 */
 export function TrashScreen() {
   const navigation = useNavigation<{ navigate: (name: NavigationTarget) => void }>();
-  const { trashedMemos, theme, restoreMemos, purgeMemos, purgeAllMemos, memoGroups } = useHabits();
+  const { trashedMemos, memoGroups } = useMemos();
+  const theme = useTheme();
+  const { restoreMemos, purgeMemos, purgeAllMemos } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -31,8 +34,7 @@ export function TrashScreen() {
     setSelectMode(true);
   };
 
-  const toggleId = (ids: string[], id: string) =>
-    ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
+
 
   const groupTitle = (groupId: string | null) =>
     memoGroups.find((group) => group.id === groupId)?.name ?? '未分类';
@@ -60,7 +62,6 @@ export function TrashScreen() {
           <OrganizePanel
             title="整理回收站"
             allowSort={false}
-            hint="点按选中后可彻底删除，删除后不可恢复"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
             items={trashedMemos.map((memo) => ({
@@ -154,7 +155,7 @@ export function TrashScreen() {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1 },
     content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 140, gap: 14 },

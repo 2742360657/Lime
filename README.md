@@ -41,7 +41,7 @@
 
 ## 数据与隐私
 
-本主线没有登录、广告、分析统计或联网业务；v1.3.0 起仅检查版本与下载更新使用网络，可在设置关闭自动检查；业务数据不上传。备份和分享只在你主动操作时打开系统选取/分享界面，接收应用如何处理文件取决于你的选择。数据恢复会覆盖当前数据，应先备份。详见[隐私说明](docs/privacy.md)。
+本主线没有登录、广告、分析统计或联网业务；v1.3.0 起仅检查版本与下载更新使用网络，可在设置关闭自动检查；业务数据不上传。备份和分享只在你主动操作时打开系统选取/分享界面，接收应用如何处理文件取决于你的选择。数据恢复会覆盖当前数据，应先备份。保存失败有持续重试入口，读取异常时保留原件并提供恢复页面；本机副本仍不能替代外部备份。详见[隐私说明](docs/privacy.md)。
 
 ## 开发与 AI 入口
 
@@ -56,7 +56,7 @@ npm run check
 npm start
 ```
 
-独立试用包：`npm run build:preview`。正式签名构建和源码结构见[开发指南](docs/development.md)与[架构说明](docs/architecture.md)。AI 开始工作先读 [AGENTS.md](AGENTS.md)。
+独立试用包：`npm run build:preview`。正式签名构建和源码结构见[开发指南](docs/development.md)、[架构说明](docs/architecture.md)与[工程治理](docs/engineering.md)。AI 开始工作先读 [AGENTS.md](AGENTS.md)。
 
 `main` 是本地版维护主线；[`extended/dev`](https://github.com/2742360657/Lime/tree/extended/dev) 维护 AI/微信/QQ 扩展测试版，与本地版独立安装；下载和界面见 [AI 扩展版](docs/ai-edition.md)。
 

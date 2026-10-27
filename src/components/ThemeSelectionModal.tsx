@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAppActions, useSettings, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 import { THEME_PRESETS, ThemeId } from '../theme';
 
 type ThemeSelectionModalProps = {
@@ -18,7 +19,9 @@ type ThemeSelectionModalProps = {
 };
 
 export function ThemeSelectionModal({ visible, onClose }: ThemeSelectionModalProps) {
-  const { settings, setThemeId, theme } = useHabits();
+  const { settings } = useSettings();
+  const { setThemeId } = useAppActions();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
@@ -60,7 +63,7 @@ export function ThemeSelectionModal({ visible, onClose }: ThemeSelectionModalPro
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

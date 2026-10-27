@@ -1,4 +1,4 @@
-import { CheckinRecord, Habit } from '../types/habit';
+import { CheckinRecord, Habit } from '../types/app';
 import { clampToMinute, toCheckinDateKey } from '../utils/date';
 import { createId } from '../utils/id';
 

@@ -1,4 +1,4 @@
-import { CheckinRecord, Habit } from '../types/habit';
+import { CheckinRecord, Habit } from '../types/app';
 import { getCheckinReferenceDate, getCheckinTodayKey, getDaysInMonth } from './date';
 
 function sortCheckinRecords(left: CheckinRecord, right: CheckinRecord) {

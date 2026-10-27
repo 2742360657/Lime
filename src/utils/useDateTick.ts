@@ -1,6 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { AppState } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 
 /** Refresh relative dates while visible and after returning from the background. */
 export function useDateTick() {

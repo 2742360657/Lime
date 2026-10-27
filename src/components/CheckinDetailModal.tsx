@@ -1,3 +1,5 @@
+import { useAppActions, useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { Alert } from './ThemedAlert';
 
 import { useMemo, useState } from 'react';
@@ -11,8 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { useHabits } from '../state/HabitStore';
-import { CheckinRecord } from '../types/habit';
+import { CheckinRecord } from '../types/app';
 import { formatCheckinTime, formatDateLabel, isFutureCheckinDateKey } from '../utils/date';
 import { getCheckinRecordsByDate } from '../utils/habit';
 import { CheckinRecordEditorModal } from './CheckinRecordEditorModal';
@@ -37,7 +38,9 @@ export function CheckinDetailModal({
   readonly = false,
   onClose,
 }: CheckinDetailModalProps) {
-  const { allHabits, theme, addCheckin, updateCheckin, deleteCheckin } = useHabits();
+  const { allHabits } = useHabitData();
+  const theme = useTheme();
+  const { addCheckin, updateCheckin, deleteCheckin } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [editorState, setEditorState] = useState<EditorState>(null);
 
@@ -157,7 +160,7 @@ export function CheckinDetailModal({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

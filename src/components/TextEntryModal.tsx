@@ -1,4 +1,3 @@
-import { ThemedTextInput as TextInput } from './ThemedTextInput';
 import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -9,8 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
+import { ThemedTextInput as TextInput } from './ThemedTextInput';
 
-import { useHabits } from '../state/HabitStore';
 
 type TextEntryModalProps = {
   visible: boolean;
@@ -33,7 +34,7 @@ export function TextEntryModal({
   onClose,
   onSubmit,
 }: TextEntryModalProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [value, setValue] = useState(initialValue);
 
@@ -82,7 +83,7 @@ export function TextEntryModal({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

@@ -1,59 +1,38 @@
-import { Alert } from '../components/ThemedAlert';
-import { ThemedTextInput as TextInput } from '../components/ThemedTextInput';
 import { AppIcon } from '../components/AppIcon';
 import { FilterBar } from '../components/FilterBar';
+import { MemoEditor } from '../components/MemoEditor';
+import { ThemedTextInput as TextInput } from '../components/ThemedTextInput';
+import { VirtualList, type VirtualRow } from '../components/VirtualList';
+import { useAppActions, useMemos, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Keyboard,
-  KeyboardAvoidingView,
-  findNodeHandle,
-  Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
-  View,
+  View
 } from 'react-native';
 
+import { useNavigation } from '@react-navigation/native';
 import { GroupManagerModal } from '../components/GroupManagerModal';
-import { GroupPickerModal } from '../components/GroupPickerModal';
 import { ItemActionSheet } from '../components/ItemActionSheet';
 import { OrganizePanel } from '../components/OrganizePanel';
-import { SelectCircle } from '../components/SelectCircle';
 import { ScreenScaffold } from '../components/ScreenScaffold';
+import { SelectCircle } from '../components/SelectCircle';
 import { TextEntryModal } from '../components/TextEntryModal';
 import { useBackHandler } from '../navigation/back';
 import type { NavigationTarget } from '../navigation/types';
-import { useNavigation } from '@react-navigation/native';
-import Animated from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LIST_ITEM_ENTERING, LIST_ITEM_EXITING, LIST_LAYOUT } from '../theme/animation';
-import { useHabits } from '../state/HabitStore';
-import { Memo } from '../types/habit';
+import { Memo } from '../types/app';
 
 const UNCATEGORIZED_FILTER = 'uncategorized';
 
 export function MemosScreen() {
   const navigation = useNavigation<{ navigate: (name: NavigationTarget) => void }>();
-  const {
-    activeMemos,
-    trashedMemos,
-    memoGroups,
-    theme,
-    addMemo,
-    updateMemo,
-    trashMemos,
-    purgeMemos,
-    moveMemosToGroup,
-    reorderMemos,
-    deleteMemoGroup: removeMemoGroup,
-    addMemoGroup,
-    renameMemoGroup,
-    reorderMemoGroups,
-  } = useHabits();
+  const { activeMemos, trashedMemos, memoGroups } = useMemos();
+  const theme = useTheme();
+  const { addMemo, updateMemo, trashMemos, purgeMemos, moveMemosToGroup, deleteMemoGroup: removeMemoGroup, addMemoGroup, renameMemoGroup, reorderMemoGroups, organizeMemos } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [filter, setFilter] = useState<string>('all');
@@ -127,8 +106,7 @@ export function MemosScreen() {
     setSelectMode(true);
   };
 
-  const toggleId = (ids: string[], id: string) =>
-    ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
+
 
   useBackHandler(
     useCallback(() => {
@@ -156,11 +134,33 @@ export function MemosScreen() {
   const discardEditor = () => {
     const id = editingId;
     const createdNow = id !== null && id === newMemoId;
-    closeEditor();
     if (createdNow && id) {
       purgeMemos([id]);
     }
   };
+
+
+  const listRows: VirtualRow[] = list.map(memo => ({ key: memo.id, render: () => (<View style={styles.memoRow}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`打开 ${memo.title || '未命名备忘录'}`}
+                  onPress={() => setEditingId(memo.id)}
+                  onLongPress={() => setActionMemoId(memo.id)}
+                  delayLongPress={360}
+                  style={styles.card}
+                >
+                  <Text numberOfLines={2} style={styles.cardTitle}>
+                    {memo.title || '未命名备忘录'}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.cardBody}>
+                    {memo.body.trim() || '暂无正文'}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {groupLabel(memo.groupId)} · {formatMemoTime(memo.updatedAt)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`备忘录操作：${memo.title || '未命名备忘录'}`} onPress={() => setActionMemoId(memo.id)} style={styles.memoMore}><AppIcon name="more" color={theme.colors.textSecondary} /></TouchableOpacity>
+                </View>) }));
 
   return (
     <ScreenScaffold
@@ -203,7 +203,6 @@ export function MemosScreen() {
         {selectMode ? (
           <OrganizePanel
             title="整理备忘录"
-            hint="点按备忘录选中 · 按住右侧把手拖动排序，拖到别的分类即可移动"
             initialScrollY={organizeScrollY}
             onClose={() => { setSelectMode(false); setSelectedIds([]); }}
             items={list.map((memo) => ({
@@ -221,21 +220,7 @@ export function MemosScreen() {
             ]}
             selectedIds={selectedIds}
             onSetSelection={setSelectedIds}
-            onCommit={(ordered) => {
-              ordered.forEach((entry) => {
-                const memo = list.find((item) => item.id === entry.id);
-                if (!memo) {
-                  return;
-                }
-                if ((memo.groupId ?? UNCATEGORIZED_FILTER) !== entry.groupId) {
-                  moveMemosToGroup([entry.id], entry.groupId === UNCATEGORIZED_FILTER ? null : entry.groupId);
-                }
-              });
-              for (const groupId of new Set(ordered.map((entry) => entry.groupId))) {
-                reorderMemos(groupId === UNCATEGORIZED_FILTER ? null : groupId,
-                  ordered.filter((entry) => entry.groupId === groupId).map((entry) => entry.id));
-              }
-            }}
+            onCommit={ordered => organizeMemos(ordered.map(entry => ({ id: entry.id, groupId: entry.groupId === UNCATEGORIZED_FILTER ? null : entry.groupId })))}
             onDelete={(ids) => {
               trashMemos(ids);
               setSelectedIds([]);
@@ -249,69 +234,13 @@ export function MemosScreen() {
         ) : (
         <>
         <FilterBar options={[{ id: 'all', label: '全部', count: activeMemos.length }, { id: UNCATEGORIZED_FILTER, label: '未分类' }, ...orderedGroups.map((group) => ({ id: group.id, label: group.name }))]} value={filter} onChange={setFilter} />
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          onScroll={(event) => { scrollYRef.current = event.nativeEvent.contentOffset.y; }}
-          scrollEventThrottle={16}
-        >
-          <Text style={styles.resultCount}>{list.length} 条备忘录 · 点开编辑，更多操作见条目菜单</Text>
-          <TextInput
-            accessibilityLabel="搜索备忘录"
-            placeholder="搜索标题、正文或分类"
-            placeholderTextColor={theme.colors.textMuted}
-            value={query}
-            onChangeText={setQuery}
-            style={styles.search}
-          />
-
-          {list.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>
-                {baseList.length === 0 ? '还没有备忘录' : '没有符合条件的备忘录'}
-              </Text>
-              <Text style={styles.emptyHint}>
-                {baseList.length === 0
-                  ? '点顶部“新建”，可以写标题和正文。'
-                  : '换个关键词或分类再试试。'}
-              </Text>
-            </View>
-          ) : (
-            <Animated.View layout={LIST_LAYOUT} style={styles.list}>
-              {list.map((memo) => (
-                <Animated.View
-                  key={memo.id}
-                  entering={LIST_ITEM_ENTERING}
-                  exiting={LIST_ITEM_EXITING}
-                  layout={LIST_LAYOUT}
-                >
-                <View style={styles.memoRow}>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={`打开 ${memo.title || '未命名备忘录'}`}
-                  onPress={() => setEditingId(memo.id)}
-                  onLongPress={() => setActionMemoId(memo.id)}
-                  delayLongPress={360}
-                  style={styles.card}
-                >
-                  <Text numberOfLines={2} style={styles.cardTitle}>
-                    {memo.title || '未命名备忘录'}
-                  </Text>
-                  <Text numberOfLines={2} style={styles.cardBody}>
-                    {memo.body.trim() || '暂无正文'}
-                  </Text>
-                  <Text style={styles.cardMeta}>
-                    {groupLabel(memo.groupId)} · {formatMemoTime(memo.updatedAt)}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`备忘录操作：${memo.title || '未命名备忘录'}`} onPress={() => setActionMemoId(memo.id)} style={styles.memoMore}><AppIcon name="more" color={theme.colors.textSecondary} /></TouchableOpacity>
-                </View>
-                </Animated.View>
-              ))}
-            </Animated.View>
-          )}
-        </ScrollView>
+<View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}>
+            <TextInput accessibilityLabel="搜索备忘录" placeholder="搜索标题、正文或分类" value={query} onChangeText={setQuery} style={styles.search} />
+            <Text style={styles.resultCount}>{list.length} 条备忘录</Text>
+          </View>
+          <VirtualList rows={listRows} contentStyle={styles.content} onScrollY={y => { scrollYRef.current = y; }} empty={<View style={styles.emptyCard}><Text style={styles.emptyTitle}>{baseList.length ? '没有符合条件的备忘录' : '还没有备忘录'}</Text><Text style={styles.emptyHint}>{baseList.length ? '换个关键词或分类再试试。' : '点顶部“新建”，可以写标题和正文。'}</Text></View>} />
+        </View>
         </>
         )}
 
@@ -366,229 +295,12 @@ function formatMemoTime(timestamp: number) {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-/** 新建/编辑页：只有标题、分类和正文；返回时先确认保存，右上角也提供保存入口。 */
-function MemoEditor({
-  memo,
-  initialGroupId,
-  groupOptions,
-  isNew,
-  onClose,
-  onDiscard,
-  onChange,
-}: {
-  memo: Memo;
-  isNew: boolean;
-  initialGroupId: string | null;
-  groupOptions: Array<{ id: string | null; label: string }>;
-  onClose: () => void;
-  onDiscard: () => void;
-  onChange: (patch: Partial<Pick<Memo, 'title' | 'body' | 'groupId'>>) => void;
-}) {
-  const { theme } = useHabits();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const [title, setTitle] = useState(memo.title);
-  const [body, setBody] = useState(memo.body);
-  const [groupId, setGroupId] = useState<string | null>(initialGroupId);
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const bodyRef = useRef<TextInput>(null);
-  const [initialSelection, setInitialSelection] = useState(true);
-  const bodyTouch = useRef({ x: 0, y: 0, dragged: false });
-  const [keyboardRequested, setKeyboardRequested] = useState(false);
-  useEffect(() => {
-    const listener = Keyboard.addListener('keyboardDidHide', () => setKeyboardRequested(false));
-    return () => listener.remove();
-  }, []);
-  useEffect(() => {
-    // Native drags can focus EditText without opening IME. TextInput.focus()
-    // then short-circuits in JS, so send the existing native focus command
-    // after committing showSoftInputOnFocus. This also handles Android Back.
-    if (keyboardRequested) {
-      const tag = findNodeHandle(bodyRef.current);
-      if (tag !== null) {
-        bodyRef.current?.setNativeProps({ showSoftInputOnFocus: true });
-        const frame = requestAnimationFrame(() => UIManager.dispatchViewManagerCommand(tag, 'focus', []));
-        return () => cancelAnimationFrame(frame);
-      }
-    }
-  }, [keyboardRequested]);
-  const initialRef = useRef({ title: memo.title, body: memo.body, groupId: memo.groupId });
-  // 与打开编辑器时的快照比较：自动保存会同步更新 memo，拿 memo 比对会让“有改动”在
-  // 600ms 自动保存后永远变成 false，返回时便不再询问是否保存。
-  const dirty =
-    title !== initialRef.current.title ||
-    body !== initialRef.current.body ||
-    groupId !== initialRef.current.groupId;
-  const hasContent = title.trim() !== '' || body.trim() !== '';
 
-  // 输入停顿后自动写回，避免切走应用时丢掉正在编辑的内容。
-  useEffect(() => {
-    if (!dirty || !hasContent) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      onChange({ title, body, groupId });
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [body, dirty, groupId, hasContent, onChange, title]);
-
-  const persist = useCallback(() => {
-    onChange({ title, body, groupId });
-  }, [body, groupId, onChange, title]);
-
-  const handleSave = useCallback(() => {
-    if (!hasContent) {
-      Alert.alert('还没有内容', '标题和正文都是空的，先写点内容再保存。');
-      return;
-    }
-    persist();
-    onClose();
-  }, [hasContent, onClose, persist]);
-
-  // 放弃编辑：新建的直接丢弃，已有的回滚到打开编辑器时的内容。
-  const discard = useCallback(() => {
-    if (isNew) {
-      onDiscard();
-      return;
-    }
-    onChange(initialRef.current);
-    onClose();
-  }, [isNew, onChange, onClose, onDiscard]);
-
-  const handleBack = useCallback(() => {
-    if (!dirty) {
-      // 没有改动：新建的空备忘录直接清掉，已有的直接退出。
-      if (isNew) {
-        onDiscard();
-      } else {
-        onClose();
-      }
-      return true;
-    }
-    if (!hasContent) {
-      Alert.alert(
-        isNew ? '放弃这条备忘录？' : '清空这条备忘录？',
-        isNew ? '标题和正文都是空的，返回后不会保存。' : '返回会恢复打开时的内容。',
-        [
-          { text: '继续编辑', style: 'cancel' },
-          { text: '放弃修改', style: 'destructive', onPress: discard },
-        ]
-      );
-      return true;
-    }
-    Alert.alert(
-      '保存这条备忘录？',
-      '返回前可以先保存当前内容；选择“不保存”会撤销本次修改。',
-      [
-        { text: '不保存', style: 'destructive', onPress: discard },
-        { text: '保存', onPress: handleSave },
-      ]
-    );
-    return true;
-  }, [discard, dirty, handleSave, hasContent, isNew, onClose, onDiscard]);
-
-  // 编辑态优先消费系统返回，避免直接退出应用。
-  // 原生 Modal 的返回键由 onRequestClose 接管，所以两个入口都要走 handleBack。
-  useBackHandler(handleBack);
-
-  const groupLabel = groupOptions.find((option) => option.id === groupId)?.label ?? '未分类';
-
-  // The bounded native editor owns scrolling. An outer ScrollView competes for
-  // drags that start on EditText and can leave the bottom text unreachable.
-  return (
-    <Modal visible animationType="slide" onRequestClose={handleBack}>
-      <KeyboardAvoidingView style={styles.screen} behavior="padding">
-        <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-          <View style={styles.editorHeader}>
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="返回备忘录列表"
-              onPress={handleBack}
-              hitSlop={12}
-              style={styles.backLink}
-            >
-              <Text style={styles.backLinkText}>‹ 返回</Text>
-            </TouchableOpacity>
-            <View style={styles.editorHeading}>
-              <Text style={styles.editorTitle}>{isNew ? '新建备忘录' : '编辑备忘录'}</Text>
-              <Text style={styles.editorHint}>编辑后自动保存</Text>
-            </View>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="保存备忘录"
-              onPress={handleSave}
-              hitSlop={8}
-              style={styles.saveButton}
-            >
-              <Text style={styles.saveButtonText}>保存</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.editorContent}>
-            <TextInput
-              accessibilityLabel="备忘录标题"
-              placeholder="标题"
-              placeholderTextColor={theme.colors.textMuted}
-              value={title}
-              onChangeText={setTitle}
-              style={styles.titleInput}
-            />
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="选择分类"
-              onPress={() => setPickerVisible(true)}
-              style={styles.groupField}
-            >
-              <Text style={styles.groupFieldLabel}>分类</Text>
-              <Text numberOfLines={1} style={styles.groupFieldValue}>{groupLabel}</Text>
-              <Text style={styles.groupFieldLabel}>⌄</Text>
-            </TouchableOpacity>
-
-            <TextInput
-              ref={bodyRef}
-              accessibilityLabel="备忘录正文"
-              placeholder="开始记录…"
-              placeholderTextColor={theme.colors.textMuted}
-              value={body}
-              onChangeText={setBody}
-              multiline
-              scrollEnabled
-              selection={initialSelection ? { start: 0, end: 0 } : undefined}
-              onTouchStart={event => {
-                bodyTouch.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, dragged: false };
-                setInitialSelection(false);
-              }}
-              onTouchMove={event => {
-                if (Math.abs(event.nativeEvent.pageX - bodyTouch.current.x) + Math.abs(event.nativeEvent.pageY - bodyTouch.current.y) > 8) bodyTouch.current.dragged = true;
-              }}
-              showSoftInputOnFocus={keyboardRequested}
-              onPress={() => { if (!bodyTouch.current.dragged) setKeyboardRequested(true); }}
-              textAlignVertical="top"
-              style={styles.bodyInput}
-            />
-          </View>
-
-          <GroupPickerModal
-            visible={pickerVisible}
-            title="选择分类"
-            selectedGroupId={groupId}
-            options={groupOptions}
-            nullLabel="未分类"
-            onClose={() => setPickerVisible(false)}
-            onSubmit={(next) => setGroupId(next)}
-          />
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.surface },
     resultCount: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 16 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
     search: {
       color: theme.colors.textPrimary,
       backgroundColor: theme.colors.surface,
@@ -622,56 +334,5 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
     emptyHint: { fontSize: 12, color: theme.colors.textSecondary },
-    editorHeading: { flex: 1, gap: 3, paddingHorizontal: 8 },
-    editorTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
-    editorHint: { fontSize: 11, color: theme.colors.textSecondary },
-    editorHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingTop: 6,
-      paddingBottom: 6,
-    },
-    backLink: { minHeight: 48, justifyContent: 'center', paddingVertical: 8, paddingRight: 12 },
-    backLinkText: { fontSize: 15, fontWeight: '700', color: theme.colors.primary },
-    saveButton: {
-      minHeight: 48,
-      justifyContent: 'center',
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 9,
-      backgroundColor: theme.colors.primary,
-    },
-    saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
-    editorContent: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
-    titleInput: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-      paddingVertical: 6,
-      paddingHorizontal: 0,
-    },
-    groupField: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 8,
-      minHeight: 40,
-      maxWidth: '100%',
-      marginBottom: 4,
-    },
-    groupFieldLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    groupFieldValue: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primary },
-    bodyInput: {
-      flex: 1,
-      minHeight: 0,
-      fontSize: 15,
-      lineHeight: 24,
-      color: theme.colors.textPrimary,
-      paddingHorizontal: 0,
-      paddingTop: 8,
-      paddingBottom: 24,
-    },
   });
 }

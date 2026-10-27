@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 type GroupPickerModalProps = {
   visible: boolean;
@@ -34,7 +35,8 @@ export function GroupPickerModal({
   allowNull = true,
   nullLabel = '未分组',
 }: GroupPickerModalProps) {
-  const { theme, groups } = useHabits();
+  const theme = useTheme();
+  const { groups } = useHabitData();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [nextGroupId, setNextGroupId] = useState<string | null>(selectedGroupId);
 
@@ -117,7 +119,7 @@ export function GroupPickerModal({
   }
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     overlay: {
       flex: 1,

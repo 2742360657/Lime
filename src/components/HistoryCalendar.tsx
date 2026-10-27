@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 import { getDaysInMonth, getMonthStartWeekday, WEEKDAY_LABELS } from '../utils/date';
 
 type HistoryCalendarProps = {
@@ -58,7 +59,7 @@ export function HistoryCalendar({
   canPressDay,
   onPressDay,
 }: HistoryCalendarProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const cells = createCalendarCells(year, monthIndex, dateCountMap);
 
@@ -124,7 +125,7 @@ export function HistoryCalendar({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     wrapper: {
       gap: 10,

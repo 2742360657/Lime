@@ -154,6 +154,7 @@ test('loading stored data re-attributes old check-ins to the 04:00 boundary', as
     settings: {},
   };
 
+  await loadAppDataFromDisk();
   await saveAppDataToDisk(app);
   const loaded = await loadAppDataFromDisk();
   const stored = loaded.habits[0].checkins;

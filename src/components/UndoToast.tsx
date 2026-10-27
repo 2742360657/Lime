@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 type UndoToastProps = {
   message: string | null;
@@ -10,7 +11,7 @@ type UndoToastProps = {
 };
 
 export function UndoToast({ message, onUndo, onDismiss }: UndoToastProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function UndoToast({ message, onUndo, onDismiss }: UndoToastProps) {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     toast: {
       position: 'absolute',

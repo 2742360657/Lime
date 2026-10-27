@@ -6,6 +6,12 @@
 
 每次发布都递增 Android versionCode；修复与兼容改进递增补丁版本，新能力递增次版本。版本同时更新 app.json、package.json 和锁文件。先发布经过验证的提交，再创建对应标签和 Release；已发布版本及附件不覆盖重写。正式发布提供 arm64-v8a、x86_64 APK、SHA256SUMS 与包含提交、版本、签名证书摘要、文件大小及哈希的 release-manifest.json。
 
+## 工程边界与检查
+
+结构与保存协议见[架构说明](architecture.md)，本轮决策和后续选型条件见[工程治理](engineering.md)。`npm run check` 包含仓库元数据、导入边界、严格类型及全部Node测试；`npm test` 可独立运行业务和故障注入测试，`npm run fix:imports` 使用项目固定TypeScript整理导入。禁止为了通过检查关闭noUnused或用any绕过领域边界。
+
+GitHub Check在PR/main执行Node检查和无私密签名的x86_64预览构建；workflow_dispatch勾选android_ui可额外跑完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。
+
 ## 环境与初始化
 
 Node 22、npm、JDK 17、Android SDK Platform/Build Tools 36，以及 Gradle wrapper 9.0.0。Android 原生工程已提交；常规开发不需要 prebuild。
@@ -114,3 +120,17 @@ python tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" \
 ```
 
 可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落和末词编辑。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
+
+## 存储、恢复与规模验收
+
+`tests/persistence.test.cjs` 使用注入的文件故障验证截断写、读取失败保护、校验损坏、串行保存、重试和恢复原件保留；不替代Android文件权限或系统选取器验收。
+
+```bash
+python tests/android/memo_theme_e2e.py --sdk /local/test-sdk --out /local/task-evidence \
+  --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk --engineering-only \
+  --old-apk /local/verified-old-release.apk
+```
+
+工程场景仅使用脚本自己的LimeMemoTheme/emulator-5586，覆盖旧版实际覆盖升级、旧JSON迁移、应用UID不可写时保存失败及重试、切后台草稿、损坏快照启动保护、真实DocumentsUI恢复，以及千条数据的原生View数量、多选和搜索。`--old-apk`省略时不执行旧版覆盖升级，不能把它记为通过。测试夹具重置可以移除该隔离应用的快照，不得将此方法用于真机或个人数据。
+
+测试读取状态通过`storage_helpers.py`识别旧JSON及新快照，不把旧data.json当成新版本最新状态。新备份结构不变，内部快照格式与版本号不同。正式签名及安装包检查仍走既有发布流程。

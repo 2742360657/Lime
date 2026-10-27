@@ -5,6 +5,7 @@ Run through workspace run. Requires a local Android SDK with emulator/system ima
 QA updater signed with the release key but version 1.2.4/code9, verification test APK,
 and both v1.2.5 official APKs. No personal devices, accounts or data are used.
 """
+from storage_helpers import read_state, clear_snapshot_slots
 import argparse
 import datetime as dt
 import json
@@ -62,7 +63,7 @@ def adb(*args, binary=False, check=True, timeout=40):
     return r.stdout
 
 def sh(*args): return adb('shell', *map(str,args))
-def state(): return json.loads(adb('exec-out', 'cat', data))
+def state(): return read_state(adb, data)
 def tree():
     sh('uiautomator','dump','/sdcard/lime-update.xml')
     xml = adb('exec-out','cat','/sdcard/lime-update.xml')
@@ -98,6 +99,7 @@ def launch(): sh('am','start','-n',pkg+'/.MainActivity');time.sleep(2)
 def restart(): sh('am','force-stop',pkg);launch()
 def write_state(value):
     sh('am','force-stop',pkg)
+    clear_snapshot_slots(adb, data)
     f=a.out/'fixture.json';f.write_text(json.dumps(value,ensure_ascii=False))
     sh('mkdir','-p',str(Path(data).parent));adb('push',f,data)
     uid=sh('stat','-c','%u',f'/data/user/0/{pkg}').strip()

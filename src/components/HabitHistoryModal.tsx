@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useHabitData, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 import {
   formatMonthLabel,
   formatYearLabel,
@@ -43,7 +44,8 @@ export function HabitHistoryModal({
   readonly = false,
   onClose,
 }: HabitHistoryModalProps) {
-  const { allHabits, theme } = useHabits();
+  const { allHabits } = useHabitData();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const today = getCheckinReferenceDate();
   const [viewMode, setViewMode] = useState<ViewMode>(lastHistoryViewMode);
@@ -208,7 +210,7 @@ export function HabitHistoryModal({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,

@@ -1,7 +1,8 @@
+import { useAppActions, useSettings, useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 import { Alert } from './ThemedAlert';
 import { ThemedTextInput as TextInput } from './ThemedTextInput';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
@@ -12,9 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { pickAndSaveProfileAvatar } from '../storage/habitStorage';
-import { useHabits } from '../state/HabitStore';
 
 type ProfileEditorModalProps = {
   visible: boolean;
@@ -22,7 +23,9 @@ type ProfileEditorModalProps = {
 };
 
 export function ProfileEditorModal({ visible, onClose }: ProfileEditorModalProps) {
-  const { settings, theme, updateProfile } = useHabits();
+  const { settings } = useSettings();
+  const theme = useTheme();
+  const { updateProfile } = useAppActions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState(settings.profileName);
   const [signature, setSignature] = useState(settings.profileSignature);
@@ -118,7 +121,7 @@ export function ProfileEditorModal({ visible, onClose }: ProfileEditorModalProps
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,

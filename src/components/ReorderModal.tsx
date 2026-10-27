@@ -10,8 +10,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../state/AppProvider';
+import type { AppTheme } from '../theme';
 
-import { useHabits } from '../state/HabitStore';
 
 export type ReorderItem = {
   id: string;
@@ -43,7 +44,7 @@ export function ReorderModal({
   onClose,
   onSave,
 }: ReorderModalProps) {
-  const { theme } = useHabits();
+  const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [ordered, setOrdered] = useState(items);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -216,7 +217,7 @@ function DraggableRow({
   );
 }
 
-function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
+function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
