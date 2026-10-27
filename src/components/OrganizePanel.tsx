@@ -1,5 +1,6 @@
+import { Alert } from './ThemedAlert';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { useBackHandler } from '../navigation/back';

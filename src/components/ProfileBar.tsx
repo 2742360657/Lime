@@ -43,7 +43,7 @@ export function ProfileBar({ onPress, onMenuPress }: ProfileBarProps) {
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
     bar: {
-      minHeight: 84,
+      minHeight: 68,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
@@ -58,9 +58,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     menuIcon: { fontSize: 21, color: theme.colors.textPrimary },
     profileButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 36,
+      height: 36,
+      borderRadius: 12,
       backgroundColor: theme.colors.primarySoft,
     },
     avatarFallback: {
@@ -75,7 +75,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       color: theme.colors.primary,
     },
     copy: { flex: 1, gap: 3 },
-    name: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
+    name: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
     signature: { fontSize: 11, color: theme.colors.textSecondary },
   });
 }

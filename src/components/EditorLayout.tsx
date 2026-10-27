@@ -1,5 +1,6 @@
+import { Alert } from './ThemedAlert';
 import { type PropsWithChildren, useCallback } from 'react';
-import { Alert, KeyboardAvoidingView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHabits } from '../state/HabitStore';
 

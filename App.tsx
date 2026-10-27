@@ -1,4 +1,5 @@
-import { Alert } from 'react-native';
+import { Alert } from './src/components/ThemedAlert';
+
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -16,7 +17,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 
 import { AppNavigator } from './src/components/AppNavigator';
 import { useBackHandler } from './src/navigation/back';
@@ -28,6 +29,7 @@ import { TasksScreen } from './src/screens/TasksScreen';
 import { TodayScreen } from './src/screens/TodayScreen';
 import { TrashScreen } from './src/screens/TrashScreen';
 import { HabitProvider, useHabits } from './src/state/HabitStore';
+import { ThemedAlertHost } from './src/components/ThemedAlert';
 import { UpdateProvider } from './src/update/UpdateProvider';
 
 const EXIT_CONFIRM_WINDOW = 2500;
@@ -58,6 +60,11 @@ function clearExitArm() {
 function AppShell() {
   const { isLoading, error, clearError, theme } = useHabits();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const navigationTheme = useMemo(() => ({ ...DefaultTheme, colors: {
+    ...DefaultTheme.colors, primary: theme.colors.primary, background: theme.colors.background,
+    card: theme.colors.surface, text: theme.colors.textPrimary, border: theme.colors.border,
+    notification: theme.colors.danger,
+  } }), [theme]);
   const insets = useSafeAreaInsets();
   const [exitPromptVisible, setExitPromptVisible] = useState(false);
 
@@ -118,7 +125,7 @@ function AppShell() {
             <Text style={styles.loadingText}>正在读取本地数据...</Text>
           </View>
         ) : (
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer ref={navigationRef} theme={navigationTheme}>
             <AppNavigator screens={SCREENS} />
           </NavigationContainer>
         )}
@@ -152,7 +159,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <HabitProvider>
-          <UpdateProvider><AppShell /></UpdateProvider>
+          <UpdateProvider><AppShell /><ThemedAlertHost /></UpdateProvider>
         </HabitProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

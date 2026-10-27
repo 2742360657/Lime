@@ -124,7 +124,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
-      backgroundColor: 'rgba(18, 31, 24, 0.22)',
+      backgroundColor: theme.colors.scrim,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

@@ -1,6 +1,14 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { useHabits } from '../state/HabitStore';
 
@@ -66,7 +74,7 @@ export function ItemActionSheet({ visible, title, subtitle, actions, onClose }: 
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(18, 31, 24, 0.22)' },
+    overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.scrim },
     backdrop: { ...StyleSheet.absoluteFillObject },
     card: {
       width: '100%',

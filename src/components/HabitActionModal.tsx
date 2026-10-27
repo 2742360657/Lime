@@ -1,6 +1,14 @@
-import { Alert } from 'react-native';
+import { Alert } from './ThemedAlert';
+
 import { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { useHabits } from '../state/HabitStore';
 import { Habit } from '../types/habit';
@@ -125,7 +133,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      backgroundColor: 'rgba(18, 31, 24, 0.22)',
+      backgroundColor: theme.colors.scrim,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

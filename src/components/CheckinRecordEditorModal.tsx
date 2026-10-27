@@ -1,11 +1,12 @@
-import { Alert } from 'react-native';
+import { Alert } from './ThemedAlert';
+import { ThemedTextInput as TextInput } from './ThemedTextInput';
+
 import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -152,7 +153,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
-      backgroundColor: 'rgba(18, 31, 24, 0.22)',
+      backgroundColor: theme.colors.scrim,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

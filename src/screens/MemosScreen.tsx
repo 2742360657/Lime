@@ -1,15 +1,19 @@
+import { Alert } from '../components/ThemedAlert';
+import { ThemedTextInput as TextInput } from '../components/ThemedTextInput';
 import { AppIcon } from '../components/AppIcon';
 import { FilterBar } from '../components/FilterBar';
-import { Alert } from 'react-native';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
+  findNodeHandle,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 
@@ -386,6 +390,27 @@ function MemoEditor({
   const [body, setBody] = useState(memo.body);
   const [groupId, setGroupId] = useState<string | null>(initialGroupId);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const bodyRef = useRef<TextInput>(null);
+  const [initialSelection, setInitialSelection] = useState(true);
+  const bodyTouch = useRef({ x: 0, y: 0, dragged: false });
+  const [keyboardRequested, setKeyboardRequested] = useState(false);
+  useEffect(() => {
+    const listener = Keyboard.addListener('keyboardDidHide', () => setKeyboardRequested(false));
+    return () => listener.remove();
+  }, []);
+  useEffect(() => {
+    // Native drags can focus EditText without opening IME. TextInput.focus()
+    // then short-circuits in JS, so send the existing native focus command
+    // after committing showSoftInputOnFocus. This also handles Android Back.
+    if (keyboardRequested) {
+      const tag = findNodeHandle(bodyRef.current);
+      if (tag !== null) {
+        bodyRef.current?.setNativeProps({ showSoftInputOnFocus: true });
+        const frame = requestAnimationFrame(() => UIManager.dispatchViewManagerCommand(tag, 'focus', []));
+        return () => cancelAnimationFrame(frame);
+      }
+    }
+  }, [keyboardRequested]);
   const initialRef = useRef({ title: memo.title, body: memo.body, groupId: memo.groupId });
   // 与打开编辑器时的快照比较：自动保存会同步更新 memo，拿 memo 比对会让“有改动”在
   // 600ms 自动保存后永远变成 false，返回时便不再询问是否保存。
@@ -467,7 +492,8 @@ function MemoEditor({
 
   const groupLabel = groupOptions.find((option) => option.id === groupId)?.label ?? '未分类';
 
-  // Android edge-to-edge 下 Modal 可能保持全屏高度，显式避让键盘以保留末行的滚动空间。
+  // The bounded native editor owns scrolling. An outer ScrollView competes for
+  // drags that start on EditText and can leave the bottom text unreachable.
   return (
     <Modal visible animationType="slide" onRequestClose={handleBack}>
       <KeyboardAvoidingView style={styles.screen} behavior="padding">
@@ -498,12 +524,7 @@ function MemoEditor({
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            style={styles.editorScroll}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.editorContent}
-            showsVerticalScrollIndicator={false}
-          >
+          <View style={styles.editorContent}>
             <TextInput
               accessibilityLabel="备忘录标题"
               placeholder="标题"
@@ -520,20 +541,33 @@ function MemoEditor({
               style={styles.groupField}
             >
               <Text style={styles.groupFieldLabel}>分类</Text>
-              <Text style={styles.groupFieldValue}>{groupLabel}</Text>
+              <Text numberOfLines={1} style={styles.groupFieldValue}>{groupLabel}</Text>
+              <Text style={styles.groupFieldLabel}>⌄</Text>
             </TouchableOpacity>
 
             <TextInput
+              ref={bodyRef}
               accessibilityLabel="备忘录正文"
               placeholder="开始记录…"
               placeholderTextColor={theme.colors.textMuted}
               value={body}
               onChangeText={setBody}
               multiline
+              scrollEnabled
+              selection={initialSelection ? { start: 0, end: 0 } : undefined}
+              onTouchStart={event => {
+                bodyTouch.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, dragged: false };
+                setInitialSelection(false);
+              }}
+              onTouchMove={event => {
+                if (Math.abs(event.nativeEvent.pageX - bodyTouch.current.x) + Math.abs(event.nativeEvent.pageY - bodyTouch.current.y) > 8) bodyTouch.current.dragged = true;
+              }}
+              showSoftInputOnFocus={keyboardRequested}
+              onPress={() => { if (!bodyTouch.current.dragged) setKeyboardRequested(true); }}
               textAlignVertical="top"
               style={styles.bodyInput}
             />
-          </ScrollView>
+          </View>
 
           <GroupPickerModal
             visible={pickerVisible}
@@ -552,7 +586,7 @@ function MemoEditor({
 
 function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.colors.background },
+    screen: { flex: 1, backgroundColor: theme.colors.surface },
     resultCount: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
     content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 16 },
     search: {
@@ -595,7 +629,7 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 6,
       paddingBottom: 6,
     },
@@ -610,37 +644,34 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       backgroundColor: theme.colors.primary,
     },
     saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
-    editorScroll: { flex: 1 },
-    editorContent: { paddingHorizontal: 16, paddingTop: 8, gap: 14, paddingBottom: 40 },
+    editorContent: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
     titleInput: {
       fontSize: 20,
       fontWeight: '700',
       color: theme.colors.textPrimary,
       paddingVertical: 6,
+      paddingHorizontal: 0,
     },
     groupField: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      borderRadius: theme.radius.medium,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      alignSelf: 'flex-start',
+      gap: 8,
+      minHeight: 40,
+      maxWidth: '100%',
+      marginBottom: 4,
     },
     groupFieldLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    groupFieldValue: { fontSize: 14, fontWeight: '700', color: theme.colors.primary },
+    groupFieldValue: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primary },
     bodyInput: {
-      minHeight: 340,
+      flex: 1,
+      minHeight: 0,
       fontSize: 15,
       lineHeight: 24,
       color: theme.colors.textPrimary,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.medium,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: 14,
+      paddingHorizontal: 0,
+      paddingTop: 8,
+      paddingBottom: 24,
     },
   });
 }

@@ -1,12 +1,13 @@
+import { Alert } from './ThemedAlert';
+import { ThemedTextInput as TextInput } from './ThemedTextInput';
 import { EditorLayout, useConfirmDiscard } from './EditorLayout';
-import { Alert } from 'react-native';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';

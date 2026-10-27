@@ -1,4 +1,12 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHabits } from '../state/HabitStore';
 import type { UpdateCandidate, UpdateStage } from './UpdateProvider';
@@ -14,7 +22,7 @@ export function UpdateDialog({ visible, candidate, stage, message, progress, onC
   const busy = downloading || stage === 'installing';
   const ready = stage === 'ready';
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, { backgroundColor: theme.colors.scrim }]}>
       <Pressable accessibilityLabel="稍后更新" onPress={onClose} style={StyleSheet.absoluteFill} />
       <View style={[styles.card, { backgroundColor: theme.colors.surface, paddingBottom: Math.max(20, insets.bottom + 8) }]}>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.textPrimary }]}>更新到 {candidate.manifest.version}</Text>
@@ -38,7 +46,7 @@ export function UpdateDialog({ visible, candidate, stage, message, progress, onC
   </Modal>;
 }
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#18231C55' },
+  overlay: { flex: 1, justifyContent: 'center', padding: 20 },
   card: { maxHeight: '88%', borderRadius: 14, padding: 20, gap: 10 },
   title: { fontSize: 19, fontWeight: '700' }, detail: { fontSize: 12, lineHeight: 18 },
   notes: { flexGrow: 0, marginVertical: 6 }, note: { fontSize: 14, lineHeight: 22, marginBottom: 8 },

@@ -1,6 +1,7 @@
+import { Alert } from '../components/ThemedAlert';
 import { useDateTick } from '../utils/useDateTick';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { LIST_LAYOUT } from '../theme/animation';

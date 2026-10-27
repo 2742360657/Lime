@@ -70,7 +70,7 @@ export function AppNavigator({ screens }: { screens: Record<string, React.Compon
         swipeEnabled: true,
         swipeEdgeWidth: 24,
         swipeMinDistance: 18,
-        overlayColor: '#00000055',
+        overlayColor: theme.colors.scrim,
         drawerStyle: { width: Math.min(340, screenWidth * 0.88), backgroundColor: theme.colors.surface },
       }}
     >

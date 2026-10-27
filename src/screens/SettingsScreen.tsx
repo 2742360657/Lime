@@ -1,6 +1,8 @@
-import { Alert } from 'react-native';
+import { Alert } from '../components/ThemedAlert';
+import { ThemedSwitch as Switch } from '../components/ThemedSwitch';
+
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { ArchivedHabitsModal } from '../components/ArchivedHabitsModal';
 import { ProfileEditorModal } from '../components/ProfileEditorModal';
@@ -102,7 +104,7 @@ export function SettingsScreen() {
             </View>
             <Switch accessibilityLabel="自动检查更新" value={settings.autoCheckUpdates}
               onValueChange={autoCheckUpdates => setUpdatePreferences({ autoCheckUpdates })}
-              trackColor={{ true: theme.colors.primary }} />
+ />
           </View>
           <Text style={styles.backupHint}>
             {update.installed ? `当前版本 ${update.installed.version}` : '正在读取版本…'}
@@ -183,30 +185,29 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     content: {
       padding: 16,
-      gap: 18,
+      gap: 14,
     },
     backupHint: { fontSize: 13, lineHeight: 20, color: theme.colors.textSecondary },
     updateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     sectionCard: {
       borderRadius: theme.radius.large,
-      padding: 18,
+      padding: 16,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      gap: 14,
+      gap: 10,
       ...theme.shadow,
     },
     sectionTitle: {
-      fontSize: 16,
-      fontWeight: '800',
+      fontSize: 14,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
     },
     settingRow: {
-      borderRadius: theme.radius.medium,
-      padding: 14,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      minHeight: 48,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -217,8 +218,8 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
       gap: 4,
     },
     settingLabel: {
-      fontSize: 15,
-      fontWeight: '700',
+      fontSize: 14,
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
     settingValue: {
@@ -236,8 +237,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     primaryAction: {
       flex: 1,
-      borderRadius: 14,
-      paddingVertical: 14,
+      borderRadius: 8,
+      minHeight: 44,
+      paddingVertical: 11,
       alignItems: 'center',
       backgroundColor: theme.colors.primary,
     },
@@ -248,8 +250,9 @@ function createStyles(theme: ReturnType<typeof useHabits>['theme']) {
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: 14,
-      paddingVertical: 14,
+      borderRadius: 8,
+      minHeight: 44,
+      paddingVertical: 11,
       alignItems: 'center',
       borderWidth: 1,
       borderColor: theme.colors.border,

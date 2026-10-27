@@ -1,4 +1,6 @@
-import { Alert } from 'react-native';
+import { Alert } from './ThemedAlert';
+import { ThemedTextInput as TextInput } from './ThemedTextInput';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -7,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';

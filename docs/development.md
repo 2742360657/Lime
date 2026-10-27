@@ -97,3 +97,18 @@ python tests/android/update_e2e.py --sdk /local/test-sdk --out /local/task-evide
 ```
 
 首次验收时 latest 必须指向提供的正式夹具版本。脚本只启动自己的 `.local/update-avd/LimeUpdater.avd`（端口 5584），只操作明确的 `emulator-5584`，使用合成数据并在退出时关闭模拟器；不连接真实手机、不复用个人 AVD。证据含截图、原生校验结果和 JSON 结果。结束后按任务清理独立 AVD 与测试 APK。
+
+## 输入与色系回归
+
+多行备忘录正文使用有界原生 TextInput 独立滚动，不嵌套另一个纵向 ScrollView。键盘出现后保留实际正文视口；禁止通过光标跳末尾或只滑动外层留白来判定正文可用。`tests/android/memo_theme_e2e.py` 在文字区域发起拖动，OCR验证实际首末行，再长按末词、替换、核对自动保存和放弃回滚；另检查六套主题的设置、输入/开关、确认框和重启。
+
+应用内输入、开关和确认框分别使用 ThemedTextInput、ThemedSwitch、ThemedAlert，避免原生固定强调色。危险操作仍需确认，旧确认按钮的回调/取消语义不变，队列以请求ID防止重复触发。系统键盘、选取器与安装界面由Android管理。
+
+若现有测试SDK不可用，在项目环境中运行 `python scripts/setup-android-test.py`，从官方SDK清单获取并校验归档，仅安装到本任务 `.local/android-test-sdk`；不修改宿主SDK和个人AVD。测试入口：
+
+```bash
+python tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" \
+  --out /local/task-evidence --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk
+```
+
+可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落和末词编辑。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
