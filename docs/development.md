@@ -10,7 +10,7 @@
 
 结构与保存协议见[架构说明](architecture.md)，本轮决策和后续选型条件见[工程治理](engineering.md)。`npm run check` 包含仓库元数据、导入边界、严格类型及全部Node测试；`npm test` 可独立运行业务和故障注入测试，`npm run fix:imports` 使用项目固定TypeScript整理导入。禁止为了通过检查关闭noUnused或用any绕过领域边界。
 
-GitHub Check在PR/main执行Node检查和无私密签名的x86_64预览构建；workflow_dispatch勾选android_ui可额外跑完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。
+GitHub Check在PR/main执行Node检查和无私密签名的x86_64预览构建；workflow_dispatch勾选android_ui可额外跑完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。CI先显式加载SDK工具路径并使用Java21安装SDK包，再切回项目声明的Java17构建，避免依赖runner默认PATH或JDK。
 
 ## 环境与初始化
 
