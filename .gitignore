@@ -34,3 +34,6 @@ android/app/.cxx/
 android/local.properties
 android/.idea/
 /ios/
+
+# Local Python UI-test tooling
+__pycache__/
