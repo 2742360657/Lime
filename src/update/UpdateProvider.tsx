@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import NativeUpdater, { type InstalledInfo } from '../native/NativeLimeUpdater';
-import { useAppActions, useAppSelector, useSettings } from '../state/AppProvider';
+import { useAppActions, useAppSelector, useAppStore, useSettings } from '../state/AppProvider';
 import { fetchManifest, RELEASE_PAGE, selectUpdate, shouldAutoCheck } from './manifest';
 import { UpdateDialog } from './UpdateDialog';
 
@@ -20,6 +20,7 @@ export function useAppUpdate() {
 }
 
 export function UpdateProvider({ children }: PropsWithChildren) {
+  const store = useAppStore();
   const isHydrated = useAppSelector(s => s.isHydrated);
   const { settings } = useSettings();
   const { setUpdatePreferences } = useAppActions();
@@ -135,7 +136,13 @@ export function UpdateProvider({ children }: PropsWithChildren) {
   const install = useCallback(async () => {
     const release = candidateRef.current; const uri = fileRef.current;
     if (!release || !uri || stageRef.current !== 'ready') return;
-    setStage('installing'); setMessage('正在打开系统安装界面…');
+    setStage('installing'); setMessage('正在保存本地数据…');
+    try { await store.flush(); }
+    catch {
+      setStage('ready'); setMessage('本地修改尚未保存，请先重试保存，再安装更新。');
+      return;
+    }
+    setMessage('正在打开系统安装界面…');
     try {
       // Native code verifies the file again immediately before granting read access.
       const result = await NativeUpdater.installApk(uri, release.asset.sha256, release.manifest.versionCode, release.manifest.version, release.asset.size);
@@ -146,7 +153,7 @@ export function UpdateProvider({ children }: PropsWithChildren) {
       else { fileRef.current = null; setStage('error'); }
       setMessage(error instanceof Error ? error.message : '安装未能开始，请重试。');
     }
-  }, [setStage]);
+  }, [setStage, store]);
 
   const close = useCallback(() => {
     setVisible(false);
