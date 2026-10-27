@@ -104,6 +104,8 @@ python tests/android/update_e2e.py --sdk /local/test-sdk --out /local/task-evide
 
 应用内输入、开关和确认框分别使用 ThemedTextInput、ThemedSwitch、ThemedAlert，避免原生固定强调色。危险操作仍需确认，旧确认按钮的回调/取消语义不变，队列以请求ID防止重复触发。系统键盘、选取器与安装界面由Android管理。
 
+UI脚本使用本机已有的 Tesseract 和 ImageMagick 读取截图；控件区域颜色允许3级通道取整误差，仍区分六套调色板，不以“看起来是绿色”代替校验。
+
 若现有测试SDK不可用，在项目环境中运行 `python scripts/setup-android-test.py`，从官方SDK清单获取并校验归档，仅安装到本任务 `.local/android-test-sdk`；不修改宿主SDK和个人AVD。测试入口：
 
 ```bash

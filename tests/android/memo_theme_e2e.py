@@ -77,10 +77,11 @@ def shot(name):
 def find(value, attr='content-desc', timeout=25):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        for n in tree().iter('node'):
+        snapshot=tree();surface_height=box(next(snapshot.iter('node')))[3]
+        for n in snapshot.iter('node'):
             if n.attrib.get(attr) == value and n.attrib.get('enabled') != 'false':
                 x1,y1,x2,y2=box(n)
-                if x2>x1 and y2>y1 and y1>=40 and y2<=1535: return n
+                if x2>x1 and y2>y1 and y1>=40 and y2<=surface_height: return n
         time.sleep(.5)
     shot('failure')
     raise AssertionError(f'Missing {attr}={value}')
@@ -143,42 +144,13 @@ def probe():
         if not a.scroll_only: verify_themes()
 
 
-# Decode Android screencap's 8-bit PNG directly, without extra Python packages.
-def rgb_pixels(file):
-    import struct,zlib
-    data=file.read_bytes();offset=8;compressed=b''
-    while offset<len(data):
-        size=struct.unpack('>I',data[offset:offset+4])[0];kind=data[offset+4:offset+8];chunk=data[offset+8:offset+8+size];offset+=size+12
-        if kind==b'IHDR':width,height,depth,color,*_=struct.unpack('>IIBBBBB',chunk)
-        if kind==b'IDAT':compressed+=chunk
-    assert depth==8 and color in (2,6),'Unsupported screenshot format'
-    channels=4 if color==6 else 3;stride=width*channels;raw=zlib.decompress(compressed);previous=bytearray(stride);rows=[]
-    for y in range(height):
-        mode=raw[y*(stride+1)];row=bytearray(raw[y*(stride+1)+1:(y+1)*(stride+1)])
-        if mode==0:
-            rows.append(row);previous=row;continue
-        if mode==2:
-            row=bytearray((value+previous[x])&255 for x,value in enumerate(row))
-            rows.append(row);previous=row;continue
-        for x in range(stride):
-            left=row[x-channels] if x>=channels else 0;above=previous[x];diagonal=previous[x-channels] if x>=channels else 0
-            if mode==1:predict=left
-            elif mode==2:predict=above
-            elif mode==3:predict=(left+above)//2
-            elif mode==4:
-                value=left+above-diagonal;dist=[abs(value-left),abs(value-above),abs(value-diagonal)];predict=[left,above,diagonal][dist.index(min(dist))]
-            else:assert mode==0;predict=0
-            row[x]=(row[x]+predict)&255
-        rows.append(row);previous=row
-    return width,height,channels,rows
-
+# Native drawable tinting can round channels by a few levels. Check the exact
+# control rectangle with a small tolerance, rather than accepting any green/blue.
 def color_count(name,bounds,color):
-    width,height,channels,rows=rgb_pixels(a.out/(name+'.png'))
-    x1,y1,x2,y2=bounds;rgb=bytes.fromhex(color.lstrip('#'));count=0
-    for y in range(max(0,y1),min(height,y2)):
-        for x in range(max(0,x1),min(width,x2)):
-            if rows[y][x*channels:x*channels+3]==rgb:count+=1
-    return count
+    x1,y1,x2,y2=bounds
+    result=subprocess.run(['magick',str(a.out/(name+'.png')),'-crop',f'{x2-x1}x{y2-y1}+{x1}+{y1}','-depth','8','RGB:-'],capture_output=True,check=True)
+    expected=bytes.fromhex(color.lstrip('#'));pixels=result.stdout
+    return sum(all(abs(pixels[i+c]-expected[c])<=3 for c in range(3)) for i in range(0,len(pixels),3))
 
 
 def verify_tail_edit(fixture):

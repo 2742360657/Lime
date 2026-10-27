@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,6 +12,9 @@ import zipfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--sdk', type=Path, default=Path.cwd() / '.local/android-test-sdk')
 root = parser.parse_args().sdk.resolve()
+host_sdk = Path(os.environ['ANDROID_HOME']).resolve()
+if root == host_sdk or root.is_relative_to(host_sdk):
+    parser.error('Use a separate project test SDK, not the host SDK')
 root.mkdir(parents=True, exist_ok=True)
 repo = 'https://dl.google.com/android/repository/'
 packages = [('repository2-3.xml', 'emulator', root),
@@ -47,8 +51,6 @@ for index, (manifest, package, destination) in enumerate(packages):
     zip_path.unlink()
     print(f'Installed verified {package}', flush=True)
 
-import os
-host_sdk = Path(os.environ['ANDROID_HOME'])
 for name in ['platform-tools', 'platforms', 'licenses']:
     link = root / name
     if not link.exists(): link.symlink_to(host_sdk / name, target_is_directory=True)
