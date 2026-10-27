@@ -25,9 +25,13 @@ p.add_argument('--small-only', action='store_true')
 p.add_argument('--engineering-only', action='store_true')
 p.add_argument('--organize-only', action='store_true')
 p.add_argument('--installed-only', action='store_true')
+p.add_argument('--release-smoke', action='store_true')
 p.add_argument('--old-apk', type=Path)
 p.add_argument('--themes-only', action='store_true')
 p.add_argument('--scroll-only', action='store_true')
+p.add_argument('--motion-only', action='store_true')
+p.add_argument('--screenshots-only', action='store_true')
+p.add_argument('--motion-test-apk', type=Path)
 a = p.parse_args()
 a.out.mkdir(parents=True, exist_ok=True)
 root = Path.cwd()
@@ -130,9 +134,24 @@ def ocr_marker(name, marker):
 def probe():
     apk=a.final_apk or a.qa_apk
     assert apk
+    if a.qa_apk and a.motion_only: adb('uninstall',pkg,check=False)  # Only this script's synthetic AVD.
     adb('install','-r',apk,timeout=90)
     fixture=json.loads((a.out/'fixture.json').read_text()) if (a.out/'fixture.json').exists() else dict(version=7,habits=[],groups=[],todos=[],memoGroups=[],memos=[dict(id='long',title='长文滑动验收',body='STARTMARKER\n'+'\n'.join(f'Line {i:03d} native memo scrolling test' for i in range(1,81))+'\nENDMARKER',groupId=None,order=0,createdAt=1793023200000,updatedAt=1793023200000,deletedAt=None)],settings=dict(themeId='forest',profileName='交互验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
-    write_state(fixture);launch();tap('备忘录');tap('打开 长文滑动验收')
+    write_state(fixture)
+    if a.motion_only:
+        assert a.motion_test_apk, '--motion-test-apk is required'
+        adb('install','-r',a.motion_test_apk,timeout=90)
+        output=adb('shell','am','instrument','-w','-e','mode','memoMotion',pkg+'.test/'+pkg+'.UpdateVerifierInstrumentation',timeout=120)
+        (a.out/'native-motion.txt').write_text(output)
+        match=re.search(r'INSTRUMENTATION_RESULT: memoMotion=(.+)',output)
+        if a.qa_apk:
+            assert not match and 'No momentum:' in output, output
+            record('baselineExpectedNoMomentum',re.search(r'INSTRUMENTATION_RESULT: error=(.+)',output).group(1))
+        else:
+            assert match and 'INSTRUMENTATION_CODE: -1' in output, output
+            record('nativeMemoMotion',json.loads(match.group(1)))
+        return
+    launch();tap('备忘录');tap('打开 长文滑动验收')
     # Focus, then hide IME. Both swipes must remain in the text area.
     top=ocr_marker('memo-before-scroll','STARTMARKER')
     tap('备忘录正文');sh('input','keyevent',4);time.sleep(.5)
@@ -215,7 +234,8 @@ def probe_small():
     sh('cmd','overlay','enable-exclusive','--category','com.android.internal.systemui.navbar.gestural')
     sh('wm','size','720x1280');sh('settings','put','system','font_scale','1.3');time.sleep(2)
     fixture=dict(version=7,habits=[],groups=[],todos=[],memoGroups=[],memos=[dict(id='long',title='长文滑动验收',body='STARTMARKER\n'+('这是一段连续的中文长正文，用来验证自动换行以后仍然能在文字区域上下滑动。'*45)+'\nENDMARKER',groupId=None,order=0,createdAt=1793023200000,updatedAt=1793023200000,deletedAt=None)],settings=dict(themeId='slate',profileName='小屏手势验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
-    write_state(fixture);launch();tap('备忘录');tap('打开 长文滑动验收');tap('备忘录正文')
+    write_state(fixture)
+    launch();tap('备忘录');tap('打开 长文滑动验收');tap('备忘录正文')
     assert keyboard_visible()
     found=False
     for index in range(15):
@@ -265,6 +285,31 @@ def verify_memo_organize():
 def engineering_fixture(count=2):
     stamp=1793023200000
     return dict(version=7,habits=[],groups=[],todos=[dict(id=f't{i}',title=f'Task{i:04}',note='Details',dueDateKey=None,dueTime=None,order=i,createdAt=stamp,completedAt=None) for i in range(count)],memoGroups=[],memos=[dict(id=f'm{i}',title=f'Memo{i:04}',body=f'BASE{i:04}',groupId=None,order=i,createdAt=stamp,updatedAt=stamp,deletedAt=None) for i in range(count)],settings=dict(themeId='ocean',profileName='工程验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
+
+def capture_design():
+    """Reproducible public screenshots, exclusively from a synthetic scene."""
+    adb('install','-r',a.final_apk,timeout=90)
+    fixture=engineering_fixture(4)
+    stamp=1793023200000
+    today=dt.date.fromisoformat(sh('date','+%F').strip())
+    names=['归还图书','整理本周的学习计划','联系小组同学确认实验分工','读完一篇感兴趣的论文']
+    for i,todo in enumerate(fixture['todos']):
+        todo.update(title=names[i],note='先列出要做的事，再安排时间。' if i==1 else '',dueDateKey=(today+dt.timedelta(days=i-1)).isoformat() if i<3 else None,dueTime='18:00' if i==1 else None)
+    fixture['groups']=[dict(id='learning',name='学习',order=0,createdAt=stamp),dict(id='life',name='生活',order=1,createdAt=stamp)]
+    fixture['habits']=[dict(id='h'+str(i),name=name,groupId='learning' if i<2 else 'life',order=i,cadence='daily',targetCount=0 if i==0 else 1,createdAt=stamp,archivedAt=None,checkins=[]) for i,name in enumerate(['阅读与思考','学习一项新知识','出去走一走'])]
+    fixture['memoGroups']=[dict(id='notes',name='随记',order=0,createdAt=stamp)]
+    fixture['memos']=fixture['memos'][:3]
+    for memo,title,body in zip(fixture['memos'],['一周随记','读书摘录','下次想试试'],['把注意力留给重要的事。\n\n这一周，留出一点时间阅读、散步，整理那些值得继续的想法。\n\n有些事情可以慢慢做，但今天也能向前一步。','记录值得回看的句子，写下自己的理解。\n\n让笔记成为思考的起点。','周末换一条散步路线。\n找一个安静的地方，读完手边的书。']):
+        memo.update(title=title,body=body,groupId='notes',updatedAt=int(time.time()*1000))
+    fixture['settings'].update(themeId='forest',profileName='酸橙',profileSignature='把注意力留给重要的事')
+    write_state(fixture);launch()
+    for label,name in [('今日','today'),('待办','tasks'),('习惯','habits'),('备忘录','memos'),('设置','settings')]:
+        tap(label);shot(name)
+    tap('备忘录');tap('打开 一周随记');shot('memo-editor');tap('返回备忘录列表')
+    tap('多选与排序');shot('memo-organize');tap('完成整理')
+    tap('习惯');tap('新建习惯');shot('habit-create');tap('取消编辑')
+    record('syntheticDesignScreenshots')
+
 
 def probe_engineering():
     assert a.final_apk
@@ -385,7 +430,13 @@ try:
     sh('svc','wifi','enable');sh('svc','data','enable');adb('emu','network','speed','full');time.sleep(3)
     mode='memoThemeFix' if a.final_apk else 'memoBaseline'
     record(mode+'Status','running')
-    if a.installed_only:verify_existing_install()
+    if a.screenshots_only:capture_design()
+    elif a.release_smoke:
+        adb('install','-r',a.final_apk,timeout=90)
+        write_state(engineering_fixture(3));launch();tap('待办');tap('完成待办：Task0000');time.sleep(1)
+        assert state()['todos'][0]['completedAt'] is not None
+        verify_existing_install()
+    elif a.installed_only:verify_existing_install()
     elif a.organize_only:
         adb('install','-r',a.final_apk,timeout=90)
         fixture=engineering_fixture(3);fixture['memoGroups']=[dict(id='group-a',name='GroupA',order=0,createdAt=1793023200000)]

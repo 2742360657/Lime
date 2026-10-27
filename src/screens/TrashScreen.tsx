@@ -162,7 +162,7 @@ function createStyles(theme: AppTheme) {
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     count: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
     action: {
-      borderRadius: 12,
+      borderRadius: theme.radius.pill,
       paddingHorizontal: 14,
       paddingVertical: 9,
       backgroundColor: theme.colors.dangerSoft,
@@ -175,8 +175,6 @@ function createStyles(theme: AppTheme) {
       alignItems: 'center',
       gap: 12,
       borderRadius: theme.radius.medium,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 14,
       paddingVertical: 12,
@@ -191,8 +189,6 @@ function createStyles(theme: AppTheme) {
       borderRadius: theme.radius.large,
       padding: 20,
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
   });

@@ -80,8 +80,8 @@ function createStyles(theme: AppTheme) {
     card: {
       width: '100%',
       maxHeight: '90%',
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: theme.radius.large,
+      borderTopRightRadius: theme.radius.large,
       paddingHorizontal: 20,
       paddingTop: 22,
       paddingBottom: 28,
@@ -99,8 +99,6 @@ function createStyles(theme: AppTheme) {
       paddingVertical: 14,
       paddingHorizontal: 14,
       backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     actionButtonDanger: { backgroundColor: theme.colors.dangerSoft, borderColor: theme.colors.dangerSoft },
     actionButtonText: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
@@ -108,7 +106,7 @@ function createStyles(theme: AppTheme) {
     closeButton: {
       minHeight: 48,
       marginTop: 4,
-      borderRadius: 12,
+      borderRadius: theme.radius.pill,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,

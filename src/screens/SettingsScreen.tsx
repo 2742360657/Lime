@@ -162,13 +162,10 @@ function createStyles(theme: AppTheme) {
     backupHint: { fontSize: 13, lineHeight: 20, color: theme.colors.textSecondary },
     updateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     sectionCard: {
-      borderRadius: theme.radius.large,
+      borderRadius: theme.radius.medium,
       padding: 16,
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
       gap: 10,
-      ...theme.shadow,
     },
     sectionTitle: {
       fontSize: 14,
@@ -209,7 +206,7 @@ function createStyles(theme: AppTheme) {
     },
     primaryAction: {
       flex: 1,
-      borderRadius: 8,
+      borderRadius: theme.radius.pill,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',
@@ -222,12 +219,10 @@ function createStyles(theme: AppTheme) {
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: 8,
+      borderRadius: theme.radius.pill,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceMuted,
     },
     secondaryActionText: {

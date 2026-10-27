@@ -175,7 +175,7 @@ function createStyles(theme: AppTheme) {
     },
     timeInput: {
       height: 64,
-      borderRadius: 18,
+      borderRadius: theme.radius.large,
       textAlign: 'center',
       fontSize: 24,
       fontWeight: '800',
@@ -235,7 +235,7 @@ function createStyles(theme: AppTheme) {
       minWidth: 92,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },

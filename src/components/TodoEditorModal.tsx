@@ -245,7 +245,7 @@ function createStyles(theme: AppTheme) {
     input: {
       borderWidth: 1,
       borderColor: theme.colors.border,
-      borderRadius: 8,
+      borderRadius: theme.radius.small,
       paddingHorizontal: 14,
       paddingVertical: 12,
       fontSize: 15,
@@ -255,7 +255,7 @@ function createStyles(theme: AppTheme) {
     noteInput: { minHeight: 112, textAlignVertical: 'top' },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     chip: {
-      borderRadius: 8,
+      borderRadius: theme.radius.pill,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 14,
@@ -271,13 +271,13 @@ function createStyles(theme: AppTheme) {
       alignItems: 'center',
       gap: 14,
       padding: 14,
-      borderRadius: 8,
+      borderRadius: theme.radius.medium,
       backgroundColor: theme.colors.surfaceMuted,
     },
     timeTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
     timeInput: {
       width: 128,
-      borderRadius: 10,
+      borderRadius: theme.radius.small,
       paddingHorizontal: 10,
       paddingVertical: 9,
       textAlign: 'center',
@@ -288,7 +288,7 @@ function createStyles(theme: AppTheme) {
     deleteButton: {
       paddingVertical: 14,
       alignItems: 'center',
-      borderRadius: 8,
+      borderRadius: theme.radius.pill,
       backgroundColor: theme.colors.dangerSoft,
     },
     deleteButtonText: { fontSize: 13, fontWeight: '700', color: theme.colors.danger },

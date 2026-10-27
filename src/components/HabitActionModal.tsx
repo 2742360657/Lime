@@ -180,7 +180,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.danger,
     },
     closeButton: {
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,

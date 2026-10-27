@@ -141,7 +141,7 @@ function createStyles(theme: AppTheme) {
     },
     primaryButton: {
       flex: 1,
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.colors.primary,
@@ -153,7 +153,7 @@ function createStyles(theme: AppTheme) {
     },
     secondaryButton: {
       flex: 1,
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.colors.surface,
@@ -166,7 +166,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textSecondary,
     },
     closeButton: {
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,

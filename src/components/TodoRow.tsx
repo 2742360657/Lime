@@ -71,8 +71,6 @@ function createStyles(theme: AppTheme) {
       paddingVertical: 6,
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radius.medium,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     dueChip: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
     dueChipHint: { fontSize: 10, fontWeight: '700', color: theme.colors.textMuted },
@@ -114,7 +112,7 @@ function createStyles(theme: AppTheme) {
     title: {
       flexShrink: 1,
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
     titleDone: {

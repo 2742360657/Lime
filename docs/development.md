@@ -10,7 +10,7 @@
 
 结构与保存协议见[架构说明](architecture.md)，本轮决策和后续选型条件见[工程治理](engineering.md)。`npm run check` 包含仓库元数据、导入边界、严格类型及全部Node测试；`npm test` 可独立运行业务和故障注入测试，`npm run fix:imports` 使用项目固定TypeScript整理导入。禁止为了通过检查关闭noUnused或用any绕过领域边界。
 
-GitHub Check在PR/main执行Node检查和无私密签名的x86_64预览构建；workflow_dispatch勾选android_ui可额外跑完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。CI先显式加载SDK工具路径并使用Java21安装SDK包，再切回项目声明的Java17构建，避免依赖runner默认PATH或JDK。
+GitHub Check在PR/main执行Node检查、无私密签名的x86_64预览构建及原生回归用例编译；workflow_dispatch勾选android_ui可额外跑实际正文惯性、完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。CI先显式加载SDK工具路径并使用Java21安装SDK包，再切回项目声明的Java17构建，避免依赖runner默认PATH或JDK。
 
 ## 环境与初始化
 
@@ -120,6 +120,18 @@ python tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" \
 ```
 
 可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落和末词编辑。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
+
+### 正文惯性验收
+
+构建同签名正式候选后，以同一签名构建`:app:assembleReleaseAndroidTest -PreactNativeArchitectures=x86_64`，然后运行：
+
+```bash
+python tests/android/memo_theme_e2e.py --sdk /local/test-sdk --out /local/motion-evidence \
+  --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk --motion-only \
+  --motion-test-apk android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
+```
+
+该模式仅操作脚本自己的AVD和合成备忘录。以`--qa-apk`指定v1.4.0可记录预期的无惯性基线，该基线记录成功不代表旧版通过新版验收。Instrumentation对实际RN正文注入DOWN/MOVE/UP并读取原生scrollY，断言松手后继续、触碰停止、反向、停顿后松手与选区保护。配合原有IME/末词编辑套件；XML全文和慢拖到末行不能代替惯性验收。测试APK不发布。公开发布后可用`--release-smoke`在同一guest启动内建立合成场景、实际保存待办，再覆盖安装正式包并检查数据与公开更新，避免假定冷启动AVD中存在可用的旧测试现场。
 
 ## 存储、恢复与规模验收
 

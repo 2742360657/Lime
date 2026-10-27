@@ -259,7 +259,7 @@ function createStyles(theme: AppTheme) {
     },
     modeButton: {
       flex: 1,
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,
@@ -294,7 +294,7 @@ function createStyles(theme: AppTheme) {
       gap: 12,
     },
     periodButton: {
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingHorizontal: 12,
       paddingVertical: 10,
       backgroundColor: theme.colors.surfaceMuted,

@@ -17,6 +17,16 @@ class UpdateVerifierInstrumentation : Instrumentation() {
   }
   override fun onStart() {
     val result = Bundle()
+    if (arguments.getString("mode") == "memoMotion") {
+      try {
+        result.putString("memoMotion", MemoMotionChecks(this).run())
+        finish(Activity.RESULT_OK, result)
+      } catch (error: Throwable) {
+        result.putString("error", error.toString())
+        finish(Activity.RESULT_CANCELED, result)
+      }
+      return
+    }
     val passed = mutableListOf<String>()
     try {
       val directory = File(targetContext.cacheDir, "updates")

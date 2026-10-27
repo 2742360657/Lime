@@ -53,6 +53,12 @@ jobs:
           cache: gradle
       - run: npm ci
       - run: bash scripts/build-android.sh preview x86_64
+      - name: Compile native regression checks
+        shell: bash
+        run: |
+          source scripts/env.sh
+          cd android
+          ./gradlew :app:assembleReleaseAndroidTest -PLIME_PREVIEW=true -PreactNativeArchitectures=x86_64 --no-daemon --max-workers="$WORKSPACE_JOBS"
       - name: Isolated UI suite
         if: github.event_name == 'workflow_dispatch' && inputs.android_ui
         shell: bash
@@ -63,6 +69,7 @@ jobs:
           source scripts/env.sh
           python3 scripts/setup-android-test.py
           apk="artifacts/preview/lime-$(node -p 'require("./package.json").version')-x86_64.apk"
+          python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/motion --final-apk "$apk" --motion-only --motion-test-apk android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/ui --final-apk "$apk"
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/small --final-apk "$apk" --small-only
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/engineering --final-apk "$apk" --engineering-only

@@ -25,7 +25,7 @@ export function EditorLayout({ title, onClose, onSave, disabled, children }: Pro
           <Text style={{ color: theme.colors.textSecondary, fontSize: 15 }}>取消</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`保存${title.includes('习惯') ? '习惯' : '待办'}`} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onSave} style={[styles.action, { backgroundColor: theme.colors.primary, opacity: disabled ? 0.4 : 1, borderRadius: 8 }]}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`保存${title.includes('习惯') ? '习惯' : '待办'}`} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onSave} style={[styles.action, { backgroundColor: theme.colors.primary, opacity: disabled ? 0.4 : 1, borderRadius: theme.radius.pill }]}>
           <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '700' }}>保存</Text>
         </TouchableOpacity>
       </View>
@@ -34,7 +34,7 @@ export function EditorLayout({ title, onClose, onSave, disabled, children }: Pro
   </KeyboardAvoidingView>;
 }
 const styles = StyleSheet.create({
-  root: { flex: 1 }, header: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  root: { flex: 1 }, header: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 0 },
   action: { minWidth: 64, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   title: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700' },
 });

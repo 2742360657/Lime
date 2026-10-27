@@ -10,10 +10,10 @@ export function FilterBar({ options, value, onChange }: {
   const theme = useTheme();
   const styles = useMemo(() => StyleSheet.create({
     row: { gap: 8, paddingHorizontal: 16, paddingVertical: 4 },
-    chip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, borderRadius: 8, backgroundColor: theme.colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.border },
-    active: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
+    chip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, borderRadius: theme.radius.pill, backgroundColor: theme.colors.surfaceMuted },
+    active: { backgroundColor: theme.colors.primarySoft },
     label: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
-    selected: { color: theme.colors.primary, fontWeight: '800' },
+    selected: { color: theme.colors.primary, fontWeight: '700' },
     count: { fontSize: 12, color: theme.colors.textSecondary },
   }), [theme]);
   return <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>

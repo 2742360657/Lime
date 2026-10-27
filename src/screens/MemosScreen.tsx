@@ -153,7 +153,7 @@ export function MemosScreen() {
                     {memo.title || '未命名备忘录'}
                   </Text>
                   <Text numberOfLines={2} style={styles.cardBody}>
-                    {memo.body.trim() || '暂无正文'}
+                    {memo.body.replace(/\s+/g, ' ').trim() || '暂无正文'}
                   </Text>
                   <Text style={styles.cardMeta}>
                     {groupLabel(memo.groupId)} · {formatMemoTime(memo.updatedAt)}
@@ -209,7 +209,7 @@ export function MemosScreen() {
               id: memo.id,
               groupId: memo.groupId ?? UNCATEGORIZED_FILTER,
               label: memo.title || '未命名备忘录',
-              subtitle: memo.body.trim().slice(0, 40) || '暂无正文',
+              subtitle: memo.body.replace(/\s+/g, ' ').trim().slice(0, 40) || '暂无正文',
               leading: (
                 <SelectCircle checked={selectedIds.includes(memo.id)} accessibilityLabel={`选择 ${memo.title || '未命名备忘录'}`} />
               ),
@@ -298,21 +298,19 @@ function formatMemoTime(timestamp: number) {
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    screen: { flex: 1, backgroundColor: theme.colors.surface },
+    screen: { flex: 1, backgroundColor: theme.colors.background },
     resultCount: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
     content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
     search: {
       color: theme.colors.textPrimary,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.medium,
-      paddingHorizontal: 14,
+      borderRadius: theme.radius.pill,
+      paddingHorizontal: 16,
       paddingVertical: 12,
       fontSize: 15,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     list: { gap: 9 },
-    memoRow: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.medium, backgroundColor: theme.colors.surface },
+    memoRow: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: theme.radius.medium, backgroundColor: theme.colors.surface },
     memoMore: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
     card: {
       flex: 1,
@@ -321,16 +319,14 @@ function createStyles(theme: AppTheme) {
       gap: 6,
       backgroundColor: theme.colors.surface,
     },
-    cardTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
-    cardBody: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
+    cardTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
+    cardBody: { fontSize: 13, lineHeight: 20, color: theme.colors.textSecondary },
     cardMeta: { fontSize: 11, color: theme.colors.textMuted },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,
       gap: 6,
       backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
     emptyHint: { fontSize: 12, color: theme.colors.textSecondary },

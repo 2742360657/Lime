@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, findNodeHandle, Keyboard, KeyboardAvoidingView, Modal, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MemoScroll from '../native/NativeMemoScroll';
 import { useBackHandler } from '../navigation/back';
 import { useAppSelector, useAppStore, useTheme } from '../state/AppProvider';
 import type { AppTheme } from '../theme';
@@ -38,6 +39,19 @@ export function MemoEditor({
   const [groupId, setGroupId] = useState<string | null>(initialGroupId);
   const [pickerVisible, setPickerVisible] = useState(false);
   const bodyRef = useRef<TextInput>(null);
+  const scrollTag = useRef<number | null>(null);
+  const attachScrolling = useCallback(() => {
+    const tag = findNodeHandle(bodyRef.current);
+    if (tag === null || scrollTag.current === tag) return;
+    scrollTag.current = tag;
+    void MemoScroll.attach(tag).catch(error => {
+      scrollTag.current = null;
+      if (__DEV__) console.warn('Native memo scrolling could not attach', error);
+    });
+  }, []);
+  useEffect(() => () => {
+    if (scrollTag.current !== null) MemoScroll.detach(scrollTag.current);
+  }, []);
   const [initialSelection, setInitialSelection] = useState(true);
   const bodyTouch = useRef({ x: 0, y: 0, dragged: false });
   const [keyboardRequested, setKeyboardRequested] = useState(false);
@@ -213,6 +227,7 @@ export function MemoEditor({
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="选择分类"
+              hitSlop={8}
               onPress={() => setPickerVisible(true)}
               style={styles.groupField}
             >
@@ -230,7 +245,7 @@ export function MemoEditor({
               editable={!closing}
               onChangeText={setBody}
               multiline
-              scrollEnabled
+              onLayout={attachScrolling}
               selection={initialSelection ? { start: 0, end: 0 } : undefined}
               onTouchStart={event => {
                 bodyTouch.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY, dragged: false };
@@ -266,7 +281,7 @@ function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: theme.colors.surface },
     editorHeading: { flex: 1, gap: 3, paddingHorizontal: 8 },
-    editorTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
+    editorTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary },
     editorHint: { fontSize: 11, color: theme.colors.textSecondary },
     editorHeader: {
       flexDirection: 'row',
@@ -277,20 +292,20 @@ function createStyles(theme: AppTheme) {
       paddingBottom: 6,
     },
     backLink: { minHeight: 48, justifyContent: 'center', paddingVertical: 8, paddingRight: 12 },
-    backLinkText: { fontSize: 15, fontWeight: '700', color: theme.colors.primary },
+    backLinkText: { fontSize: 15, fontWeight: '500', color: theme.colors.primary },
     saveButton: {
-      minHeight: 48,
+      minHeight: 44,
       justifyContent: 'center',
-      borderRadius: 12,
+      borderRadius: theme.radius.pill,
       paddingHorizontal: 16,
       paddingVertical: 9,
       backgroundColor: theme.colors.primary,
     },
-    saveButtonText: { fontSize: 14, fontWeight: '800', color: theme.colors.white },
+    saveButtonText: { fontSize: 14, fontWeight: '600', color: theme.colors.white },
     editorContent: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
     titleInput: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: 22,
+      fontWeight: '600',
       color: theme.colors.textPrimary,
       paddingVertical: 6,
       paddingHorizontal: 0,
@@ -300,17 +315,21 @@ function createStyles(theme: AppTheme) {
       alignItems: 'center',
       alignSelf: 'flex-start',
       gap: 8,
-      minHeight: 40,
+      minHeight: 32,
       maxWidth: '100%',
-      marginBottom: 4,
+      marginTop: 4,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      borderRadius: theme.radius.pill,
+      backgroundColor: theme.colors.surfaceMuted,
     },
-    groupFieldLabel: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
+    groupFieldLabel: { fontSize: 12, fontWeight: '500', color: theme.colors.textSecondary },
     groupFieldValue: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primary },
     bodyInput: {
       flex: 1,
       minHeight: 0,
-      fontSize: 15,
-      lineHeight: 24,
+      fontSize: 16,
+      lineHeight: 25,
       color: theme.colors.textPrimary,
       paddingHorizontal: 0,
       paddingTop: 8,

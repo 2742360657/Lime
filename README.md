@@ -15,11 +15,15 @@
   <img src="docs/screenshots/memos.png" width="180" alt="备忘录">
 </p>
 
-截图使用隔离模拟器中的示例数据。
+截图使用隔离模拟器中的示例数据。界面保留六套配色，采用紧凑的自然圆角与柔和层次。
 
 新建习惯默认自由记录；需要周期目标时再打开开关：
 
 <img src="docs/screenshots/habit-create.png" width="220" alt="新建习惯可不设置目标">
+
+备忘录打开即可浏览，点正文原位编辑，支持自然惯性滚动与长按选字：
+
+<img src="docs/screenshots/memo-editor.png" width="220" alt="备忘录原位编辑">
 
 ## 可以做什么
 

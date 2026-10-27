@@ -130,11 +130,12 @@ export type AppTheme = Omit<ThemePreset, 'colors'> & {
 
 export const DEFAULT_THEME_ID: ThemeId = 'forest';
 
+/** Fields 12dp, content 16dp, dialogs/sheets 24dp; actions and filters use pill. */
 const SHARED_THEME_TOKENS = {
   radius: {
-    large: 14,
-    medium: 10,
-    small: 8,
+    large: 24,
+    medium: 16,
+    small: 12,
     pill: 999,
   },
 } as const;

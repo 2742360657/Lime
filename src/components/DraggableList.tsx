@@ -561,7 +561,7 @@ function createStyles(theme: AppTheme) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 5,
-      borderRadius: 14,
+      borderRadius: theme.radius.small,
       backgroundColor: theme.colors.surfaceMuted,
     },
     handleActive: { backgroundColor: theme.colors.surface },

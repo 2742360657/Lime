@@ -213,7 +213,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textSecondary,
     },
     banner: {
-      borderRadius: 14,
+      borderRadius: theme.radius.medium,
       paddingVertical: 12,
       paddingHorizontal: 14,
       backgroundColor: theme.colors.surfaceMuted,
@@ -224,7 +224,7 @@ function createStyles(theme: AppTheme) {
       textAlign: 'center',
     },
     addButton: {
-      borderRadius: 14,
+      borderRadius: theme.radius.medium,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.primary,
@@ -275,7 +275,7 @@ function createStyles(theme: AppTheme) {
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingVertical: 10,
@@ -289,7 +289,7 @@ function createStyles(theme: AppTheme) {
     },
     deleteAction: {
       flex: 1,
-      borderRadius: 12,
+      borderRadius: theme.radius.small,
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.colors.dangerSoft,

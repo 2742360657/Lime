@@ -16,6 +16,7 @@ Lime 是离线 Android 应用，使用 Expo/React Native 与 TypeScript strict�
 | src/storage/habitStorage.ts | 平台文件适配、JSON v1–v7 规范化/迁移、导入导出 |
 | src/storage/snapshotRepository.ts | 平台无关的两槽快照协议与损坏检测，可注入文件故障测试 |
 | src/screens/ | 各页面的展示、筛选与入口，按领域订阅数据 |
+| src/native/NativeMemoScroll.ts、android/…/MemoScroll* | 指定正文控件的原生惯性适配，保持EditText拖动/IME/选区；关闭及后台释放 |
 | src/components/MemoEditor.tsx | 备忘录草稿、自动保存、放弃快照、键盘与正文视口 |
 | src/components/VirtualList.tsx、SectionHeading.tsx | 日常浏览和多选的平铺虚拟列表、日期/分类标题 |
 | src/hooks/useTodoOrganize.ts、useBackupRestore.ts | 统一改期确认、系统文件选择与恢复确认流程 |
