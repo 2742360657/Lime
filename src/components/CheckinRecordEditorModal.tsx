@@ -178,8 +178,8 @@ function createStyles(theme: AppTheme) {
       borderRadius: theme.radius.large,
       textAlign: 'center',
       fontSize: 24,
-      fontWeight: '800',
-      color: theme.colors.primary,
+      fontWeight: '600',
+      color: theme.colors.primaryText,
       backgroundColor: theme.colors.primarySoft,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -204,7 +204,7 @@ function createStyles(theme: AppTheme) {
     quickButtonText: {
       fontSize: 12,
       fontWeight: '700',
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
     },
     noteField: {
       gap: 8,
@@ -245,7 +245,7 @@ function createStyles(theme: AppTheme) {
     primaryButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     secondaryButton: {
       backgroundColor: theme.colors.surfaceMuted,

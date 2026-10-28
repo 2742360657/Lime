@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Isolated Android36: body-origin touch drags, end-word edits and six themes.
+"""Isolated Android36: body-origin touch drags, end-word edits and every shipped theme.
 
 Run through workspace run with --qa-apk for an old-release probe (records results),
 or --final-apk for strict fixed-build assertions. No personal device/data is used.
@@ -28,13 +28,18 @@ p.add_argument('--installed-only', action='store_true')
 p.add_argument('--release-smoke', action='store_true')
 p.add_argument('--old-apk', type=Path)
 p.add_argument('--themes-only', action='store_true')
+p.add_argument('--theme-ids', help='Optional comma-separated palette IDs for a focused UI probe')
 p.add_argument('--scroll-only', action='store_true')
 p.add_argument('--motion-only', action='store_true')
+p.add_argument('--chrome-only', action='store_true')
+p.add_argument('--system-night', action='store_true', help='Verify the fixed light palettes while Android is in system dark mode')
 p.add_argument('--screenshots-only', action='store_true')
 p.add_argument('--motion-test-apk', type=Path)
 a = p.parse_args()
 a.out.mkdir(parents=True, exist_ok=True)
 root = Path.cwd()
+themes = json.loads(subprocess.check_output(['node', str(root/'scripts/theme-palette.cjs')], text=True))
+theme_labels = {theme['id']: theme['label'] for theme in themes}
 adb_path = a.sdk / 'platform-tools/adb'
 serial = 'emulator-5586'
 pkg = 'com.androidsoftwaredaily.habitcheckin'
@@ -131,25 +136,44 @@ def ocr_marker(name, marker):
     (a.out/(name+'-ocr.txt')).write_text(result.stdout)
     return marker in result.stdout.replace(' ','').replace('_','').upper()
 
+def long_memo_fixture():
+    return dict(version=7,habits=[],groups=[],todos=[],memoGroups=[],memos=[dict(id='long',title='长文滑动验收',body='STARTMARKER\n'+'\n'.join(f'Line {i:03d} native memo scrolling test' for i in range(1,81))+'\nENDMARKER',groupId=None,order=0,createdAt=1793023200000,updatedAt=1793023200000,deletedAt=None)],settings=dict(themeId='forest',profileName='交互验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
+
 def probe():
     apk=a.final_apk or a.qa_apk
     assert apk
     if a.qa_apk and a.motion_only: adb('uninstall',pkg,check=False)  # Only this script's synthetic AVD.
     adb('install','-r',apk,timeout=90)
-    fixture=json.loads((a.out/'fixture.json').read_text()) if (a.out/'fixture.json').exists() else dict(version=7,habits=[],groups=[],todos=[],memoGroups=[],memos=[dict(id='long',title='长文滑动验收',body='STARTMARKER\n'+'\n'.join(f'Line {i:03d} native memo scrolling test' for i in range(1,81))+'\nENDMARKER',groupId=None,order=0,createdAt=1793023200000,updatedAt=1793023200000,deletedAt=None)],settings=dict(themeId='forest',profileName='交互验收',profileSignature='',avatarUri=None,collapsedTodoBuckets=[],autoCheckUpdates=False,lastUpdateCheckAt=0,skippedUpdateVersionCode=0))
+    fixture=json.loads((a.out/'fixture.json').read_text()) if (a.out/'fixture.json').exists() else long_memo_fixture()
     write_state(fixture)
-    if a.motion_only:
+    if a.motion_only or a.chrome_only:
         assert a.motion_test_apk, '--motion-test-apk is required'
         adb('install','-r',a.motion_test_apk,timeout=90)
-        output=adb('shell','am','instrument','-w','-e','mode','memoMotion',pkg+'.test/'+pkg+'.UpdateVerifierInstrumentation',timeout=120)
+        mode='memoChrome' if a.chrome_only else 'memoMotion'
+        if a.chrome_only: sh('cmd','uimode','night','yes')
+        output=adb('shell','am','instrument','-w','-e','mode',mode,pkg+'.test/'+pkg+'.UpdateVerifierInstrumentation',timeout=120)
         (a.out/'native-motion.txt').write_text(output)
-        match=re.search(r'INSTRUMENTATION_RESULT: memoMotion=(.+)',output)
+        match=re.search(r'INSTRUMENTATION_RESULT: '+mode+r'=(.+)',output)
         if a.qa_apk:
             assert not match and 'No momentum:' in output, output
             record('baselineExpectedNoMomentum',re.search(r'INSTRUMENTATION_RESULT: error=(.+)',output).group(1))
         else:
             assert match and 'INSTRUMENTATION_CODE: -1' in output, output
-            record('nativeMemoMotion',json.loads(match.group(1)))
+            record('nativeLightChrome' if a.chrome_only else 'nativeMemoMotion',json.loads(match.group(1)))
+        if a.chrome_only:
+            # Instrumentation completion finishes its Activity. Relaunch independently
+            # before taking visual evidence, rather than capturing an exit animation/Home.
+            launch();tap('备忘录');tap('打开 长文滑动验收');time.sleep(2)
+            shot('system-dark-light-chrome')
+            display=sh('dumpsys','window','displays')
+            (a.out/'app-window-displays.txt').write_text(display)
+            assert re.search(r'mCurrentFocus=.*'+re.escape(pkg),display),'Chrome screenshot is not the foreground app'
+            assert re.search(r'mLastAppearance=.*LIGHT_NAVIGATION_BARS',display),'Display policy lost the light-surface navigation appearance'
+            record('foregroundLightNavigationAppearance')
+            sh('am','start','-a','android.settings.SETTINGS');time.sleep(3)
+            shot('system-settings-reference')
+            (a.out/'system-window-displays.txt').write_text(sh('dumpsys','window','displays'))
+            sh('cmd','uimode','night','no');time.sleep(3);shot('system-light-settings-reference')
         return
     launch();tap('备忘录');tap('打开 长文滑动验收')
     # Focus, then hide IME. Both swipes must remain in the text area.
@@ -196,34 +220,56 @@ def verify_tail_edit(fixture):
     time.sleep(.5);assert state()['memos'][0]['body']==fixture['memos'][0]['body']
     record('discardRestoresAutosavedMemo')
 
+def choose_theme(label):
+    for _ in range(7):
+        snapshot=tree()
+        viewport=next(n for n in snapshot.iter('node') if n.attrib.get('content-desc')=='主题列表')
+        vx1,vy1,vx2,vy2=box(viewport)
+        for node in snapshot.iter('node'):
+            if node.attrib.get('content-desc') != '应用'+label+'色系': continue
+            x1,y1,x2,y2=box(node)
+            if x2>x1 and y2-y1>=160 and vy1+4<(y1+y2)//2<vy2-4:
+                sh('input','tap',(x1+x2)//2,(y1+y2)//2);time.sleep(.4);return
+        sh('input','swipe',(vx1+vx2)//2,vy2-20,(vx1+vx2)//2,vy1+20,350);time.sleep(.3)
+    raise AssertionError('Theme is not reachable: '+label)
+
 def verify_themes():
-    palette=dict(forest=('#2E7D5A','#EAF0E8'),ocean=('#2E6F9E','#E7F0F7'),amber=('#965824','#F6EEDF'),rose=('#A7476D','#F7E7EE'),mint=('#247762','#E3F1ED'),slate=('#4B6078','#E7EAF0'))
-    for theme_id,label in [('forest','松绿'),('ocean','海蓝'),('amber','暖棕'),('rose','柔粉'),('mint','薄荷'),('slate','石墨')]:
-        tap('设置');tap('色系选择, '+{'forest':'松绿','ocean':'海蓝','amber':'暖棕','rose':'柔粉','mint':'薄荷','slate':'石墨'}[state()['settings']['themeId']]+', ›')
-        tap(label,'text');tap('关闭','text');time.sleep(.2)
+    requested=set(a.theme_ids.split(',')) if a.theme_ids else set(theme_labels)
+    assert requested and requested <= set(theme_labels), 'Unknown or empty --theme-ids'
+    checked=[choice for choice in themes if choice['id'] in requested]
+    for choice in checked:
+        theme_id,label,c=choice['id'],choice['label'],choice['colors']
+        tap('设置');tap('色系选择, '+theme_labels[state()['settings']['themeId']]+', ›')
+        choose_theme(label);tap('关闭');time.sleep(.2)
         assert state()['settings']['themeId']==theme_id
         shot('theme-'+theme_id+'-settings')
+        assert color_count('theme-'+theme_id+'-settings',box(find('检查更新')),c['primary'])>=100,'Primary action does not match palette'
+        assert color_count('theme-'+theme_id+'-settings',box(find('设置')),c['primary'])>=20,'Selected navigation indicator does not match palette'
         tap('习惯');tap('新建习惯');tap('习惯名称')
         deadline=time.monotonic()+10
         while time.monotonic()<deadline and not keyboard_visible(): time.sleep(.2)
         assert keyboard_visible(),'Habit input did not open the software keyboard'
         sh('input','keyevent',4);time.sleep(.5);tap('设置目标次数');time.sleep(.3)
         shot('theme-'+theme_id+'-input-switch')
-        assert color_count('theme-'+theme_id+'-input-switch',box(find('设置目标次数')),palette[theme_id][0])>=20,'Switch thumb does not match palette'
+        assert color_count('theme-'+theme_id+'-input-switch',box(find('设置目标次数')),c['primary'])>=20,'Switch thumb does not match palette'
         tap('习惯名称');sh('input','text','Cursor_test')
         cursor_seen=False
         for _ in range(3):
             shot('theme-'+theme_id+'-cursor')
-            if color_count('theme-'+theme_id+'-cursor',box(find('习惯名称')),palette[theme_id][0])>0:cursor_seen=True;break
+            if color_count('theme-'+theme_id+'-cursor',box(find('习惯名称')),c['primary'])>0:cursor_seen=True;break
             time.sleep(.25)
         assert cursor_seen,'Input cursor does not match palette'
+        x1,y1,x2,y2=box(find('习惯名称'))
+        sh('input','swipe',x1+45,(y1+y2)//2,x1+45,(y1+y2)//2,1100);time.sleep(.4)
+        shot('theme-'+theme_id+'-selection')
+        assert color_count('theme-'+theme_id+'-selection',box(find('习惯名称')),c['selection'])>=20,'Text selection does not match palette'
         tap('取消编辑');tap('继续编辑');tap('取消编辑');shot('theme-'+theme_id+'-confirmation')
-        assert color_count('theme-'+theme_id+'-confirmation',box(find('继续编辑')),palette[theme_id][1])>=100,'Confirmation does not match palette'
+        assert color_count('theme-'+theme_id+'-confirmation',box(find('继续编辑')),c['surfaceMuted'])>=100,'Confirmation does not match palette'
         tap('放弃修改')
         tap('备忘录');tap('打开 长文滑动验收');tap('备忘录正文');time.sleep(.2)
         shot('theme-'+theme_id+'-memo');tap('保存备忘录')
-        record('theme-'+theme_id+'-controlsAndConfirmation')
-    restart();tap('设置');assert state()['settings']['themeId']=='slate';record('selectedThemePersistsAfterRestart')
+        record('theme-'+theme_id+'-controlsSelectionAndConfirmation')
+    restart();tap('设置');assert state()['settings']['themeId']==checked[-1]['id'];record('selectedThemePersistsAfterRestart')
 
 
 def probe_small():
@@ -254,6 +300,12 @@ def probe_small():
     tap('保存备忘录');restart()
     assert state()['memos'][0]['body'].endswith('EDITEDMARKER')
     record('smallScreenTailSelectionEditAndRestartPersist')
+    tap('设置');tap('色系选择, '+theme_labels[state()['settings']['themeId']]+', ›')
+    choose_theme('橄榄');shot('small-large-font-theme-picker');tap('关闭')
+    assert state()['settings']['themeId']=='olive'
+    tap('色系选择, 橄榄, ›');choose_theme('松绿');tap('关闭')
+    assert state()['settings']['themeId']=='forest'
+    record('smallLargeFontThemePickerLastAndFirstChoicesReachable')
 
 
 
@@ -307,7 +359,17 @@ def capture_design():
         tap(label);shot(name)
     tap('备忘录');tap('打开 一周随记');shot('memo-editor');tap('返回备忘录列表')
     tap('多选与排序');shot('memo-organize');tap('完成整理')
-    tap('习惯');tap('新建习惯');shot('habit-create');tap('取消编辑')
+    tap('待办');tap('新建待办');tap('取消编辑');find('设置')
+    record('untouchedTodoCancelDoesNotPrompt')
+    before=business(state())
+    tap('新建待办');tap('待办名称');sh('input','text','Draft_test');tap('取消编辑');tap('继续编辑')
+    assert find('待办名称').attrib.get('text')=='Draft_test'
+    tap('取消编辑');tap('放弃修改');find('设置')
+    assert business(state())==before
+    record('changedTodoCancelKeepsDraftOrDiscardsWithoutSaving')
+    tap('习惯');tap('新建习惯');shot('habit-create');tap('取消编辑');find('设置')
+    record('untouchedHabitCancelDoesNotPrompt')
+    tap('设置');tap('色系选择, '+theme_labels[state()['settings']['themeId']]+', ›');shot('theme-picker');tap('关闭')
     record('syntheticDesignScreenshots')
 
 
@@ -427,7 +489,10 @@ try:
         time.sleep(2)
     else:raise AssertionError('Isolated emulator adb root unavailable')
     sh('settings','put','system','font_scale','1.0');sh('wm','size','720x1600');sh('settings','put','secure','show_ime_with_hard_keyboard','1');sh('input','keyevent',82)
+    assert 'com.android.internal.systemui.navbar.threebutton' in sh('cmd','overlay','list')
+    sh('cmd','overlay','enable-exclusive','--category','com.android.internal.systemui.navbar.threebutton')
     sh('svc','wifi','enable');sh('svc','data','enable');adb('emu','network','speed','full');time.sleep(3)
+    if a.system_night: sh('cmd','uimode','night','yes');time.sleep(1)
     mode='memoThemeFix' if a.final_apk else 'memoBaseline'
     record(mode+'Status','running')
     if a.screenshots_only:capture_design()
@@ -444,7 +509,7 @@ try:
     elif a.engineering_only:probe_engineering()
     elif a.small_only:probe_small()
     elif a.themes_only:
-        adb('install','-r',a.final_apk,timeout=90);restart();verify_themes()
+        adb('install','-r',a.final_apk,timeout=90);write_state(long_memo_fixture());launch();verify_themes()
     else:probe()
     record(mode+'Status','passed')
 except Exception as error:
@@ -453,6 +518,8 @@ except Exception as error:
     (a.out/'guest-network-log.txt').write_text(sh('logcat','-d','-t','300'))
     shot('failure-final');raise
 finally:
+    adb('shell','cmd','uimode','night','no',check=False)
+    adb('shell','cmd','overlay','enable-exclusive','--category','com.android.internal.systemui.navbar.threebutton',check=False)
     adb('shell','wm','size','720x1600',check=False);adb('shell','settings','put','system','font_scale','1.0',check=False)
     adb('emu','kill',check=False)
     try:emulator.wait(timeout=15)

@@ -216,7 +216,7 @@ function createStyles(theme: AppTheme) {
     screenOuter: { flex: 1 },
     screen: { flex: 1 },
     scrollView: { flex: 1 },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 0 },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,
@@ -225,7 +225,7 @@ function createStyles(theme: AppTheme) {
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
-    emptyTitle: { fontSize: 17, fontWeight: '800', color: theme.colors.textPrimary },
+    emptyTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
     habitList: { gap: 9 },
     groupEmpty: { paddingVertical: 14, fontSize: 13, color: theme.colors.textSecondary },
   });

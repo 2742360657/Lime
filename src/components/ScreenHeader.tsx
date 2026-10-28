@@ -40,11 +40,11 @@ function createStyles(theme: AppTheme) {
     eyebrow: {
       fontSize: 12,
       fontWeight: '700',
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
     },
     title: {
       fontSize: 28,
-      fontWeight: '800',
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
   });

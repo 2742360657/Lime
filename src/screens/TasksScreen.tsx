@@ -238,7 +238,7 @@ function createStyles(theme: AppTheme) {
     screen: { flex: 1 },
     scroll: { flex: 1 },
     sortExplanation: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 0 },
     list: { gap: 8 },
     emptyCard: {
       borderRadius: theme.radius.large,
@@ -248,6 +248,6 @@ function createStyles(theme: AppTheme) {
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
-    emptyTitle: { fontSize: 17, fontWeight: '800', color: theme.colors.textPrimary },
+    emptyTitle: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
   });
 }

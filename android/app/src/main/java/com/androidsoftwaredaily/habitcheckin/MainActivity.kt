@@ -2,6 +2,7 @@ package com.androidsoftwaredaily.habitcheckin
 
 import android.os.Build
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatDelegate
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -16,6 +17,9 @@ class MainActivity : ReactActivity() {
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
+    // All application palettes are light. Keep RN/Expo's edge-to-edge icon choice
+    // in sync with the app surface, including dialogs when the system uses night mode.
+    delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_NO
     super.onCreate(null)
   }
 

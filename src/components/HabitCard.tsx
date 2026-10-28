@@ -77,7 +77,9 @@ function createStyles(theme: AppTheme) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      borderRadius: theme.radius.medium,
+      borderRadius: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
       paddingHorizontal: 10,
       paddingVertical: 6,
       backgroundColor: theme.colors.surface,
@@ -86,7 +88,7 @@ function createStyles(theme: AppTheme) {
       paddingVertical: 6,
     },
     cardCompleted: {
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: theme.colors.surfaceMuted,
     },
     infoPressable: {
       flex: 1,
@@ -99,7 +101,7 @@ function createStyles(theme: AppTheme) {
     },
     name: {
       fontSize: 14,
-      fontWeight: '700',
+      fontWeight: '500',
       color: theme.colors.textPrimary,
     },
     countText: {
@@ -107,23 +109,23 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textSecondary,
     },
     countTextDone: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
       fontWeight: '700',
     },
     plusButton: {
       minWidth: 48,
       minHeight: 48,
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       paddingVertical: 10,
       paddingHorizontal: 10,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primarySoft,
     },
     plusText: {
       fontSize: 14,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.primaryText,
     },
     moreButton: {
       width: 36,

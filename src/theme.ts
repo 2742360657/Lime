@@ -1,158 +1,84 @@
+type SurfaceTone = {
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  border: string;
+  controlBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+};
+
+const neutral: SurfaceTone = {
+  background: '#F5F6F7', surface: '#FFFFFF', surfaceMuted: '#ECEEF0',
+  border: '#DDE1E5', controlBorder: '#7A8087',
+  textPrimary: '#252A30', textSecondary: '#565E66', textMuted: '#626A72',
+};
+const warm: SurfaceTone = {
+  background: '#F5F3EF', surface: '#FFFDF9', surfaceMuted: '#ECE9E3',
+  border: '#DEDAD2', controlBorder: '#807B72',
+  textPrimary: '#2C2925', textSecondary: '#625B53', textMuted: '#6B645B',
+};
+const quiet: SurfaceTone = {
+  background: '#F3F5F3', surface: '#FDFEFC', surfaceMuted: '#E9EDE9',
+  border: '#D9DFD9', controlBorder: '#778078',
+  textPrimary: '#272D29', textSecondary: '#576159', textMuted: '#626C64',
+};
+
+/** Mix related roles, never use the selected fill as a universal text/selection color. */
+function blend(a: string, b: string, weight: number) {
+  const channels = [1, 3, 5].map(offset => Math.round(
+    parseInt(a.slice(offset, offset + 2), 16) * (1 - weight) +
+    parseInt(b.slice(offset, offset + 2), 16) * weight));
+  return '#' + channels.map(channel => channel.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function preset<Id extends string>(id: Id, label: string, description: string,
+  primary: string, primarySoft: string, tone: SurfaceTone = neutral) {
+  return { id, label, description, colors: {
+    ...tone, primary, primarySoft,
+    primaryText: blend(primary, tone.textPrimary, .24),
+    onPrimary: '#FFFFFF',
+    selection: blend(tone.surface, primary, .22),
+    danger: '#A84147', dangerSoft: '#FAEDEF',
+  } };
+}
+
 export const THEME_PRESETS = {
-  forest: {
-    id: 'forest',
-    label: '松绿',
-    colors: {
-      background: '#F4F7F3',
-      surface: '#FFFFFF',
-      surfaceMuted: '#EAF0E8',
-      border: '#D9E3D7',
-      primary: '#2E7D5A',
-      primarySoft: '#DCEFE5',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#18231C',
-      textSecondary: '#5A6A60',
-      textMuted: '#5A6A60',
-      white: '#FFFFFF',
-    },
-  },
-  ocean: {
-    id: 'ocean',
-    label: '海蓝',
-    colors: {
-      background: '#F3F7FA',
-      surface: '#FFFFFF',
-      surfaceMuted: '#E7F0F7',
-      border: '#D7E2EB',
-      primary: '#2E6F9E',
-      primarySoft: '#DDECF8',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#182331',
-      textSecondary: '#587086',
-      textMuted: '#587086',
-      white: '#FFFFFF',
-    },
-  },
-  amber: {
-    id: 'amber',
-    label: '暖棕',
-    colors: {
-      background: '#FAF6F0',
-      surface: '#FFFFFF',
-      surfaceMuted: '#F6EEDF',
-      border: '#E7DAC3',
-      primary: '#965824',
-      primarySoft: '#F6E9D6',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#2A2117',
-      textSecondary: '#7A6247',
-      textMuted: '#7A6247',
-      white: '#FFFFFF',
-    },
-  },
-  rose: {
-    id: 'rose',
-    label: '柔粉',
-    colors: {
-      background: '#FBF4F7',
-      surface: '#FFFFFF',
-      surfaceMuted: '#F7E7EE',
-      border: '#EACFDC',
-      primary: '#A7476D',
-      primarySoft: '#F8E3EC',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#2A1B22',
-      textSecondary: '#7D5C6A',
-      textMuted: '#7D5C6A',
-      white: '#FFFFFF',
-    },
-  },
-  mint: {
-    id: 'mint',
-    label: '薄荷',
-    colors: {
-      background: '#F2F8F6',
-      surface: '#FFFFFF',
-      surfaceMuted: '#E3F1ED',
-      border: '#CEE4DC',
-      primary: '#247762',
-      primarySoft: '#D7F0E8',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#16231E',
-      textSecondary: '#5A756C',
-      textMuted: '#5A756C',
-      white: '#FFFFFF',
-    },
-  },
-  slate: {
-    id: 'slate',
-    label: '石墨',
-    colors: {
-      background: '#F3F4F6',
-      surface: '#FFFFFF',
-      surfaceMuted: '#E7EAF0',
-      border: '#D8DDE6',
-      primary: '#4B6078',
-      primarySoft: '#E3EAF3',
-      danger: '#B84545',
-      dangerSoft: '#F8E6E6',
-      textPrimary: '#1C232B',
-      textSecondary: '#5E6A79',
-      textMuted: '#5E6A79',
-      white: '#FFFFFF',
-    },
-  },
+  forest: preset('forest', '松绿', '柔和纸白 · 沉静绿', '#536F60', '#E8EEE9', quiet),
+  ocean: preset('ocean', '海蓝', '冷调浅灰 · 雾蓝', '#4F6D86', '#E8EDF3'),
+  amber: preset('amber', '暖棕', '暖纸底色 · 木棕', '#826648', '#F0EAE0', warm),
+  rose: preset('rose', '柔粉', '中性浅灰 · 灰玫瑰', '#936372', '#F3EBEE'),
+  mint: preset('mint', '薄荷', '清透纸白 · 青瓷', '#3F746F', '#E4EFEC'),
+  slate: preset('slate', '石墨', '冷调浅灰 · 岩蓝', '#526477', '#E8ECF0'),
+  graphite: preset('graphite', '玄墨', '中性浅灰 · 深石墨', '#343D47', '#E6E9ED'),
+  iris: preset('iris', '鸢紫', '中性浅灰 · 灰紫', '#6B5C85', '#ECE8F1'),
+  clay: preset('clay', '陶土', '暖纸底色 · 赭石', '#9A6049', '#F3EAE4', warm),
+  olive: preset('olive', '橄榄', '暖纸底色 · 苔绿', '#677047', '#ECEEE2', warm),
 } as const;
 
 export type ThemeId = keyof typeof THEME_PRESETS;
 type ThemePreset = (typeof THEME_PRESETS)[ThemeId];
 export type AppTheme = Omit<ThemePreset, 'colors'> & {
   colors: ThemePreset['colors'] & { scrim: string };
-  radius: {
-    large: number;
-    medium: number;
-    small: number;
-    pill: number;
-  };
+  radius: { large: number; medium: number; small: number; pill: number };
   shadow: {
-    shadowColor: string;
-    shadowOpacity: number;
-    shadowRadius: number;
-    shadowOffset: { width: number; height: number };
-    elevation: number;
+    shadowColor: string; shadowOpacity: number; shadowRadius: number;
+    shadowOffset: { width: number; height: number }; elevation: number;
   };
 };
 
 export const DEFAULT_THEME_ID: ThemeId = 'forest';
 
-/** Fields 12dp, content 16dp, dialogs/sheets 24dp; actions and filters use pill. */
-const SHARED_THEME_TOKENS = {
-  radius: {
-    large: 24,
-    medium: 16,
-    small: 12,
-    pill: 999,
-  },
-} as const;
-
+/** A restrained shape scale; circles are reserved for semantic controls, not all actions. */
 export function getTheme(themeId: ThemeId): AppTheme {
-  const preset = THEME_PRESETS[themeId] ?? THEME_PRESETS[DEFAULT_THEME_ID];
+  const choice = Object.prototype.hasOwnProperty.call(THEME_PRESETS, themeId)
+    ? THEME_PRESETS[themeId] : THEME_PRESETS[DEFAULT_THEME_ID];
   return {
-    ...preset,
-    ...SHARED_THEME_TOKENS,
-    colors: { ...preset.colors, scrim: preset.colors.textPrimary + "38" },
-    // shadowColor 跟随各主题的深色基调，而不是固定用松绿的色相
-    shadow: {
-      shadowColor: preset.colors.textPrimary,
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
-    },
+    ...choice,
+    radius: { large: 14, medium: 10, small: 6, pill: 999 },
+    colors: { ...choice.colors, scrim: choice.colors.textPrimary + '45' },
+    shadow: { shadowColor: choice.colors.textPrimary, shadowOpacity: .06,
+      shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   };
 }

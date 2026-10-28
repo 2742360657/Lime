@@ -11,7 +11,7 @@ export const ThemedTextInput = forwardRef<NativeTextInput, TextInputProps>((prop
     placeholderTextColor={theme.colors.textMuted}
     cursorColor={theme.colors.primary}
     selectionHandleColor={theme.colors.primary}
-    selectionColor={theme.colors.primarySoft}
+    selectionColor={theme.colors.selection}
     underlineColorAndroid="transparent"
     disableFullscreenUI
     {...props} />;

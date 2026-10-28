@@ -8,6 +8,7 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.content.Context
 import android.view.ViewGroup
+import android.view.WindowInsetsController
 import android.view.inspector.WindowInspector
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.EditText
@@ -65,10 +66,12 @@ internal class MemoMotionChecks(private val instrumentation: Instrumentation) {
     event(MotionEvent.ACTION_UP, p[0], y + distance, down)
     return beforeUp
   }
-  fun run(): String {
-    instrumentation.startActivitySync(Intent(instrumentation.targetContext, MainActivity::class.java)
+  fun run(chromeOnly: Boolean = false): String {
+    val activity = instrumentation.startActivitySync(Intent(instrumentation.targetContext, MainActivity::class.java)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     SystemClock.sleep(2200)
+    val mainAppearance = ui { activity.window.decorView.windowInsetsController?.systemBarsAppearance ?: 0 }
+    if (chromeOnly) check(mainAppearance and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS != 0) { "Activity navigation icons are light on a light palette" }
     click("备忘录")
     click("打开 长文滑动验收")
     fun find(view: View): EditText? {
@@ -80,6 +83,13 @@ internal class MemoMotionChecks(private val instrumentation: Instrumentation) {
     editor = ui { WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull(::find) }
       ?: error("Missing actual memo editor")
     val result = JSONObject()
+    if (chromeOnly) {
+      val appearances = ui { WindowInspector.getGlobalWindowViews().filter { it.isShown }
+        .map { it.windowInsetsController?.systemBarsAppearance ?: 0 } }
+      check(appearances.isNotEmpty() && appearances.all { it and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS != 0 }) { "Dialog navigation icons are not light-surface aware: $appearances" }
+      return result.put("mainAppearance", mainAppearance).put("windowAppearances", appearances.toString())
+        .put("lightNavigationInSystemDarkMode", true).toString()
+    }
     fun reset() { ui { editor.setSelection(0); editor.scrollTo(0, 200) }; SystemClock.sleep(80) }
     swipe(hold = true) // Release the initial controlled selection before measuring either build.
     reset()

@@ -33,20 +33,20 @@ export function ScreenScaffold({ panelTitle, panelItems, createAction, onOrganiz
   const title = TITLES[route.name] ?? panelTitle;
   return (
     <View style={styles.screenRoot}>
-      <View style={styles.header}>
+      {!organizing && <View style={styles.header}>
         <View style={styles.heading}>
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
           {route.name === 'today' && <Text numberOfLines={1} style={styles.subtitle}>{todayLabel}</Text>}
         </View>
         {onOrganize && <Pressable accessibilityRole="button" accessibilityLabel="多选与排序" onPress={onOrganize} style={styles.action}><Text style={styles.actionText}>整理</Text></Pressable>}
         {!organizing && panelItems.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`打开${panelTitle}菜单`} onPress={() => navigation.openDrawer()} style={styles.action}>
-          <AppIcon name="menu" color={theme.colors.primary} />
+          <AppIcon name="menu" color={theme.colors.textSecondary} />
           <Text style={styles.actionText}>{route.name === 'tasks' ? '日期' : route.name === 'habits' ? '分组' : route.name === 'memos' ? '分类' : '菜单'}</Text>
         </Pressable>}
         {createAction && <Pressable accessibilityRole="button" accessibilityLabel={createAction.label} onPress={createAction.onPress} style={[styles.action, styles.createAction]}>
           <Text style={styles.createText}>＋ 新建</Text>
         </Pressable>}
-      </View>
+      </View>}
       <Animated.View entering={SCREEN_ENTERING} style={styles.content}>
         {children}
       </Animated.View>
@@ -54,7 +54,7 @@ export function ScreenScaffold({ panelTitle, panelItems, createAction, onOrganiz
         {GLOBAL_NAV_ITEMS.map((item) => {
           const selected = route.name === item.id;
           return <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected }} onPress={() => navigation.navigate(item.id)} style={styles.bottomItem}>
-            <View style={[styles.iconPill, selected && styles.selectedPill]}><AppIcon name={item.id === 'trash' ? 'memos' : item.id} color={selected ? theme.colors.primary : theme.colors.textSecondary} /></View>
+            <View style={[styles.navIcon, selected && styles.selectedIcon]}><AppIcon name={item.id === 'trash' ? 'memos' : item.id} color={selected ? theme.colors.primary : theme.colors.textSecondary} /></View>
             <Text style={[styles.bottomLabel, selected && styles.selectedText]}>{item.label}</Text>
           </Pressable>;
         })}
@@ -67,18 +67,18 @@ function createStyles(theme: AppTheme) {
     screenRoot: { flex: 1, backgroundColor: theme.colors.background },
     header: { minHeight: 60, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
     heading: { flex: 1, gap: 2 },
-    title: { fontSize: 21, fontWeight: '700', color: theme.colors.textPrimary },
+    title: { fontSize: 20, fontWeight: '600', color: theme.colors.textPrimary },
     subtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
-    action: { minHeight: 44, paddingHorizontal: 10, borderRadius: theme.radius.pill, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent' },
-    actionText: { fontSize: 13, fontWeight: '600', color: theme.colors.primary },
+    action: { minHeight: 44, paddingHorizontal: 10, borderRadius: theme.radius.small, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent' },
+    actionText: { fontSize: 13, fontWeight: '500', color: theme.colors.textSecondary },
     createAction: { backgroundColor: theme.colors.primary, paddingHorizontal: 12 },
-    createText: { fontSize: 13, fontWeight: '600', color: theme.colors.white },
+    createText: { fontSize: 13, fontWeight: '600', color: theme.colors.onPrimary },
     content: { flex: 1 },
-    bottomBar: { flexDirection: 'row', paddingHorizontal: 8, paddingTop: 4, backgroundColor: theme.colors.surface },
+    bottomBar: { flexDirection: 'row', paddingHorizontal: 8, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
     bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 3 },
-    iconPill: { width: 56, height: 30, borderRadius: theme.radius.pill, alignItems: 'center', justifyContent: 'center' },
-    selectedPill: { backgroundColor: theme.colors.primarySoft },
-    bottomLabel: { fontSize: 11, fontWeight: '600', color: theme.colors.textSecondary },
-    selectedText: { color: theme.colors.primary, fontWeight: '700' },
+    navIcon: { width: 36, height: 28, borderTopWidth: 2, borderTopColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+    selectedIcon: { borderTopColor: theme.colors.primary },
+    bottomLabel: { fontSize: 12, fontWeight: '400', color: theme.colors.textSecondary },
+    selectedText: { color: theme.colors.primaryText, fontWeight: '600' },
   });
 }

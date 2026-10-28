@@ -162,12 +162,12 @@ function createStyles(theme: AppTheme) {
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     count: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
     action: {
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       paddingHorizontal: 14,
       paddingVertical: 9,
       backgroundColor: theme.colors.dangerSoft,
     },
-    actionText: { fontSize: 13, fontWeight: '800', color: theme.colors.danger },
+    actionText: { fontSize: 13, fontWeight: '600', color: theme.colors.danger },
     hint: { fontSize: 12, color: theme.colors.textSecondary },
     list: { gap: 9 },
     row: {
@@ -184,12 +184,12 @@ function createStyles(theme: AppTheme) {
     rowLabel: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
     rowSubtitle: { fontSize: 12, color: theme.colors.textSecondary },
     rowMeta: { fontSize: 11, color: theme.colors.textMuted },
-    restoreActionText: { fontSize: 13, fontWeight: '800', color: theme.colors.primary },
+    restoreActionText: { fontSize: 13, fontWeight: '600', color: theme.colors.primaryText },
     emptyCard: {
       borderRadius: theme.radius.large,
       padding: 20,
       backgroundColor: theme.colors.surface,
     },
-    emptyTitle: { fontSize: 16, fontWeight: '800', color: theme.colors.textPrimary },
+    emptyTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary },
   });
 }

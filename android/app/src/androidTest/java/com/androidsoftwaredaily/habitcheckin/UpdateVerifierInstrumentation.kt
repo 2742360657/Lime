@@ -17,9 +17,10 @@ class UpdateVerifierInstrumentation : Instrumentation() {
   }
   override fun onStart() {
     val result = Bundle()
-    if (arguments.getString("mode") == "memoMotion") {
+    if (arguments.getString("mode") in listOf("memoMotion", "memoChrome")) {
       try {
-        result.putString("memoMotion", MemoMotionChecks(this).run())
+        val chrome = arguments.getString("mode") == "memoChrome"
+        result.putString(if (chrome) "memoChrome" else "memoMotion", MemoMotionChecks(this).run(chrome))
         finish(Activity.RESULT_OK, result)
       } catch (error: Throwable) {
         result.putString("error", error.toString())

@@ -149,7 +149,7 @@ function createStyles(theme: AppTheme) {
     primaryButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     secondaryButton: {
       flex: 1,

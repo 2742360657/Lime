@@ -188,7 +188,7 @@ function createStyles(theme: AppTheme) {
       fontSize: 11,
     },
     activeDayText: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
     },
     countText: {
       minHeight: 12,
@@ -200,11 +200,11 @@ function createStyles(theme: AppTheme) {
       fontSize: 8,
     },
     activeCountText: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
       fontWeight: '700',
     },
     selectedText: {
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
   });
 }

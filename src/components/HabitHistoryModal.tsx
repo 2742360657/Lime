@@ -235,7 +235,7 @@ function createStyles(theme: AppTheme) {
     },
     title: {
       fontSize: 20,
-      fontWeight: '800',
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
     subtitle: {
@@ -275,7 +275,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textSecondary,
     },
     modeButtonTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
     },
     content: {
       gap: 14,
@@ -311,7 +311,7 @@ function createStyles(theme: AppTheme) {
     },
     periodTitle: {
       fontSize: 20,
-      fontWeight: '800',
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
     periodMeta: {
@@ -340,8 +340,8 @@ function createStyles(theme: AppTheme) {
     },
     monthMeta: {
       fontSize: 18,
-      fontWeight: '800',
-      color: theme.colors.primary,
+      fontWeight: '600',
+      color: theme.colors.primaryText,
     },
     monthDays: {
       fontSize: 11,

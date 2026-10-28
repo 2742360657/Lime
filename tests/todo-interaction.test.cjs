@@ -56,7 +56,7 @@ test('sorting warns only for conflicting deadlines within a group, not valid man
   assert.equal(hasTodoDateOrderConflict(ordered(['unknown', 'a']), items), false);
 });
 
-test('all six themes keep primary action text and small secondary text readable', () => {
+test('all themes keep primary action text and small secondary text readable', () => {
   const luminance = hex => {
     const channels = hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
     return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
@@ -64,7 +64,7 @@ test('all six themes keep primary action text and small secondary text readable'
   const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + .05) / (Math.min(luminance(a), luminance(b)) + .05);
   for (const id of Object.keys(THEME_PRESETS)) {
     const { colors } = getTheme(id);
-    assert.ok(contrast(colors.primary, colors.white) >= 4.5, `${id}: primary button text`);
+    assert.ok(contrast(colors.primary, colors.onPrimary) >= 4.5, `${id}: primary button text`);
     assert.ok(contrast(colors.textSecondary, colors.background) >= 4.5, `${id}: secondary text`);
   }
 });

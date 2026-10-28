@@ -70,7 +70,9 @@ function createStyles(theme: AppTheme) {
       paddingHorizontal: 10,
       paddingVertical: 6,
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radius.medium,
+      borderRadius: 0,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
     },
     dueChip: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
     dueChipHint: { fontSize: 10, fontWeight: '700', color: theme.colors.textMuted },
@@ -85,7 +87,7 @@ function createStyles(theme: AppTheme) {
       height: 22,
       borderRadius: 14,
       borderWidth: 1.5,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.controlBorder,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.surface,
@@ -100,7 +102,7 @@ function createStyles(theme: AppTheme) {
       color: 'transparent',
     },
     checkTextDone: {
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     checkTarget: { width: 40, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
     textTarget: { minHeight: 24, justifyContent: 'center', gap: 4 },
@@ -112,7 +114,7 @@ function createStyles(theme: AppTheme) {
     title: {
       flexShrink: 1,
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: '500',
       color: theme.colors.textPrimary,
     },
     titleDone: {

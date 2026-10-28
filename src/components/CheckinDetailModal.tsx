@@ -232,7 +232,7 @@ function createStyles(theme: AppTheme) {
     addButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     content: {
       gap: 10,

@@ -123,3 +123,27 @@ test('incomplete or malformed current backups are rejected instead of normalizin
   assert.throws(() => coerceAppData({ version: 7, habits: [], groups: [], todos: 'broken', memoGroups: [], memos: [] }));
   assert.throws(() => coerceAppData({ version: 1, habits: null }));
 });
+
+
+test('all theme IDs survive backup round trips without altering business records', () => {
+  const { THEME_PRESETS } = require('../src/theme.ts');
+  const base = { version: 7, habits: [habit(0, [record])], groups: [], todos: [], memoGroups: [], memos: [], settings: {} };
+  for (const themeId of Object.keys(THEME_PRESETS)) {
+    const original = coerceAppData({ ...base, settings: { themeId } });
+    const restored = coerceAppData(JSON.parse(buildBackupPayload(original)));
+    assert.equal(restored.settings.themeId, themeId);
+    assert.deepEqual(restored.habits, original.habits);
+  }
+  assert.equal(coerceAppData({ ...base, settings: { themeId: 'future-unknown' } }).settings.themeId, 'forest');
+});
+
+
+test('prototype property names cannot become a theme through restored preferences', () => {
+  const { getTheme } = require('../src/theme.ts');
+  for (const themeId of ['__proto__','constructor','toString']) {
+    assert.equal(getTheme(themeId).id, 'forest');
+    const restored = coerceAppData({ version: 7, habits: [habit(0,[record])], groups: [], todos: [], memos: [], memoGroups: [], settings: { themeId } });
+    assert.equal(restored.settings.themeId, 'forest');
+    assert.deepEqual(restored.habits[0].checkins, [record]);
+  }
+});

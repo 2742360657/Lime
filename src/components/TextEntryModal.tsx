@@ -127,7 +127,7 @@ function createStyles(theme: AppTheme) {
       minWidth: 92,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },
@@ -137,7 +137,7 @@ function createStyles(theme: AppTheme) {
     primaryButtonText: {
       fontSize: 14,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     secondaryButton: {
       backgroundColor: theme.colors.surfaceMuted,

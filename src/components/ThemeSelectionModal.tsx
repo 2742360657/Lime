@@ -1,144 +1,61 @@
 import { useMemo } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAppActions, useSettings, useTheme } from '../state/AppProvider';
-import type { AppTheme } from '../theme';
+import { getTheme, THEME_PRESETS, type AppTheme, type ThemeId } from '../theme';
 
-import { THEME_PRESETS, ThemeId } from '../theme';
-
-type ThemeSelectionModalProps = {
-  visible: boolean;
-  onClose: () => void;
-};
-
-export function ThemeSelectionModal({ visible, onClose }: ThemeSelectionModalProps) {
+export function ThemeSelectionModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { settings } = useSettings();
   const { setThemeId } = useAppActions();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.card}>
-          <Text style={styles.title}>色系选择</Text>
-
-          <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-            {(Object.keys(THEME_PRESETS) as ThemeId[]).map((themeId) => {
-              const preset = THEME_PRESETS[themeId];
-              const selected = settings.themeId === themeId;
-
-              return (
-                <TouchableOpacity
-                  key={themeId}
-                  onPress={() => setThemeId(themeId)}
-                  style={[styles.row, selected && styles.rowActive]}
-                >
-                  <View style={styles.swatches}>
-                    <View style={[styles.swatch, { backgroundColor: preset.colors.primary }]} />
-                    <View style={[styles.swatch, { backgroundColor: preset.colors.primarySoft }]} />
-                    <View style={[styles.swatch, { backgroundColor: preset.colors.surfaceMuted }]} />
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.overlay}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="关闭色系选择" />
+      <View style={styles.card}>
+        <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>色系选择</Text><Text style={styles.hint}>点选即时预览</Text></View>
+        <ScrollView accessibilityLabel="主题列表" contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {(Object.keys(THEME_PRESETS) as ThemeId[]).map(id => {
+            const choice = getTheme(id);
+            const selected = settings.themeId === id;
+            return <TouchableOpacity key={id} accessibilityRole="button" accessibilityLabel={`应用${choice.label}色系`}
+              accessibilityState={{ selected }} onPress={() => setThemeId(id)} style={[styles.option, selected && styles.selected]}>
+              <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.preview, { backgroundColor: choice.colors.background }]}>
+                <View style={[styles.previewHeading, { backgroundColor: choice.colors.textPrimary }]} />
+                <View style={[styles.previewPaper, { backgroundColor: choice.colors.surface }]}>
+                  <View style={styles.previewCopy}>
+                    <View style={[styles.previewLine, { backgroundColor: choice.colors.textSecondary }]} />
+                    <View style={[styles.previewLineShort, { backgroundColor: choice.colors.border }]} />
                   </View>
-                  <Text style={[styles.label, selected && styles.labelActive]}>{preset.label}</Text>
-                  {selected ? <Text style={styles.selectedMark}>当前</Text> : null}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>关闭</Text>
-          </TouchableOpacity>
-        </View>
+                  <View style={[styles.previewAction, { backgroundColor: choice.colors.primary }]} />
+                </View>
+              </View>
+              <View style={styles.labelRow}><Text style={styles.label}>{choice.label}</Text>{selected && <Text style={styles.mark}>已选</Text>}</View>
+              <Text style={styles.description}>{choice.description}</Text>
+            </TouchableOpacity>;
+          })}
+        </ScrollView>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="关闭" onPress={onClose} style={styles.closeButton}><Text style={styles.closeText}>关闭</Text></TouchableOpacity>
       </View>
-    </Modal>
-  );
+    </View>
+  </Modal>;
 }
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-      backgroundColor: theme.colors.scrim,
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-    },
-    card: {
-      width: '100%',
-      maxHeight: '82%',
-      borderRadius: theme.radius.large,
-      padding: 20,
-      backgroundColor: theme.colors.surface,
-      gap: 14,
-      ...theme.shadow,
-    },
-    title: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    list: {
-      gap: 10,
-    },
-    row: {
-      borderRadius: theme.radius.medium,
-      padding: 14,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    rowActive: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    swatches: {
-      flexDirection: 'row',
-      gap: 6,
-    },
-    swatch: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-    },
-    label: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    labelActive: {
-      color: theme.colors.primary,
-    },
-    selectedMark: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: theme.colors.primary,
-    },
-    closeButton: {
-      borderRadius: theme.radius.pill,
-      paddingVertical: 12,
-      alignItems: 'center',
-      backgroundColor: theme.colors.surfaceMuted,
-    },
-    closeButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-    },
+    overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: theme.colors.scrim },
+    card: { width: '100%', maxHeight: '86%', borderRadius: theme.radius.large, padding: 18, gap: 14, backgroundColor: theme.colors.surface, ...theme.shadow },
+    heading: { gap: 4 }, title: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
+    hint: { fontSize: 12, color: theme.colors.textSecondary },
+    list: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, paddingBottom: 2 },
+    option: { width: '48%', borderRadius: theme.radius.small, borderWidth: 1, borderColor: theme.colors.border, padding: 8, gap: 5, backgroundColor: theme.colors.surface },
+    selected: { borderColor: theme.colors.primary, borderWidth: 1.5 },
+    preview: { height: 44, borderRadius: 3, padding: 7, gap: 5 }, previewHeading: { height: 3, width: '34%', borderRadius: 1 },
+    previewPaper: { flex: 1, padding: 5, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    previewCopy: { flex: 1, gap: 4 }, previewLine: { height: 2, width: '80%' }, previewLineShort: { height: 2, width: '60%' },
+    previewAction: { height: 10, width: 16, borderRadius: 2 },
+    labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, label: { flex: 1, fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
+    mark: { fontSize: 11, fontWeight: '600', color: theme.colors.primaryText }, description: { fontSize: 11, color: theme.colors.textMuted },
+    closeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.small, backgroundColor: theme.colors.surfaceMuted },
+    closeText: { fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
   });
 }

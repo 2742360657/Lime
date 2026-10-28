@@ -41,12 +41,12 @@ function createStyles(theme: AppTheme) {
       height: 26,
       borderRadius: 13,
       borderWidth: 2,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.controlBorder,
       backgroundColor: theme.colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     circleOn: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
-    tick: { fontSize: 14, fontWeight: '900', color: theme.colors.white },
+    tick: { fontSize: 14, fontWeight: '900', color: theme.colors.onPrimary },
   });
 }

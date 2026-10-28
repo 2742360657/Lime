@@ -530,8 +530,8 @@ function createStyles(theme: AppTheme) {
       justifyContent: 'space-between',
       paddingHorizontal: 4,
     },
-    groupTitle: { fontSize: 15, fontWeight: '800', color: theme.colors.textSecondary },
-    groupTitleActive: { color: theme.colors.primary },
+    groupTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.textSecondary },
+    groupTitleActive: { color: theme.colors.primaryText },
     groupCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textMuted },
     itemSlot: { position: 'absolute', left: 0, right: 0, zIndex: 1 },
     row: {

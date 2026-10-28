@@ -88,7 +88,7 @@ function createStyles(theme: AppTheme) {
     dangerTitle: { color: theme.colors.danger },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     meta: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },
-    chevron: { fontSize: 12, fontWeight: '700', color: theme.colors.primary },
+    chevron: { fontSize: 12, fontWeight: '700', color: theme.colors.primaryText },
     body: { overflow: 'hidden' },
     bodyExpanded: {},
     bodyCollapsed: { height: 0 },

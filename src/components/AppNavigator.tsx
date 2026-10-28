@@ -93,7 +93,7 @@ function createStyles(theme: AppTheme) {
     },
     drawerTitle: {
       fontSize: 22,
-      fontWeight: '800',
+      fontWeight: '600',
       color: theme.colors.textPrimary,
       paddingHorizontal: 14,
       paddingBottom: 12,
@@ -102,6 +102,6 @@ function createStyles(theme: AppTheme) {
     item: { paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14 },
     itemSelected: { backgroundColor: theme.colors.primarySoft },
     itemText: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary },
-    itemTextSelected: { color: theme.colors.primary, fontWeight: '800' },
+    itemTextSelected: { color: theme.colors.primaryText, fontWeight: '600' },
   });
 }

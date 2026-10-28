@@ -69,6 +69,7 @@ jobs:
           source scripts/env.sh
           python3 scripts/setup-android-test.py
           apk="artifacts/preview/lime-$(node -p 'require("./package.json").version')-x86_64.apk"
+          python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/chrome --final-apk "$apk" --chrome-only --motion-test-apk android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/motion --final-apk "$apk" --motion-only --motion-test-apk android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/ui --final-apk "$apk"
           python3 tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" --out artifacts/small --final-apk "$apk" --small-only

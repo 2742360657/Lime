@@ -25,8 +25,8 @@ export function EditorLayout({ title, onClose, onSave, disabled, children }: Pro
           <Text style={{ color: theme.colors.textSecondary, fontSize: 15 }}>取消</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`保存${title.includes('习惯') ? '习惯' : '待办'}`} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onSave} style={[styles.action, { backgroundColor: theme.colors.primary, opacity: disabled ? 0.4 : 1, borderRadius: theme.radius.pill }]}>
-          <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '700' }}>保存</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`保存${title.includes('习惯') ? '习惯' : '待办'}`} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onSave} style={[styles.action, { backgroundColor: theme.colors.primary, opacity: disabled ? 0.4 : 1, borderRadius: theme.radius.small }]}>
+          <Text style={{ color: theme.colors.onPrimary, fontSize: 15, fontWeight: '700' }}>保存</Text>
         </TouchableOpacity>
       </View>
       {children}

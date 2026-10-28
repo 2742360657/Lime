@@ -10,7 +10,7 @@
 
 结构与保存协议见[架构说明](architecture.md)，本轮决策和后续选型条件见[工程治理](engineering.md)。`npm run check` 包含仓库元数据、导入边界、严格类型及全部Node测试；`npm test` 可独立运行业务和故障注入测试，`npm run fix:imports` 使用项目固定TypeScript整理导入。禁止为了通过检查关闭noUnused或用any绕过领域边界。
 
-GitHub Check在PR/main执行Node检查、无私密签名的x86_64预览构建及原生回归用例编译；workflow_dispatch勾选android_ui可额外跑实际正文惯性、完整IME/六主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。CI先显式加载SDK工具路径并使用Java21安装SDK包，再切回项目声明的Java17构建，避免依赖runner默认PATH或JDK。
+GitHub Check在PR/main执行Node检查、无私密签名的x86_64预览构建及原生回归用例编译；workflow_dispatch勾选android_ui可额外跑实际正文惯性、完整IME/全部主题、小屏和工程场景。预览产物仅供测试，不能作为正式更新发布。远端CI与本地结果分别核对。CI先显式加载SDK工具路径并使用Java21安装SDK包，再切回项目声明的Java17构建，避免依赖runner默认PATH或JDK。
 
 ## 环境与初始化
 
@@ -106,11 +106,11 @@ python tests/android/update_e2e.py --sdk /local/test-sdk --out /local/task-evide
 
 ## 输入与色系回归
 
-多行备忘录正文使用有界原生 TextInput 独立滚动，不嵌套另一个纵向 ScrollView。键盘出现后保留实际正文视口；禁止通过光标跳末尾或只滑动外层留白来判定正文可用。`tests/android/memo_theme_e2e.py` 在文字区域发起拖动，OCR验证实际首末行，再长按末词、替换、核对自动保存和放弃回滚；另检查六套主题的设置、输入/开关、确认框和重启。
+多行备忘录正文使用有界原生 TextInput 独立滚动，不嵌套另一个纵向 ScrollView。键盘出现后保留实际正文视口；禁止通过光标跳末尾或只滑动外层留白来判定正文可用。`tests/android/memo_theme_e2e.py` 在文字区域发起拖动，OCR验证实际首末行，再长按末词、替换、核对自动保存和放弃回滚；另检查全部主题的设置、输入光标/选区、开关、确认框、导航和重启。用scripts/theme-palette.cjs从源码读取主题清单，新增色系自动进入UI遍历；Node用例验证实际角色组合的文字/必要控件对比度及备份往返。
 
 应用内输入、开关和确认框分别使用 ThemedTextInput、ThemedSwitch、ThemedAlert，避免原生固定强调色。危险操作仍需确认，旧确认按钮的回调/取消语义不变，队列以请求ID防止重复触发。系统键盘、选取器与安装界面由Android管理。
 
-UI脚本使用本机已有的 Tesseract 和 ImageMagick 读取截图；控件区域颜色允许3级通道取整误差，仍区分六套调色板，不以“看起来是绿色”代替校验。
+UI脚本使用本机已有的 Tesseract 和 ImageMagick 读取截图；控件区域颜色允许3级通道取整误差，仍区分全部调色板，不以“看起来是绿色”代替校验。
 
 若现有测试SDK不可用，在项目环境中运行 `python scripts/setup-android-test.py`，从官方SDK清单获取并校验归档，仅安装到本任务 `.local/android-test-sdk`；不修改宿主SDK和个人AVD。测试入口：
 
@@ -119,7 +119,9 @@ python tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" \
   --out /local/task-evidence --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk
 ```
 
-可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落和末词编辑。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
+可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--theme-ids forest,clay` 聚焦指定色系，`--system-night` 在隔离系统深色模式下检查固定浅色调色板。`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落、末词编辑，以及色系选择首末项可达。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
+
+当前十套均为浅色主题。原生AppTheme固定Light，MainActivity本地指定MODE_NIGHT_NO，禁止系统自动强制深色并使用深色导航图标；不随系统night重绘应用配色。用下节的测试APK配合`--chrome-only --motion-test-apk /path/to/app-release-androidTest.apk`，在隔离系统night下检查Activity和实际RN正文弹层的导航栏标记并在Instrumentation结束后独立重启、打开实际正文，核对前台窗口和DisplayPolicy的LIGHT_NAVIGATION_BARS标记并保留截图。测试结束会关闭Instrumentation启动的Activity，不能把退出动画/桌面截图作为应用显示证据。另留系统设置深浅模式截图供定位系统栏渲染差异；窗口标记不等于所有系统镜像/OEM的像素表现，此检查不代表实现了深色主题。
 
 ### 正文惯性验收
 

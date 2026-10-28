@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -40,8 +40,8 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
   const [cadence, setCadence] = useState<HabitCadence>('daily');
   const [targetCount, setTargetCount] = useState('1');
   const [hasTarget, setHasTarget] = useState(false);
-  const snapshot = useRef('');
-  const dirty = visible && snapshot.current !== JSON.stringify({ name, selectedGroupId, cadence, targetCount, hasTarget });
+  const [snapshot, setSnapshot] = useState(() => JSON.stringify({ name: '', selectedGroupId: null, cadence: 'daily', targetCount: '1', hasTarget: false }));
+  const dirty = visible && snapshot !== JSON.stringify({ name, selectedGroupId, cadence, targetCount, hasTarget });
   const requestClose = useConfirmDiscard(dirty, onClose);
 
 
@@ -49,7 +49,7 @@ export function AddHabitModal({ visible, habit = null, onClose }: AddHabitModalP
     if (!visible) {
       return;
     }
-    snapshot.current = JSON.stringify({ name: habit?.name ?? '', selectedGroupId: habit?.groupId ?? null, cadence: habit?.cadence ?? 'daily', targetCount: String(habit?.targetCount || 1), hasTarget: !!habit && habit.targetCount > 0 });
+    setSnapshot(JSON.stringify({ name: habit?.name ?? '', selectedGroupId: habit?.groupId ?? null, cadence: habit?.cadence ?? 'daily', targetCount: String(habit?.targetCount || 1), hasTarget: !!habit && habit.targetCount > 0 }));
     setName(habit?.name ?? '');
     setSelectedGroupId(habit?.groupId ?? null);
     setCadence(habit?.cadence ?? 'daily');
@@ -176,7 +176,7 @@ function createStyles(theme: AppTheme) {
       borderBottomColor: theme.colors.border,
       paddingVertical: 14,
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: '500',
       color: theme.colors.textPrimary,
     },
     cadenceList: { flexDirection: 'row', gap: 9 },
@@ -191,8 +191,8 @@ function createStyles(theme: AppTheme) {
       backgroundColor: theme.colors.surface,
     },
     cadenceCardActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
-    cadenceLabel: { fontSize: 15, fontWeight: '800', color: theme.colors.textPrimary },
-    cadenceLabelActive: { color: theme.colors.primary },
+    cadenceLabel: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
+    cadenceLabelActive: { color: theme.colors.primaryText },
     targetRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -210,13 +210,13 @@ function createStyles(theme: AppTheme) {
       borderRadius: theme.radius.small,
       textAlign: 'center',
       fontSize: 20,
-      fontWeight: '800',
-      color: theme.colors.primary,
+      fontWeight: '600',
+      color: theme.colors.primaryText,
       backgroundColor: theme.colors.primarySoft,
     },
     groupList: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     groupChip: {
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
@@ -225,6 +225,6 @@ function createStyles(theme: AppTheme) {
     },
     groupChipActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
     groupChipText: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    groupChipTextActive: { color: theme.colors.primary },
+    groupChipTextActive: { color: theme.colors.primaryText },
   });
 }

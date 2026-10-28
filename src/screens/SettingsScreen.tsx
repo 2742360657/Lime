@@ -168,8 +168,8 @@ function createStyles(theme: AppTheme) {
       gap: 10,
     },
     sectionTitle: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: 13,
+      fontWeight: '600',
       color: theme.colors.textPrimary,
     },
     settingRow: {
@@ -188,7 +188,7 @@ function createStyles(theme: AppTheme) {
     },
     settingLabel: {
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: '500',
       color: theme.colors.textPrimary,
     },
     settingValue: {
@@ -198,7 +198,7 @@ function createStyles(theme: AppTheme) {
     settingArrow: {
       fontSize: 12,
       fontWeight: '700',
-      color: theme.colors.primary,
+      color: theme.colors.primaryText,
     },
     actionRow: {
       flexDirection: 'row',
@@ -206,7 +206,7 @@ function createStyles(theme: AppTheme) {
     },
     primaryAction: {
       flex: 1,
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',
@@ -215,11 +215,11 @@ function createStyles(theme: AppTheme) {
     primaryActionText: {
       fontSize: 14,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',

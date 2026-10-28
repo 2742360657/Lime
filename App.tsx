@@ -137,7 +137,7 @@ function AppShell() {
       <View style={styles.app}>
         {isLoading ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ActivityIndicator size="large" color={theme.colors.primaryText} />
             <Text style={styles.loadingText}>正在读取本地数据...</Text>
           </View>
         ) : loadError ? (
@@ -167,7 +167,7 @@ function AppShell() {
         )}
       </View>
 
-      {isRestoring ? <View style={styles.restoringOverlay}><ActivityIndicator color={theme.colors.primary} /><Text style={styles.loadingText}>正在保存恢复的数据…</Text></View> : null}
+      {isRestoring ? <View style={styles.restoringOverlay}><ActivityIndicator color={theme.colors.primaryText} /><Text style={styles.loadingText}>正在保存恢复的数据…</Text></View> : null}
 
       {exitPromptVisible ? (
         <View
@@ -242,6 +242,6 @@ function createStyles(theme: AppTheme) {
       paddingVertical: 10,
       backgroundColor: theme.colors.primarySoft,
     },
-    promptButtonText: { fontSize: 13, fontWeight: '800', color: theme.colors.primary },
+    promptButtonText: { fontSize: 13, fontWeight: '800', color: theme.colors.primaryText },
   });
 }

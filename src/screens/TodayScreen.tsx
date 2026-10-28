@@ -152,7 +152,7 @@ export function TodayScreen() {
   );
 
 
-  const listRows: VirtualRow[] = [{ key: 'overview', render: () => <View style={styles.overview}><Text style={styles.overviewBody}>{todayTodoIds.length} 项未完成待办 · {habits.length} 个可记录的习惯</Text><Text style={styles.overviewHint}>先处理临近截止的事，其他任务也能提前做。</Text></View> }];
+  const listRows: VirtualRow[] = [{ key: 'overview', render: () => <View style={styles.overview}><Text style={styles.overviewBody}>{todayTodoIds.length} 项未完成待办 · {habits.length} 个可记录的习惯</Text></View> }];
   const heading = (id: string, title: string, meta: string) => listRows.push({ key: `header:${id}`, render: () => <SectionHeading title={title} meta={meta} collapsed={collapsed.has(id)} danger={id === 'overdue'} onToggle={() => toggleBucket(id)} /> });
   const appendBuckets = (buckets: typeof allBuckets) => {
     for (const bucket of buckets) {
@@ -337,9 +337,9 @@ function createStyles(theme: AppTheme) {
     scroll: { flex: 1 },
     overview: { paddingVertical: 10, gap: 5, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
     overviewTitle: { fontSize: 19, fontWeight: '700', color: theme.colors.textPrimary },
-    overviewBody: { fontSize: 16, color: theme.colors.primary, fontWeight: '600' },
+    overviewBody: { fontSize: 13, color: theme.colors.textSecondary, fontWeight: '400' },
     overviewHint: { fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 8 },
+    content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 28, gap: 0 },
     list: { gap: 8 },
     emptyText: { fontSize: 13, color: theme.colors.textSecondary },
     emptyCard: {
@@ -350,6 +350,6 @@ function createStyles(theme: AppTheme) {
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
-    emptyTitle: { fontSize: 15, fontWeight: '800', color: theme.colors.textPrimary },
+    emptyTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
   });
 }

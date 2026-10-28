@@ -55,7 +55,7 @@ function createStyles(theme: AppTheme) {
     message: {
       flex: 1,
       fontSize: 14,
-      color: theme.colors.white,
+      color: theme.colors.onPrimary,
     },
     action: {
       minHeight: 48,
@@ -64,7 +64,7 @@ function createStyles(theme: AppTheme) {
     },
     actionText: {
       fontSize: 14,
-      fontWeight: '800',
+      fontWeight: '600',
       color: theme.colors.primarySoft,
     },
   });

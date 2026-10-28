@@ -5,7 +5,7 @@ import { EditorLayout, useConfirmDiscard } from './EditorLayout';
 import { Alert } from './ThemedAlert';
 import { ThemedTextInput as TextInput } from './ThemedTextInput';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -40,8 +40,8 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
   const [dueMode, setDueMode] = useState<DueMode>('none');
   const [customDate, setCustomDate] = useState(getTodayKey());
   const [dueTime, setDueTime] = useState('');
-  const snapshot = useRef('');
-  const dirty = visible && snapshot.current !== JSON.stringify({ title, note, dueMode, customDate, dueTime });
+  const [snapshot, setSnapshot] = useState(() => JSON.stringify({ title: '', note: '', dueMode: 'none', customDate: getTodayKey(), dueTime: '' }));
+  const dirty = visible && snapshot !== JSON.stringify({ title, note, dueMode, customDate, dueTime });
   const requestClose = useConfirmDiscard(dirty, onClose);
 
 
@@ -53,7 +53,7 @@ export function TodoEditorModal({ visible, todo = null, onClose }: TodoEditorMod
     const todayKey = getTodayKey();
     const tomorrowKey = addDaysToDateKey(todayKey, 1);
     const initialMode: DueMode = !todo?.dueDateKey ? 'none' : todo.dueDateKey === todayKey ? 'today' : todo.dueDateKey === tomorrowKey ? 'tomorrow' : 'custom';
-    snapshot.current = JSON.stringify({ title: todo?.title ?? '', note: todo?.note ?? '', dueMode: initialMode, customDate: todo?.dueDateKey ?? todayKey, dueTime: todo?.dueTime ?? '' });
+    setSnapshot(JSON.stringify({ title: todo?.title ?? '', note: todo?.note ?? '', dueMode: initialMode, customDate: todo?.dueDateKey ?? todayKey, dueTime: todo?.dueTime ?? '' }));
     setTitle(todo?.title ?? '');
     setNote(todo?.note ?? '');
     setCustomDate(todo?.dueDateKey ?? todayKey);
@@ -255,7 +255,7 @@ function createStyles(theme: AppTheme) {
     noteInput: { minHeight: 112, textAlignVertical: 'top' },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     chip: {
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 14,
@@ -265,7 +265,7 @@ function createStyles(theme: AppTheme) {
     },
     chipActive: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
     chipText: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    chipTextActive: { color: theme.colors.primary },
+    chipTextActive: { color: theme.colors.primaryText },
     timeRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -288,7 +288,7 @@ function createStyles(theme: AppTheme) {
     deleteButton: {
       paddingVertical: 14,
       alignItems: 'center',
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       backgroundColor: theme.colors.dangerSoft,
     },
     deleteButtonText: { fontSize: 13, fontWeight: '700', color: theme.colors.danger },

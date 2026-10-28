@@ -195,7 +195,7 @@ export function MemoEditor({
             </TouchableOpacity>
             <View style={styles.editorHeading}>
               <Text style={styles.editorTitle}>{isNew ? '新建备忘录' : '编辑备忘录'}</Text>
-              <Text accessibilityLiveRegion="polite" style={styles.editorHint}>{
+              <Text accessibilityLiveRegion="polite" numberOfLines={1} style={styles.editorHint}>{
                 saveStatus === 'error' ? '保存失败 · 点击保存重试' :
                 title !== published.title || body !== published.body || groupId !== published.groupId ? '编辑中 · 稍后自动保存' :
                 saveStatus === 'saving' ? '正在保存…' : hasContent ? '已保存到本机' : '输入后自动保存'
@@ -282,7 +282,7 @@ function createStyles(theme: AppTheme) {
     screen: { flex: 1, backgroundColor: theme.colors.surface },
     editorHeading: { flex: 1, gap: 3, paddingHorizontal: 8 },
     editorTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary },
-    editorHint: { fontSize: 11, color: theme.colors.textSecondary },
+    editorHint: { fontSize: 12, color: theme.colors.textSecondary },
     editorHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -292,20 +292,20 @@ function createStyles(theme: AppTheme) {
       paddingBottom: 6,
     },
     backLink: { minHeight: 48, justifyContent: 'center', paddingVertical: 8, paddingRight: 12 },
-    backLinkText: { fontSize: 15, fontWeight: '500', color: theme.colors.primary },
+    backLinkText: { fontSize: 15, fontWeight: '500', color: theme.colors.primaryText },
     saveButton: {
       minHeight: 44,
       justifyContent: 'center',
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       paddingHorizontal: 16,
       paddingVertical: 9,
       backgroundColor: theme.colors.primary,
     },
-    saveButtonText: { fontSize: 14, fontWeight: '600', color: theme.colors.white },
+    saveButtonText: { fontSize: 14, fontWeight: '600', color: theme.colors.onPrimary },
     editorContent: { flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
     titleInput: {
-      fontSize: 22,
-      fontWeight: '600',
+      fontSize: 20,
+      fontWeight: '500',
       color: theme.colors.textPrimary,
       paddingVertical: 6,
       paddingHorizontal: 0,
@@ -320,11 +320,11 @@ function createStyles(theme: AppTheme) {
       marginTop: 4,
       marginBottom: 8,
       paddingHorizontal: 12,
-      borderRadius: theme.radius.pill,
+      borderRadius: theme.radius.small,
       backgroundColor: theme.colors.surfaceMuted,
     },
     groupFieldLabel: { fontSize: 12, fontWeight: '500', color: theme.colors.textSecondary },
-    groupFieldValue: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primary },
+    groupFieldValue: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primaryText },
     bodyInput: {
       flex: 1,
       minHeight: 0,

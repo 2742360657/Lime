@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTheme } from '../state/AppProvider';
 import { FlatList, type StyleProp, type ViewStyle } from 'react-native';
 
 export type VirtualRow = { key: string; render: () => ReactNode };
@@ -10,8 +11,9 @@ export function VirtualList({ rows, contentStyle, onScrollY, empty }: {
   onScrollY?: (y: number) => void;
   empty?: ReactNode;
 }) {
+  const theme = useTheme();
   return <FlatList
-    style={{ flex: 1 }}
+    style={{ flex: 1, backgroundColor: theme.colors.surface }}
     data={rows}
     keyExtractor={row => row.key}
     renderItem={({ item }) => <>{item.render()}</>}

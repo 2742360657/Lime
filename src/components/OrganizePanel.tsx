@@ -97,8 +97,10 @@ export function OrganizePanel({
 
   const selectionRows: VirtualRow[] = [];
   for (const group of groups) {
+    const groupItems = displayItems.filter(item => item.groupId === group.id);
+    if (!groupItems.length) continue;
     selectionRows.push({ key: `group:${group.id}`, render: () => <Text style={styles.groupTitle}>{group.title}</Text> });
-    for (const item of displayItems.filter(item => item.groupId === group.id)) selectionRows.push({ key: item.id, render: () =>
+    for (const item of groupItems) selectionRows.push({ key: item.id, render: () =>
       <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel={item.label} accessibilityState={{ checked: selected.has(item.id) }} onPress={() => toggleSelected(item.id)} style={styles.selectionRow}>
         {item.leading}<View style={{ flex: 1, gap: 4 }}><Text numberOfLines={2} style={styles.rowTitle}>{item.label}</Text>{!!item.subtitle && <Text numberOfLines={2} style={styles.rowSubtitle}>{item.subtitle}</Text>}</View>
       </TouchableOpacity> });
@@ -107,7 +109,7 @@ export function OrganizePanel({
   return (
     <Animated.View layout={LIST_LAYOUT} style={styles.panel}>
       <View style={styles.toolbar}>
-        <Text style={styles.toolbarTitle}>{title}</Text>
+        <Text accessibilityRole="header" style={styles.toolbarTitle}>{title}</Text>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="完成整理" onPress={onClose} style={styles.action}>
           <Text style={styles.actionText}>完成</Text>
         </TouchableOpacity>
@@ -123,7 +125,7 @@ export function OrganizePanel({
           <Text style={styles.actionText}>{allSelected ? '取消全选' : '全选'}</Text>
         </TouchableOpacity>
       </View> : <Text style={styles.hint}>{sortHint ?? '按住右侧把手拖动，松手即保存；拖到其他分组会移动条目。'}</Text>}
-      {mode === 'select' ? <VirtualList rows={selectionRows} contentStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} /> : <DraggableList
+      {mode === 'select' ? <VirtualList rows={selectionRows} contentStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 0 }} /> : <DraggableList
         groups={groups}
         items={displayItems}
         onCommit={onCommit}
@@ -150,24 +152,24 @@ function createStyles(theme: AppTheme) {
   return StyleSheet.create({
     panel: { flex: 1, backgroundColor: theme.colors.background },
     groupTitle: { paddingTop: 10, paddingBottom: 4, fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    selectionRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: theme.radius.medium, backgroundColor: theme.colors.surface },
+    selectionRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
     rowTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary },
     rowSubtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
-    toolbar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
+    toolbar: { paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
     toolbarTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary },
-    modes: { marginHorizontal: 16, padding: 4, flexDirection: 'row', borderRadius: theme.radius.pill, backgroundColor: theme.colors.surfaceMuted },
-    mode: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.pill },
-    modeActive: { backgroundColor: theme.colors.surface },
+    modes: { marginHorizontal: 16, padding: 0, flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
+    mode: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    modeActive: { borderBottomColor: theme.colors.primary },
     modeText: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
-    modeTextActive: { color: theme.colors.primary, fontWeight: '700' },
+    modeTextActive: { color: theme.colors.primaryText, fontWeight: '700' },
     selectionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
     selectionCount: { fontSize: 13, color: theme.colors.textSecondary },
     hint: { paddingHorizontal: 16, paddingVertical: 12, fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    action: { minHeight: 48, justifyContent: 'center', borderRadius: theme.radius.pill, paddingHorizontal: 14, backgroundColor: theme.colors.primarySoft },
+    action: { minHeight: 48, justifyContent: 'center', borderRadius: theme.radius.small, paddingHorizontal: 14, backgroundColor: theme.colors.primarySoft },
     actionDisabled: { opacity: 0.4 },
-    actionText: { fontSize: 14, fontWeight: '700', color: theme.colors.primary },
+    actionText: { fontSize: 14, fontWeight: '700', color: theme.colors.primaryText },
     bottomActions: { flexDirection: 'row', gap: 12, padding: 12, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
-    batchAction: { flex: 1, minHeight: 48, borderRadius: theme.radius.pill, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+    batchAction: { flex: 1, minHeight: 48, borderRadius: theme.radius.small, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
     moveAction: { backgroundColor: theme.colors.primarySoft },
     dangerAction: { backgroundColor: theme.colors.dangerSoft },
     dangerActionText: { fontSize: 14, fontWeight: '700', color: theme.colors.danger },

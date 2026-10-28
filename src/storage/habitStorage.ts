@@ -32,7 +32,7 @@ const BACKUP_FILE_PREFIX = 'angelime-backup';
 
 
 function isThemeId(value: unknown): value is ThemeId {
-  return typeof value === 'string' && value in THEME_PRESETS;
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(THEME_PRESETS, value);
 }
 
 function migrateTimestampToRecord(timestamp: number): CheckinRecord {

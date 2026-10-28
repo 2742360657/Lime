@@ -55,13 +55,13 @@ function createStyles(theme: AppTheme) {
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
-    menuButton: { width: 42, height: 42, borderRadius: theme.radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
+    menuButton: { width: 42, height: 42, borderRadius: theme.radius.small, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
     menuIcon: { fontSize: 21, color: theme.colors.textPrimary },
     profileButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar: {
       width: 36,
       height: 36,
-      borderRadius: theme.radius.pill,
+      borderRadius: 18,
       backgroundColor: theme.colors.primarySoft,
     },
     avatarFallback: {
@@ -72,8 +72,8 @@ function createStyles(theme: AppTheme) {
     },
     avatarInitial: {
       fontSize: 19,
-      fontWeight: '800',
-      color: theme.colors.primary,
+      fontWeight: '600',
+      color: theme.colors.primaryText,
     },
     copy: { flex: 1, gap: 3 },
     name: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
