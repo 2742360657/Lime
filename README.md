@@ -13,11 +13,12 @@
   <img src="docs/screenshots/tasks.png" width="180" alt="日期分桶待办">
   <img src="docs/screenshots/habits.png" width="180" alt="习惯与打卡">
   <img src="docs/screenshots/memos.png" width="180" alt="备忘录">
+  <img src="docs/screenshots/memo-organize.png" width="180" alt="统一样式的多选整理">
 </p>
 
-截图使用隔离模拟器中的示例数据。界面提供十套配色，采用中性表面、清晰排版与克制圆角。设置中点选色系可即时预览：
+截图使用隔离模拟器中的示例数据。界面提供十三套配色，覆盖十一套浅色、两套深色搭配，采用统一列表、适中圆角按钮与分层圆角。设置中点选色系可即时预览：
 
-<img src="docs/screenshots/theme-picker.png" width="220" alt="十套色系即时预览">
+<img src="docs/screenshots/theme-picker.png" width="220" alt="十三套色系即时预览">
 
 新建习惯默认自由记录；需要周期目标时再打开开关：
 
@@ -35,7 +36,7 @@
 | 待办 | 日期和时间、自动日期分桶、排序、完成和撤销 |
 | 备忘录 | 自动保存、分类、搜索、排序、回收站恢复 |
 | 今日概览 | 优先处理、可记录习惯、其他可推进任务，覆盖全部未完成事项 |
-| 外观 | 十套内置配色与本地个人资料 |
+| 外观 | 十三套内置配色与本地个人资料 |
 | 软件更新 | 每日前台检查、跳过版本、应用内下载，系统确认覆盖安装 |
 | 备份 | 导出 JSON，通过系统分享保存；导入恢复，兼容历史 v1–v7 数据格式 |
 

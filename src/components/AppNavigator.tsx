@@ -99,7 +99,7 @@ function createStyles(theme: AppTheme) {
       paddingBottom: 12,
     },
     drawerBottom: { marginTop: 'auto' },
-    item: { paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14 },
+    item: { paddingVertical: 14, paddingHorizontal: 14, borderRadius: theme.radius.action },
     itemSelected: { backgroundColor: theme.colors.primarySoft },
     itemText: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary },
     itemTextSelected: { color: theme.colors.primaryText, fontWeight: '600' },

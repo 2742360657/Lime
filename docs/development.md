@@ -119,9 +119,9 @@ python tests/android/memo_theme_e2e.py --sdk "$PWD/.local/android-test-sdk" \
   --out /local/task-evidence --final-apk artifacts/release/lime-X.Y.Z-x86_64.apk
 ```
 
-可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--theme-ids forest,clay` 聚焦指定色系，`--system-night` 在隔离系统深色模式下检查固定浅色调色板。`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落、末词编辑，以及色系选择首末项可达。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
+可用 `--scroll-only`、`--themes-only` 隔离失败场景；`--theme-ids rose,graphite,clay` 聚焦指定色系，`--system-night` 在隔离系统深色模式下检查固定浅色调色板。`--small-only` 验证手势导航、1.3倍字体、小屏中文连续长段落、末词编辑，以及色系选择首末项可达。基线模式使用 `--qa-apk` 指定已校验正式旧包，只记录复现结果；修复模式 `--final-apk` 必须全部通过。测试仅使用脚本创建的 LimeMemoTheme/emulator-5586 和合成数据。编译、测试和安装测试工具通过工作区公共run入口运行。
 
-当前十套均为浅色主题。原生AppTheme固定Light，MainActivity本地指定MODE_NIGHT_NO，禁止系统自动强制深色并使用深色导航图标；不随系统night重绘应用配色。用下节的测试APK配合`--chrome-only --motion-test-apk /path/to/app-release-androidTest.apk`，在隔离系统night下检查Activity和实际RN正文弹层的导航栏标记并在Instrumentation结束后独立重启、打开实际正文，核对前台窗口和DisplayPolicy的LIGHT_NAVIGATION_BARS标记并保留截图。测试结束会关闭Instrumentation启动的Activity，不能把退出动画/桌面截图作为应用显示证据。另留系统设置深浅模式截图供定位系统栏渲染差异；窗口标记不等于所有系统镜像/OEM的像素表现，此检查不代表实现了深色主题。
+当前十三套包含十一浅色、两深色。AppShell通过RN Appearance.setColorScheme同步所选主题；MainActivity处理已有uiMode配置变化并同步Activity及现存RN弹层系统栏，不固定MODE_NIGHT_NO，不修改设备系统模式。原始色对和实际角色对比度均有检查；不要恢复固定浅色状态栏或让系统强制重绘自定义配色。用下节的测试APK配合`--chrome-only --motion-test-apk /path/to/app-release-androidTest.apk`，在隔离系统night下检查Activity和实际RN正文弹层的导航栏标记并在Instrumentation结束后独立重启、打开实际正文，核对前台窗口和DisplayPolicy的LIGHT_NAVIGATION_BARS标记并保留截图。测试结束会关闭Instrumentation启动的Activity，不能把退出动画/桌面截图作为应用显示证据。另留系统设置深浅模式截图供定位系统栏渲染差异；窗口标记不等于所有系统镜像/OEM的像素表现，chrome-only以默认浅色主题检查系统night兼容；完整主题回归另外覆盖深浅切换、原生DisplayPolicy及进程不重启。
 
 ### 正文惯性验收
 

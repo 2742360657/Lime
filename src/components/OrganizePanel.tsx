@@ -3,6 +3,8 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useTheme } from '../state/AppProvider';
 import type { AppTheme } from '../theme';
+import { listRow, pageHeading } from '../theme/layout';
+import { FilterBar } from './FilterBar';
 import { Alert } from './ThemedAlert';
 import { VirtualList, type VirtualRow } from './VirtualList';
 
@@ -111,17 +113,15 @@ export function OrganizePanel({
       <View style={styles.toolbar}>
         <Text accessibilityRole="header" style={styles.toolbarTitle}>{title}</Text>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="完成整理" onPress={onClose} style={styles.action}>
-          <Text style={styles.actionText}>完成</Text>
+          <Text style={styles.doneText}>完成</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.modes}>
-        {((allowSort ? ['select', 'sort'] : ['select']) as Array<'select' | 'sort'>).map((value) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityLabel={value === 'select' ? '多选模式' : '排序模式'} accessibilityState={{ selected: mode === value }} onPress={() => setMode(value)} style={[styles.mode, mode === value && styles.modeActive]}>
-          <Text style={[styles.modeText, mode === value && styles.modeTextActive]}>{value === 'select' ? '多选' : '排序'}</Text>
-        </TouchableOpacity>)}
-      </View>
+      <FilterBar value={mode} onChange={value => setMode(value as 'select' | 'sort')}
+        options={(allowSort ? ['select', 'sort'] : ['select']).map(value => ({ id: value,
+          label: value === 'select' ? '多选' : '排序', accessibilityLabel: value === 'select' ? '多选模式' : '排序模式' }))} />
       {mode === 'select' ? <View style={styles.selectionBar}>
         <Text style={styles.selectionCount}>已选 {selectedIds.length} / {items.length}</Text>
-        <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel="全选" accessibilityState={{ checked: allSelected }} onPress={() => onSetSelection(allSelected ? [] : items.map((item) => item.id))} style={styles.action}>
+        <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel="全选" accessibilityState={{ checked: allSelected }} onPress={() => onSetSelection(allSelected ? [] : items.map((item) => item.id))} style={styles.selectAll}>
           <Text style={styles.actionText}>{allSelected ? '取消全选' : '全选'}</Text>
         </TouchableOpacity>
       </View> : <Text style={styles.hint}>{sortHint ?? '按住右侧把手拖动，松手即保存；拖到其他分组会移动条目。'}</Text>}
@@ -150,28 +150,25 @@ export function OrganizePanel({
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    panel: { flex: 1, backgroundColor: theme.colors.background },
-    groupTitle: { paddingTop: 10, paddingBottom: 4, fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
-    selectionRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface },
-    rowTitle: { fontSize: 14, fontWeight: '600', color: theme.colors.textPrimary },
+    panel: { flex: 1, backgroundColor: theme.colors.surface },
+    groupTitle: { paddingTop: 10, paddingBottom: 4, fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
+    selectionRow: listRow(theme),
+    rowTitle: { fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
     rowSubtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
-    toolbar: { paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
-    toolbarTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary },
-    modes: { marginHorizontal: 16, padding: 0, flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.border },
-    mode: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    modeActive: { borderBottomColor: theme.colors.primary },
-    modeText: { fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary },
-    modeTextActive: { color: theme.colors.primaryText, fontWeight: '700' },
+    toolbar: { minHeight: 60, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 },
+    toolbarTitle: { ...pageHeading(theme), flex: 1 },
     selectionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
     selectionCount: { fontSize: 13, color: theme.colors.textSecondary },
     hint: { paddingHorizontal: 16, paddingVertical: 12, fontSize: 12, lineHeight: 19, color: theme.colors.textSecondary },
-    action: { minHeight: 48, justifyContent: 'center', borderRadius: theme.radius.small, paddingHorizontal: 14, backgroundColor: theme.colors.primarySoft },
+    action: { minHeight: 44, justifyContent: 'center', borderRadius: theme.radius.action, paddingHorizontal: 14, backgroundColor: theme.colors.primary },
+    doneText: { fontSize: 13, fontWeight: '600', color: theme.colors.onPrimary },
+    selectAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: theme.radius.action, backgroundColor: theme.colors.primarySoft },
     actionDisabled: { opacity: 0.4 },
-    actionText: { fontSize: 14, fontWeight: '700', color: theme.colors.primaryText },
+    actionText: { fontSize: 14, fontWeight: '600', color: theme.colors.primaryText },
     bottomActions: { flexDirection: 'row', gap: 12, padding: 12, borderTopWidth: 1, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
-    batchAction: { flex: 1, minHeight: 48, borderRadius: theme.radius.small, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+    batchAction: { flex: 1, minHeight: 48, borderRadius: theme.radius.action, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
     moveAction: { backgroundColor: theme.colors.primarySoft },
     dangerAction: { backgroundColor: theme.colors.dangerSoft },
-    dangerActionText: { fontSize: 14, fontWeight: '700', color: theme.colors.danger },
+    dangerActionText: { fontSize: 14, fontWeight: '600', color: theme.colors.danger },
   });
 }

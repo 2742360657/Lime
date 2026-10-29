@@ -296,7 +296,7 @@ function createStyles(theme: AppTheme) {
     saveButton: {
       minHeight: 44,
       justifyContent: 'center',
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 16,
       paddingVertical: 9,
       backgroundColor: theme.colors.primary,
@@ -320,7 +320,7 @@ function createStyles(theme: AppTheme) {
       marginTop: 4,
       marginBottom: 8,
       paddingHorizontal: 12,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       backgroundColor: theme.colors.surfaceMuted,
     },
     groupFieldLabel: { fontSize: 12, fontWeight: '500', color: theme.colors.textSecondary },

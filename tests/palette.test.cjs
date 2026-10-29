@@ -35,3 +35,16 @@ test('essential checkbox boundaries and selected indicators remain visible', () 
     }
   }
 });
+
+test('theme chooser preserves all thirteen requested source pairs and installed IDs', () => {
+  assert.deepEqual(Object.values(THEME_PRESETS).map(p => p.pair), [
+    ['#FFC2CB','#FFF5E8'],['#0B0C10','#A855F7'],['#8C5A42','#F5F1E9'],
+    ['#FB7299','#FFFFFF'],['#F2F0EB','#8CB369'],['#F5F1E9','#0018A8'],
+    ['#B5A3D0','#F5E6A3'],['#3EA88D','#C46B4E'],['#722F37','#C3B091'],
+    ['#FFC700','#8A7E97'],['#FFF380','#7B2CBF'],['#E0E0E0','#FF8C94'],['#B87333','#123456'],
+  ]);
+  for (const id of ['forest','ocean','amber','rose','mint','slate','graphite','iris','clay','olive']) {
+    assert.equal(getTheme(id).id,id);
+  }
+  assert.deepEqual(Object.values(THEME_PRESETS).filter(p => p.dark).map(p => p.id),['graphite','clay']);
+});

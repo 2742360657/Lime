@@ -7,7 +7,7 @@ An offline Android app for **habits, tasks and memos**. No account or server req
 - Habits: optional daily/weekly/monthly goals or free recording, groups, check-ins, history and archiving.
 - Tasks: dates and times, date buckets, sorting and completion.
 - Memos: autosave, categories, search and a recoverable trash bin.
-- Today overview, ten color themes, local profile and JSON backup/restore.
+- Today overview, thirteen paired color themes (eleven light, two dark), local profile and JSON backup/restore.
 - Daily foreground update checks, optional version skipping, verified downloads and system-confirmed installation.
 
 Android 7.0+. Choose arm64-v8a for most phones or x86_64 for compatible emulators. v1.2.0 uses a new private signing key because the legacy key was exposed in Git history. Older releases cannot be upgraded in place: export and verify a JSON backup first, then uninstall the old app, install v1.2.0 and restore the backup. Later releases with the same new signature can be installed in place.

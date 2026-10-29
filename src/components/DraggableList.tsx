@@ -1,3 +1,4 @@
+import { listRow } from '../theme/layout';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -518,7 +519,7 @@ function DragHandleRow({
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    wrapper: { flex: 1 },
+    wrapper: { flex: 1, backgroundColor: theme.colors.surface },
     empty: { padding: 18, fontSize: 13, color: theme.colors.textSecondary },
     groupRow: {
       position: 'absolute',
@@ -530,38 +531,29 @@ function createStyles(theme: AppTheme) {
       justifyContent: 'space-between',
       paddingHorizontal: 4,
     },
-    groupTitle: { fontSize: 15, fontWeight: '600', color: theme.colors.textSecondary },
+    groupTitle: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary },
     groupTitleActive: { color: theme.colors.primaryText },
     groupCount: { fontSize: 12, fontWeight: '700', color: theme.colors.textMuted },
     itemSlot: { position: 'absolute', left: 0, right: 0, zIndex: 1 },
-    row: {
-      minHeight: 56,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: theme.radius.medium,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
+    row: listRow(theme),
     rowActive: {
+      borderWidth: 1,
+      borderRadius: theme.radius.small,
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.primarySoft,
       ...theme.shadow,
     },
     tapArea: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowText: { flex: 1, gap: 3 },
-    rowLabel: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
-    rowSubtitle: { fontSize: 11, color: theme.colors.textSecondary },
+    rowLabel: { fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
+    rowSubtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
     handle: {
       width: 48,
       height: 48,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 5,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       backgroundColor: theme.colors.surfaceMuted,
     },
     handleActive: { backgroundColor: theme.colors.surface },

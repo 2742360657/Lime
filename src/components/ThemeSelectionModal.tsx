@@ -30,7 +30,7 @@ export function ThemeSelectionModal({ visible, onClose }: { visible: boolean; on
                 </View>
               </View>
               <View style={styles.labelRow}><Text style={styles.label}>{choice.label}</Text>{selected && <Text style={styles.mark}>已选</Text>}</View>
-              <Text style={styles.description}>{choice.description}</Text>
+              <View style={styles.pairRow}>{choice.pair.map(color => <View key={color} style={[styles.swatch, { backgroundColor: color, borderColor: theme.colors.controlBorder }]} />)}<Text style={styles.description}>{choice.description}</Text></View>
             </TouchableOpacity>;
           })}
         </ScrollView>
@@ -46,16 +46,17 @@ function createStyles(theme: AppTheme) {
     card: { width: '100%', maxHeight: '86%', borderRadius: theme.radius.large, padding: 18, gap: 14, backgroundColor: theme.colors.surface, ...theme.shadow },
     heading: { gap: 4 }, title: { fontSize: 17, fontWeight: '600', color: theme.colors.textPrimary },
     hint: { fontSize: 12, color: theme.colors.textSecondary },
-    list: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10, paddingBottom: 2 },
-    option: { width: '48%', borderRadius: theme.radius.small, borderWidth: 1, borderColor: theme.colors.border, padding: 8, gap: 5, backgroundColor: theme.colors.surface },
+    list: { gap: 10, paddingBottom: 2 },
+    option: { width: '100%', borderRadius: theme.radius.medium, borderWidth: 1, borderColor: theme.colors.border, padding: 12, gap: 8, backgroundColor: theme.colors.surface },
     selected: { borderColor: theme.colors.primary, borderWidth: 1.5 },
-    preview: { height: 44, borderRadius: 3, padding: 7, gap: 5 }, previewHeading: { height: 3, width: '34%', borderRadius: 1 },
+    preview: { height: 40, borderRadius: theme.radius.small, padding: 7, gap: 5 }, previewHeading: { height: 3, width: '34%', borderRadius: 1 },
     previewPaper: { flex: 1, padding: 5, flexDirection: 'row', alignItems: 'center', gap: 10 },
     previewCopy: { flex: 1, gap: 4 }, previewLine: { height: 2, width: '80%' }, previewLineShort: { height: 2, width: '60%' },
-    previewAction: { height: 10, width: 16, borderRadius: 2 },
+    previewAction: { height: 10, width: 20, borderRadius: 4 },
+    pairRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, swatch: { width: 22, height: 12, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth },
     labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, label: { flex: 1, fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
     mark: { fontSize: 11, fontWeight: '600', color: theme.colors.primaryText }, description: { fontSize: 11, color: theme.colors.textMuted },
-    closeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.small, backgroundColor: theme.colors.surfaceMuted },
+    closeButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: theme.radius.action, backgroundColor: theme.colors.surfaceMuted },
     closeText: { fontSize: 14, fontWeight: '500', color: theme.colors.textPrimary },
   });
 }

@@ -70,9 +70,9 @@ internal class MemoMotionChecks(private val instrumentation: Instrumentation) {
     val activity = instrumentation.startActivitySync(Intent(instrumentation.targetContext, MainActivity::class.java)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     SystemClock.sleep(2200)
+    click("备忘录") // Wait for restored JS settings before sampling system appearance.
     val mainAppearance = ui { activity.window.decorView.windowInsetsController?.systemBarsAppearance ?: 0 }
     if (chromeOnly) check(mainAppearance and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS != 0) { "Activity navigation icons are light on a light palette" }
-    click("备忘录")
     click("打开 长文滑动验收")
     fun find(view: View): EditText? {
       if (view is EditText && view.contentDescription?.toString() == "备忘录正文") return view

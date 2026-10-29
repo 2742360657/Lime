@@ -223,7 +223,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textPrimary,
     },
     addButton: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 14,
       paddingVertical: 10,
       backgroundColor: theme.colors.primary,
@@ -276,7 +276,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.textSecondary,
     },
     deleteButton: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 10,
       paddingVertical: 8,
       backgroundColor: theme.colors.dangerSoft,
@@ -288,7 +288,7 @@ function createStyles(theme: AppTheme) {
     },
     rowActions: { flexDirection: 'row', gap: 7 },
     editButton: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 10,
       paddingVertical: 8,
       backgroundColor: theme.colors.surfaceMuted,
@@ -299,7 +299,7 @@ function createStyles(theme: AppTheme) {
       color: theme.colors.primaryText,
     },
     closeButton: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,

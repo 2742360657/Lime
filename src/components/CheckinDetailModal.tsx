@@ -275,7 +275,7 @@ function createStyles(theme: AppTheme) {
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingVertical: 10,
@@ -289,7 +289,7 @@ function createStyles(theme: AppTheme) {
     },
     deleteAction: {
       flex: 1,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.colors.dangerSoft,

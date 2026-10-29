@@ -162,7 +162,7 @@ function createStyles(theme: AppTheme) {
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     count: { fontSize: 13, fontWeight: '700', color: theme.colors.textSecondary },
     action: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 14,
       paddingVertical: 9,
       backgroundColor: theme.colors.dangerSoft,

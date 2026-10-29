@@ -2,7 +2,7 @@
   "expo": {
     "name": "酸橙",
     "slug": "lime",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/lime-icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.androidsoftwaredaily.habitcheckin",
-      "versionCode": 15,
+      "versionCode": 16,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.REQUEST_INSTALL_PACKAGES"

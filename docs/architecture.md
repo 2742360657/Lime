@@ -21,7 +21,7 @@ Lime 是离线 Android 应用，使用 Expo/React Native 与 TypeScript strict�
 | src/components/VirtualList.tsx、SectionHeading.tsx | 日常浏览和多选的平铺虚拟列表、日期/分类标题 |
 | src/hooks/useTodoOrganize.ts、useBackupRestore.ts | 统一改期确认、系统文件选择与恢复确认流程 |
 | src/components/DraggableList.tsx | 排序模式的跨组拖拽、自动滚动及辅助排序操作 |
-| src/theme.ts、src/theme/、Themed* | 十主题、语义颜色、统一输入/开关/确认框 |
+| src/theme.ts、src/theme/、Themed* | 十三组双色主题、共享列表/页头、语义颜色、统一输入/开关/确认框 |
 | src/update/、src/native/、android/…/LimeUpdate* | 更新检查、下载、安装包校验及系统安装授权 |
 
 界面 → 领域命令 → reducer → AppData → 保存队列 → 快照仓库。选择器让未变化的数据片段保持引用稳定，备忘录自动保存不应使仅依赖主题的控件重新订阅整个业务状态。

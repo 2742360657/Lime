@@ -221,27 +221,47 @@ def verify_tail_edit(fixture):
     record('discardRestoresAutosavedMemo')
 
 def choose_theme(label):
-    for _ in range(7):
+    for _ in range(24):
         snapshot=tree()
         viewport=next(n for n in snapshot.iter('node') if n.attrib.get('content-desc')=='主题列表')
         vx1,vy1,vx2,vy2=box(viewport)
+        above=False
         for node in snapshot.iter('node'):
             if node.attrib.get('content-desc') != '应用'+label+'色系': continue
             x1,y1,x2,y2=box(node)
+            above=y2<=vy1
             if x2>x1 and y2-y1>=160 and vy1+4<(y1+y2)//2<vy2-4:
                 sh('input','tap',(x1+x2)//2,(y1+y2)//2);time.sleep(.4);return
-        sh('input','swipe',(vx1+vx2)//2,vy2-20,(vx1+vx2)//2,vy1+20,350);time.sleep(.3)
+        distance=int((vy2-vy1)*.42)
+        start=vy1+40 if above else vy2-40
+        end=start+distance if above else start-distance
+        sh('input','swipe',(vx1+vx2)//2,start,(vx1+vx2)//2,end,1000);time.sleep(.4)
     raise AssertionError('Theme is not reachable: '+label)
 
 def verify_themes():
     requested=set(a.theme_ids.split(',')) if a.theme_ids else set(theme_labels)
     assert requested and requested <= set(theme_labels), 'Unknown or empty --theme-ids'
     checked=[choice for choice in themes if choice['id'] in requested]
+    initial_pid=sh('pidof',pkg).strip()
     for choice in checked:
         theme_id,label,c=choice['id'],choice['label'],choice['colors']
         tap('设置');tap('色系选择, '+theme_labels[state()['settings']['themeId']]+', ›')
-        choose_theme(label);tap('关闭');time.sleep(.2)
+        choose_theme(label);find('关闭')
+        picker_display=sh('dumpsys','window','displays')
+        appearance=re.search(r'mLastAppearance=(.*)',picker_display)
+        picker_flags=appearance.group(1) if appearance else ''
+        assert ('LIGHT_NAVIGATION_BARS' in picker_flags) != choice['dark'], 'Open picker navigation did not switch: '+picker_flags
+        assert ('LIGHT_STATUS_BARS' in picker_flags) != choice['dark'], 'Open picker status did not switch: '+picker_flags
+        tap('关闭');time.sleep(.8)
         assert state()['settings']['themeId']==theme_id
+        assert sh('pidof',pkg).strip()==initial_pid, 'Palette switch restarted the application process'
+        display=sh('dumpsys','window','displays')
+        assert re.search(r'mCurrentFocus=.*'+re.escape(pkg),display), 'Theme change lost the foreground Activity'
+        appearance=re.search(r'mLastAppearance=(.*)',display)
+        flags=appearance.group(1) if appearance else ''
+        assert ('LIGHT_NAVIGATION_BARS' in flags) != choice['dark'], 'Navigation appearance does not follow selected palette: '+flags
+        assert ('LIGHT_STATUS_BARS' in flags) != choice['dark'], 'Status appearance does not follow selected palette: '+flags
+        (a.out/('theme-'+theme_id+'-window.txt')).write_text(display)
         shot('theme-'+theme_id+'-settings')
         assert color_count('theme-'+theme_id+'-settings',box(find('检查更新')),c['primary'])>=100,'Primary action does not match palette'
         assert color_count('theme-'+theme_id+'-settings',box(find('设置')),c['primary'])>=20,'Selected navigation indicator does not match palette'
@@ -267,7 +287,7 @@ def verify_themes():
         assert color_count('theme-'+theme_id+'-confirmation',box(find('继续编辑')),c['surfaceMuted'])>=100,'Confirmation does not match palette'
         tap('放弃修改')
         tap('备忘录');tap('打开 长文滑动验收');tap('备忘录正文');time.sleep(.2)
-        shot('theme-'+theme_id+'-memo');tap('保存备忘录')
+        shot('theme-'+theme_id+'-memo');assert color_count('theme-'+theme_id+'-memo',box(find('备忘录正文')),c['surface'])>=1000, 'Memo surface does not follow selected palette';tap('保存备忘录')
         record('theme-'+theme_id+'-controlsSelectionAndConfirmation')
     restart();tap('设置');assert state()['settings']['themeId']==checked[-1]['id'];record('selectedThemePersistsAfterRestart')
 
@@ -301,10 +321,10 @@ def probe_small():
     assert state()['memos'][0]['body'].endswith('EDITEDMARKER')
     record('smallScreenTailSelectionEditAndRestartPersist')
     tap('设置');tap('色系选择, '+theme_labels[state()['settings']['themeId']]+', ›')
-    choose_theme('橄榄');shot('small-large-font-theme-picker');tap('关闭')
-    assert state()['settings']['themeId']=='olive'
-    tap('色系选择, 橄榄, ›');choose_theme('松绿');tap('关闭')
-    assert state()['settings']['themeId']=='forest'
+    choose_theme(theme_labels['clay']);shot('small-large-font-theme-picker');tap('关闭')
+    assert state()['settings']['themeId']=='clay'
+    tap('色系选择, '+theme_labels['clay']+', ›');choose_theme(theme_labels['rose']);tap('关闭')
+    assert state()['settings']['themeId']=='rose'
     record('smallLargeFontThemePickerLastAndFirstChoicesReachable')
 
 

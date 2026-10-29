@@ -2,7 +2,12 @@ package com.androidsoftwaredaily.habitcheckin
 
 import android.os.Build
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatDelegate
+import android.content.res.Configuration
+import android.view.View
+import android.view.ViewGroup
+import android.view.Window
+import androidx.core.view.WindowInsetsControllerCompat
+import com.facebook.react.views.modal.ReactModalHostView
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -17,10 +22,37 @@ class MainActivity : ReactActivity() {
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
-    // All application palettes are light. Keep RN/Expo's edge-to-edge icon choice
-    // in sync with the app surface, including dialogs when the system uses night mode.
-    delegate.localNightMode = AppCompatDelegate.MODE_NIGHT_NO
     super.onCreate(null)
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+    window.decorView.post { syncThemeBars() }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    window.decorView.post { syncThemeBars() }
+  }
+
+  // Appearance.setColorScheme updates this Activity without recreation (uiMode is
+  // handled in the manifest). Existing RN dialogs need their bar appearance synced too.
+  private fun syncThemeBars() {
+    val light = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES
+    val seen = mutableSetOf<Window>()
+    fun sync(target: Window) {
+      if (!seen.add(target)) return
+      WindowInsetsControllerCompat(target, target.decorView).apply {
+        isAppearanceLightStatusBars = light
+        isAppearanceLightNavigationBars = light
+      }
+      fun visit(view: View) {
+        if (view is ReactModalHostView) view.dialog?.window?.let { sync(it) }
+        if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
+      }
+      visit(target.decorView)
+    }
+    sync(window)
   }
 
   /**

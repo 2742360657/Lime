@@ -8,6 +8,7 @@ import type { NavigationTarget, PanelItem } from '../navigation/types';
 import { GLOBAL_NAV_ITEMS } from '../navigation/types';
 import { useTheme } from '../state/AppProvider';
 import type { AppTheme } from '../theme';
+import { pageHeading } from '../theme/layout';
 import { SCREEN_ENTERING } from '../theme/animation';
 import { AppIcon } from './AppIcon';
 
@@ -67,17 +68,17 @@ function createStyles(theme: AppTheme) {
     screenRoot: { flex: 1, backgroundColor: theme.colors.background },
     header: { minHeight: 60, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
     heading: { flex: 1, gap: 2 },
-    title: { fontSize: 20, fontWeight: '600', color: theme.colors.textPrimary },
+    title: pageHeading(theme),
     subtitle: { fontSize: 12, lineHeight: 18, color: theme.colors.textSecondary },
-    action: { minHeight: 44, paddingHorizontal: 10, borderRadius: theme.radius.small, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent' },
+    action: { minHeight: 44, paddingHorizontal: 10, borderRadius: theme.radius.action, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'transparent' },
     actionText: { fontSize: 13, fontWeight: '500', color: theme.colors.textSecondary },
     createAction: { backgroundColor: theme.colors.primary, paddingHorizontal: 12 },
     createText: { fontSize: 13, fontWeight: '600', color: theme.colors.onPrimary },
     content: { flex: 1 },
     bottomBar: { flexDirection: 'row', paddingHorizontal: 8, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.border, backgroundColor: theme.colors.surface },
     bottomItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 3 },
-    navIcon: { width: 36, height: 28, borderTopWidth: 2, borderTopColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-    selectedIcon: { borderTopColor: theme.colors.primary },
+    navIcon: { width: 48, height: 28, borderRadius: theme.radius.small, alignItems: 'center', justifyContent: 'center' },
+    selectedIcon: { backgroundColor: theme.colors.primarySoft },
     bottomLabel: { fontSize: 12, fontWeight: '400', color: theme.colors.textSecondary },
     selectedText: { color: theme.colors.primaryText, fontWeight: '600' },
   });

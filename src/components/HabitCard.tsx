@@ -1,3 +1,4 @@
+import { listRow } from '../theme/layout';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -73,17 +74,7 @@ export function HabitCard({
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      borderRadius: 0,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      backgroundColor: theme.colors.surface,
-    },
+    card: listRow(theme),
     cardCompact: {
       paddingVertical: 6,
     },
@@ -92,7 +83,7 @@ function createStyles(theme: AppTheme) {
     },
     infoPressable: {
       flex: 1,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       justifyContent: 'center',
       minHeight: 48,
     },
@@ -115,7 +106,7 @@ function createStyles(theme: AppTheme) {
     plusButton: {
       minWidth: 48,
       minHeight: 48,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingVertical: 10,
       paddingHorizontal: 10,
       alignItems: 'center',

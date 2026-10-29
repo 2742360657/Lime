@@ -206,7 +206,7 @@ function createStyles(theme: AppTheme) {
     },
     primaryAction: {
       flex: 1,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',
@@ -219,7 +219,7 @@ function createStyles(theme: AppTheme) {
     },
     secondaryAction: {
       flex: 1,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       minHeight: 44,
       paddingVertical: 11,
       alignItems: 'center',

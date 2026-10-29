@@ -255,7 +255,7 @@ function createStyles(theme: AppTheme) {
     noteInput: { minHeight: 112, textAlignVertical: 'top' },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
     chip: {
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 14,
@@ -288,7 +288,7 @@ function createStyles(theme: AppTheme) {
     deleteButton: {
       paddingVertical: 14,
       alignItems: 'center',
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       backgroundColor: theme.colors.dangerSoft,
     },
     deleteButtonText: { fontSize: 13, fontWeight: '700', color: theme.colors.danger },

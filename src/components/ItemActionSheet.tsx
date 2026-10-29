@@ -106,7 +106,7 @@ function createStyles(theme: AppTheme) {
     closeButton: {
       minHeight: 48,
       marginTop: 4,
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceMuted,

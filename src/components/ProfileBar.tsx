@@ -55,7 +55,7 @@ function createStyles(theme: AppTheme) {
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
-    menuButton: { width: 42, height: 42, borderRadius: theme.radius.small, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
+    menuButton: { width: 42, height: 42, borderRadius: theme.radius.action, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface },
     menuIcon: { fontSize: 21, color: theme.colors.textPrimary },
     profileButton: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar: {

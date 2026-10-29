@@ -127,7 +127,7 @@ function createStyles(theme: AppTheme) {
       minWidth: 92,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.radius.small,
+      borderRadius: theme.radius.action,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },

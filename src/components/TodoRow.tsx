@@ -1,3 +1,4 @@
+import { listRow } from '../theme/layout';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -62,18 +63,7 @@ export function TodoRow({ todo, onToggle, onPress, onLongPress, onPickDue, compa
 
 function createStyles(theme: AppTheme) {
   return StyleSheet.create({
-    row: {
-      minHeight: 68,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      backgroundColor: theme.colors.surface,
-      borderRadius: 0,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-    },
+    row: listRow(theme),
     dueChip: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
     dueChipHint: { fontSize: 10, fontWeight: '700', color: theme.colors.textMuted },
     rowCompact: {

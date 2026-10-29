@@ -5,6 +5,7 @@ import type { AppTheme } from './src/theme';
 
 import { createNavigationContainerRef, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { Appearance } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -68,8 +69,9 @@ function AppShell() {
   const { restore, restoring } = useBackupRestore();
   const { clearError } = useAppActions();
   const theme = useTheme();
+  useEffect(() => { Appearance.setColorScheme(theme.dark ? 'dark' : 'light'); }, [theme.dark]);
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const navigationTheme = useMemo(() => ({ ...DefaultTheme, colors: {
+  const navigationTheme = useMemo(() => ({ ...DefaultTheme, dark: theme.dark, colors: {
     ...DefaultTheme.colors, primary: theme.colors.primary, background: theme.colors.background,
     card: theme.colors.surface, text: theme.colors.textPrimary, border: theme.colors.border,
     notification: theme.colors.danger,
@@ -133,7 +135,7 @@ function AppShell() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <View style={styles.app}>
         {isLoading ? (
           <View style={styles.loadingState}>
@@ -237,7 +239,7 @@ function createStyles(theme: AppTheme) {
     promptButton: {
       marginTop: 8,
       alignSelf: 'flex-end',
-      borderRadius: 12,
+      borderRadius: theme.radius.action,
       paddingHorizontal: 16,
       paddingVertical: 10,
       backgroundColor: theme.colors.primarySoft,

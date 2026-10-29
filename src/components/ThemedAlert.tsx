@@ -28,7 +28,7 @@ export function ThemedAlertHost() {
             const primary = !danger && button.style !== 'cancel' && index === request.buttons.length - 1;
             return <Pressable key={index} accessibilityRole="button" accessibilityLabel={button.text ?? '确定'}
               onPress={() => alertStore.choose(request.id, index)}
-              style={[styles.button, request.buttons.length > 2 && styles.fullButton, { borderRadius: theme.radius.small, backgroundColor: danger ? theme.colors.dangerSoft : primary ? theme.colors.primary : theme.colors.surfaceMuted }]}>
+              style={[styles.button, request.buttons.length > 2 && styles.fullButton, { borderRadius: theme.radius.action, backgroundColor: danger ? theme.colors.dangerSoft : primary ? theme.colors.primary : theme.colors.surfaceMuted }]}>
               <Text style={[styles.buttonText, { color: danger ? theme.colors.danger : primary ? theme.colors.onPrimary : theme.colors.textSecondary }]}>{button.text ?? '确定'}</Text>
             </Pressable>;
           })}
