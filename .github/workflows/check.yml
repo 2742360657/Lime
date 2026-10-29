@@ -27,7 +27,7 @@ jobs:
       - run: python3 -m py_compile tests/android/*.py scripts/*.py
   android:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.android_ui && 70 || 40 }}
     env:
       WORKSPACE_JOBS: 2
       CMAKE_BUILD_PARALLEL_LEVEL: 2
